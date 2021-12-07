@@ -183,7 +183,7 @@ void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 						(line[0] != '0') && (line[0] != '1') && (line[0] != '2') && (line[0] != '4') &&
 						(line[0] != '5') && (line[0] != '6') && (line[0] != '7') && (line[0] != '8') &&
 						(line[0] != '9') && (line[0] != 'A')))
-						entry->type = PATCH_BSD;
+						entry->type = APOLLO_CODE_BSD;
 
 					// set the correct file for the decompress command
 					if (wildcard_match_icase(line, "DECOMPRESS *"))
@@ -302,7 +302,7 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 			line++;
 
 			code = calloc(1, sizeof(code_entry_t));
-			code->type = PATCH_GAMEGENIE;
+			code->type = APOLLO_CODE_GAMEGENIE;
 			code->options = file_opt;
 			code->options_count = (file_opt ? 1 : 0);
 			code->file = strdup(filePath);

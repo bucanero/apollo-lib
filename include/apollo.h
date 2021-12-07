@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define APOLLO_CODE_GAMEGENIE      1
+#define APOLLO_CODE_BSD            2
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,17 +22,6 @@ typedef struct list_s
 	list_node_t *head;
 	size_t count;
 } list_t;
-
-enum code_type_enum
-{
-    PATCH_NULL,
-    PATCH_COMMAND,
-    PATCH_SFO,
-    PATCH_GAMEGENIE,
-    PATCH_BSD,
-    PATCH_TROP_UNLOCK,
-    PATCH_TROP_LOCK,
-};
 
 typedef struct option_entry
 {

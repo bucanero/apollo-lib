@@ -2666,13 +2666,13 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t
 	if (file_exist_check(fpath) != SUCCESS)
 		return 0;
 
-	if (code->type == PATCH_GAMEGENIE)
+	if (code->type == APOLLO_CODE_GAMEGENIE)
 	{
 		LOG("Game Genie Code");
 		return apply_ggenie_patch_code(fpath, code);
 	}
 
-	if (code->type == PATCH_BSD)
+	if (code->type == APOLLO_CODE_BSD)
 	{
 		LOG("Bruteforce Save Data Code");
 
