@@ -224,7 +224,7 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 {
 	int code_count = 0;
 	code_entry_t * code;
-	option_entry_t * file_opt = NULL;
+	char * file_opt = NULL;
 	char filePath[256] = "";
 	char group = 0;
     size_t bufferLen = strlen(buffer);
@@ -250,7 +250,7 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 				tmp_mask = filePath;
 
 			if (strchr(tmp_mask, '*') && get_files_opt)
-				file_opt = get_files_opt(save_path, tmp_mask);
+				file_opt = tmp_mask;
 			else
 				file_opt = NULL;
 
@@ -303,7 +303,7 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 
 			code = calloc(1, sizeof(code_entry_t));
 			code->type = APOLLO_CODE_GAMEGENIE;
-			code->options = file_opt;
+			code->options = (file_opt ? get_files_opt(save_path, file_opt) : NULL);
 			code->options_count = (file_opt ? 1 : 0);
 			code->file = strdup(filePath);
 			list_append(list_codes, code);
