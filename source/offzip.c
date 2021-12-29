@@ -57,18 +57,18 @@ enum {
 
 
 
-int buffread(FILE *fd, uint8_t *buff, int size);
-void buffseek(FILE *fd, int off, int mode);
-void buffinc(int increase);
-int zip_search(FILE *fd);
-int unzip_all(FILE *fd, const char* out_path, int zipdo);
-int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname);
-int zlib_err(int err);
-FILE *save_file(const char *fname);
-int myfwrite(uint8_t *buff, int size, FILE *fd);
+static int buffread(FILE *fd, uint8_t *buff, int size);
+static void buffseek(FILE *fd, int off, int mode);
+static void buffinc(int increase);
+static int zip_search(FILE *fd);
+static int unzip_all(FILE *fd, const char* out_path, int zipdo);
+static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname);
+static int zlib_err(int err);
+static FILE *save_file(const char *fname);
+static int myfwrite(uint8_t *buff, int size, FILE *fd);
 
 
-z_stream    z;
+static z_stream    z;
 uint32_t g_offset        = 0,
         g_filebuffoff   = 0,
         g_filebuffsz    = 0;
@@ -175,7 +175,7 @@ int offzip_util(const char *file_input, const char *output_dir, const char *base
 }
 
 
-int buffread(FILE *fd, uint8_t *buff, int size) {
+static int buffread(FILE *fd, uint8_t *buff, int size) {
     int     len,
             rest,
             ret;
@@ -201,7 +201,7 @@ int buffread(FILE *fd, uint8_t *buff, int size) {
 }
 
 
-void buffseek(FILE *fd, int off, int mode) {
+static void buffseek(FILE *fd, int off, int mode) {
     if(fseek(fd, off, mode) < 0)
     {
         LOG("Error: buffseek");
@@ -213,13 +213,13 @@ void buffseek(FILE *fd, int off, int mode) {
 }
 
 
-void buffinc(int increase) {
+static void buffinc(int increase) {
     g_filebuffoff += increase;
     g_offset      += increase;
 }
 
 
-int zip_search(FILE *fd) {
+static int zip_search(FILE *fd) {
     int     len,
             zerr,
             ret;
@@ -247,7 +247,7 @@ int zip_search(FILE *fd) {
 }
 
 
-int unzip_all(FILE *fd, const char* out_path, int zipdo) {
+static int unzip_all(FILE *fd, const char* out_path, int zipdo) {
     FILE    *fdo    = NULL;
     uint32_t inlen,
             outlen;
@@ -285,7 +285,7 @@ int unzip_all(FILE *fd, const char* out_path, int zipdo) {
 }
 
 
-int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname) {
+static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname) {
     uint32_t oldsz = 0,
             oldoff,
             len;
@@ -293,7 +293,7 @@ int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, co
             zerr    = Z_OK;
 
     if ((*fdo = save_file(dumpname)) == NULL)
-        return 0;
+        return 1;
 
     oldoff = g_offset;
     inflateReset(&z);
@@ -337,7 +337,7 @@ int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, co
 }
 
 
-int zlib_err(int zerr) {
+static int zlib_err(int zerr) {
     switch(zerr) {
         case Z_DATA_ERROR: {
             LOG("- zlib Z_DATA_ERROR, the data in the file is not in zip format"
@@ -378,7 +378,7 @@ int zlib_err(int zerr) {
 }
 
 
-FILE *save_file(const char *fname) {
+static FILE *save_file(const char *fname) {
     FILE    *fd;
 
     fd = fopen(fname, "wb");
@@ -391,7 +391,7 @@ FILE *save_file(const char *fname) {
 }
 
 
-int myfwrite(uint8_t *buff, int size, FILE *fd) {
+static int myfwrite(uint8_t *buff, int size, FILE *fd) {
     if(!fd) {
         LOG("Error: myfw fd is NULL, contact me.");
         return(0);

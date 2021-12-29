@@ -37,8 +37,8 @@
 #define MAXZIPLEN(n) ((n)+(((n)/10)+1)+12)  // for lzma
 
 
-uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store);
-uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store);
+static uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store);
+static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store);
 
 
 int packzip_util(const char *input, const char *output, uint32_t offset, int wbits) {
@@ -134,7 +134,7 @@ int packzip_util(const char *input, const char *output, uint32_t offset, int wbi
 }
 
 
-uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store) {
+static uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store) {
     struct stat xstat;
     int     ret = 0;
     uint32_t in_size,
@@ -186,7 +186,7 @@ uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store) {
 }
 
 
-uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store) {
+static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store) {
     z_stream    z;
     uint32_t    ret;
     int     zerr;

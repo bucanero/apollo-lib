@@ -112,7 +112,7 @@ int write_buffer(const char *file_path, uint8_t *buf, size_t size)
  *	b:				Potential end
  * Return:			pointer if true, NULL if false
  */
-char* str_ends_with(const char * a, const char * b)
+static char* str_ends_with(const char * a, const char * b)
 {
 	int al = strlen(a), bl = strlen(b);
     
@@ -135,7 +135,7 @@ char* str_ends_with(const char * a, const char * b)
  *	buffer:			String
  * Return:			Amount of characters removed
  */
-int str_rtrim(char * buffer)
+static int str_rtrim(char * buffer)
 {
 	int i, max = strlen(buffer) - 1;
 	for (i = max; (buffer[i] == ' ') && (i >= 0); i--)
@@ -145,7 +145,7 @@ int str_rtrim(char * buffer)
 }
 
 // Expects buffer without CR's (\r)
-void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
+static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 {
 	int i=0;
     char *tmp = NULL;

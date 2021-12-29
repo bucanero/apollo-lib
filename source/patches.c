@@ -34,18 +34,8 @@ typedef struct
     uint8_t* data;
 } bsd_variable_t;
 
-list_t* var_list = NULL;
+static list_t* var_list = NULL;
 
-
-int file_exist_check(const char *path)
-{
-    struct stat sb;
-    if ((stat(path, &sb) == 0) && S_ISREG(sb.st_mode)) {
-    	return SUCCESS;
-    }
-    
-	return (-1);
-}
 
 void remove_char(char * str, int len, char seek)
 {
@@ -55,7 +45,7 @@ void remove_char(char * str, int len, char seek)
 			str[x] = '\n';
 }
 
-long search_data(const char* data, size_t size, int start, const char* search, int len, int count)
+static long search_data(const char* data, size_t size, int start, const char* search, int len, int count)
 {
 	long i;
 	int k = 1;
@@ -67,7 +57,7 @@ long search_data(const char* data, size_t size, int start, const char* search, i
     return -1;
 }
 
-bsd_variable_t* _get_bsd_variable(const char* vname)
+static bsd_variable_t* _get_bsd_variable(const char* vname)
 {
 	list_node_t *node;
 	bsd_variable_t *var;
@@ -79,7 +69,7 @@ bsd_variable_t* _get_bsd_variable(const char* vname)
 	return NULL;
 }
 
-char* _decode_variable_data(const char* line, int *data_len)
+static char* _decode_variable_data(const char* line, int *data_len)
 {
     int i, len = 0;
     char* output = NULL;
@@ -126,7 +116,7 @@ char* _decode_variable_data(const char* line, int *data_len)
 	return output;
 }
 
-int _parse_int_value(const char* line, const int ptrval, const int size)
+static int _parse_int_value(const char* line, const int ptrval, const int size)
 {
     int ret = 0;
 
@@ -207,7 +197,7 @@ void free_patch_var_list()
 	var_list = NULL;
 }
 
-void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
+static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
 {
 	char *tmp;
 
@@ -239,7 +229,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 	
 	LOG("Applying [%s] to '%s'...", code->name, filepath);
 	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
+	{
+		LOG("Can't load file '%s'", filepath);
 		return 0;
+	}
 
 	range_end = dsize;
 	if (!var_list)
@@ -2165,7 +2158,10 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 	
 	LOG("Applying [%s] to '%s'...", code->name, filepath);
 	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
+	{
+		LOG("Can't load file '%s'", filepath);
 		return 0;
+	}
 
     while (line)
     {
@@ -2302,7 +2298,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			char* dst = data + off_dst + (line[1] == '8' ? pointer : 0);
 
     			memcpy(dst, src, val);
-				LOG("Copied %d bytes from 0x%lX to 0x%lX", val, src, dst);
+				LOG("Copied %d bytes from 0x%lX to 0x%lX", val, src - data, dst - data);
     		}
     			break;
 
@@ -2663,9 +2659,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t* code, const char* tmp_dir)
 {
-	if (file_exist_check(fpath) != SUCCESS)
-		return 0;
-
 	if (code->type == APOLLO_CODE_GAMEGENIE)
 	{
 		LOG("Game Genie Code");
@@ -2728,8 +2721,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t
 						return 0;
 					}
 
-//					unlink_secure(infile);
-					if (file_exist_check(infile) == SUCCESS)
+					if (access(infile, F_OK) == SUCCESS)
 					{
 						chmod(infile, 0777);
 						remove(infile);
