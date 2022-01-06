@@ -101,6 +101,21 @@ static char* _decode_variable_data(const char* line, int *data_len)
 	        len = var->len;
     		output = malloc(len);
 	        memcpy(output, var->data, len);
+
+			switch (len)
+			{
+			case BSD_VAR_INT16:
+				BE16(*((uint16_t*)output));
+				break;
+			case BSD_VAR_INT32:
+				BE32(*((uint32_t*)output));
+				break;
+			case BSD_VAR_INT64:
+				BE64(*((uint64_t*)output));
+				break;
+			default:
+				break;
+			}
 	    }
 	}
 	else
@@ -334,10 +349,11 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
         			int raddr, rlen;
         			sscanf(line, "(%x,%x)", &raddr, &rlen);
 
-                    int *rval = (int*) &data[raddr];
+                    uint32_t rval = *((uint32_t*) &data[raddr]);
+					BE32(rval);
             	    LOG("address = %d len %d ", raddr, rlen);
             	    
-            	    pointer = *rval;
+            	    pointer = rval;
     			}
     			// set pointer:[*]*
     			else if (wildcard_match_icase(line, "[*]*"))
@@ -900,7 +916,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					len = range_end - range_start;
 
 					// FFX hash is stored in little-endian
-					hash = ES16(ffx_hash(start, len));
+					hash = ffx_hash(start, len);
+					LE16(hash);
 
 					var->len = BSD_VAR_INT16;
 					var->data = malloc(var->len);
@@ -917,7 +934,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					len = range_end - range_start;
 
 					// FFXIII hash is stored in little-endian
-					hash = ES32(ff13_checksum(start, len));
+					hash = ff13_checksum(start, len);
+					LE32(hash);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -950,7 +968,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					len = range_end - range_start;
 
 					// Kingdom Hearts 2.5 hash is stored in little-endian
-					hash = ES32(kh25_hash(start, len));
+					hash = kh25_hash(start, len);
+					LE32(hash);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1109,7 +1128,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					
 					while (read < data + add_e)
 					{
-						add += (*(uint32_t*)read);
+						uint32_t radd = (*(uint32_t*)read);
+						BE32(radd);
+						add += radd;
 						read += BSD_VAR_INT64;
 					}
 
@@ -1134,7 +1155,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    
     			    while (read < data + add_e)
     			    {
-    			    	add += (*(uint32_t*)read);
+						uint32_t radd = (*(uint32_t*)read);
+						BE32(radd);
+    			    	add += radd;
     			    	read += BSD_VAR_INT32;
     			    }
 
@@ -1160,7 +1183,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					
 					while (read < data + add_e)
 					{
-						add += ES16(*(uint16_t*)read);
+						uint16_t radd = (*(uint16_t*)read);
+						LE16(radd);
+						add += radd;
 						read += BSD_VAR_INT16;
 					}
 
@@ -1186,7 +1211,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					
 					while (read < data + add_e)
 					{
-						add += ES32(*(uint32_t*)read);
+						uint32_t radd = (*(uint32_t*)read);
+						LE32(radd);
+						add += radd;
 						read += BSD_VAR_INT32;
 					}
 
@@ -1211,7 +1238,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    
     			    while (read < data + add_e)
     			    {
-    			    	add += (*(uint16_t*)read);
+						uint16_t radd = (*(uint16_t*)read);
+						BE32(radd);
+    			    	add += radd;
     			    	read += BSD_VAR_INT16;
     			    }
     			    
@@ -1362,6 +1391,21 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					var->data = malloc(var->len);
 					memcpy(var->data, (uint8_t*) read, var->len);
+
+					switch (var->len)
+					{
+					case BSD_VAR_INT16:
+						BE16(*((uint16_t*) var->data));
+						break;
+					case BSD_VAR_INT32:
+						BE32(*((uint32_t*) var->data));
+						break;
+					case BSD_VAR_INT64:
+						BE64(*((uint64_t*) var->data));
+						break;
+					default:
+						break;
+					}
 
 					LOG("[%s]:read(0x%X , 0x%X) = %X", var->name, read_s, read_l, ((uint32_t*)var->data)[0]);
 			    }
@@ -2190,6 +2234,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
+				BE32(val);
 
     			char* write = data + off;
     			memcpy(write, (char*) &val + (4 - bytes), bytes);
@@ -2241,6 +2286,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				for (i = 0; i < n; i++)
 				{
 	    			write = data + off + (incoff * i);
+					BE32(val);
 
 					switch (t)
 					{
@@ -2263,6 +2309,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 							break;
 					}
 
+					BE32(val);
 	    			val += incval;
 				}
     		}
@@ -2322,6 +2369,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				char y = line[5];
 				char z = line[7];
 				uint32_t val;
+				uint16_t tmp_val;
 
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%x", &val);
@@ -2352,7 +2400,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					case '9':
 						// Data size = 16 bits
 						// 0000VVVV
-						ptr_value = ((uint16_t*) write)[0];
+						tmp_val = ((uint16_t*) write)[0];
+						BE16(tmp_val);
+						ptr_value = tmp_val;
 						break;
 
 					case '2':
@@ -2360,6 +2410,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 						// Data size = 32 bits
 						// VVVVVVVV
 						ptr_value = ((uint32_t*) write)[0];
+						BE32(ptr_value);
 						break;
 					}
 
@@ -2470,6 +2521,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
+				BE32(val);
 
     			char* write = data + off;
 
@@ -2522,6 +2574,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
+				BE32(val);
 
     			find = malloc(len);
     			if (!cnt) cnt = 1;
@@ -2534,11 +2587,13 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 					sprintf(tmp8, "%.8s", line);
 	    			sscanf(tmp8, "%x", &val);
+					BE32(val);
 
 					memcpy(find + i, (char*) &val, 4);
 
 					sprintf(tmp8, "%.8s", line+9);
 	    			sscanf(tmp8, "%x", &val);
+					BE32(val);
 
 					if (i+4 < len)
 						memcpy(find + i+4, (char*) &val, 4);
@@ -2587,6 +2642,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					case '0':
 						val = *(uint32_t*)(data + off);
+						BE32(val);
 						pointer = val;
 						break;
 					case '2':
@@ -2623,6 +2679,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     				sprintf(tmp8, "%.8s", line);
     				sscanf(tmp8, "%x", &val);
+					BE32(val);
 
 	    			write = data + off + i; //+ ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
 	    			memcpy(write, (char*) &val, 4);
@@ -2630,6 +2687,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     				sprintf(tmp8, "%.8s", line+9);
     				sscanf(tmp8, "%x", &val);
+					BE32(val);
 
 	    			write += 4;
 					if (i + 4 < size)

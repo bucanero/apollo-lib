@@ -14,6 +14,21 @@
 
 #ifdef __PPU__
 #include <ppu-types.h>
+
+#define BE16(...)
+#define LE16(var)		var = ES16(var)
+#define BE32(...)
+#define LE32(var)		var = ES32(var)
+#define BE64(...)
+#define LE64(var)		var = ES64(var)
+#else
+
+#define BE16(var)		var = ES32(var)
+#define LE16(...)
+#define BE32(var)		var = ES32(var)
+#define LE32(...)
+#define BE64(var)		var = ES64(var)
+#define LE64(...)
 #endif
 
 #if !defined(MAX_PATH)
