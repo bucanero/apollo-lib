@@ -135,15 +135,15 @@ int packzip_util(const char *input, const char *output, uint32_t offset, int wbi
 
 
 static uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store) {
-    struct stat xstat;
     int     ret = 0;
     uint32_t in_size,
             out_size;
     uint8_t *in_data,
             *out_data;
 
-    fstat(fileno(fdi), &xstat);
-    in_size = xstat.st_size;
+    fseek(fdi, 0, SEEK_END);
+    in_size = ftell(fdi);
+    fseek(fdi, 0, SEEK_SET);
     in_data = (uint8_t *)malloc(in_size);
 
     in_size = fread(in_data, 1, in_size, fdi);
