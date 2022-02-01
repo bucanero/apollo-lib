@@ -2214,9 +2214,44 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     		case '0':
     			//	8-bit write
     			//	0TXXXXXX 000000YY
+			{
+				int off;
+				uint8_t val;
+
+				sprintf(tmp6, "%.6s", line+2);
+				sscanf(tmp6, "%x", &off);
+				off += (line[1] == '8' ? pointer : 0);
+
+				sprintf(tmp3, "%.2s", line+15);
+				sscanf(tmp3, "%hhx", &val);
+
+				memcpy(data + off, &val, 1);
+
+				LOG("Wrote 1 byte (%s) to 0x%X", tmp3, off);
+			}
+				break;
+
     		case '1':
     			//	16-bit write
     			//	1TXXXXXX 0000YYYY
+    		{
+    			int off;
+    			uint16_t val;
+
+    			sprintf(tmp6, "%.6s", line+2);
+    			sscanf(tmp6, "%x", &off);
+    			off += (line[1] == '8' ? pointer : 0);
+
+    			sprintf(tmp4, "%.4s", line+13);
+    			sscanf(tmp4, "%hx", &val);
+				MEM16(val);
+
+				memcpy(data + off, &val, 2);
+
+				LOG("Wrote 2 bytes (%s) to 0x%X", tmp4, off);
+    		}
+    			break;
+
     		case '2':
     			//	32-bit write
     			//	2TXXXXXX YYYYYYYY
@@ -2226,7 +2261,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     		{
     			int off;
     			uint32_t val;
-				uint8_t bytes = 1 << (line[0] - 0x30);
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
@@ -2234,12 +2268,11 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
-				BE32(val);
+				MEM32(val);
 
-    			char* write = data + off;
-    			memcpy(write, (char*) &val + (4 - bytes), bytes);
+				memcpy(data + off, &val, 4);
 
-    			LOG("Wrote %d bytes (%s) to 0x%X", bytes, tmp8 + (8 - bytes*2), off);
+				LOG("Wrote 4 bytes (%s) to 0x%X", tmp8, off);
     		}
     			break;
 
@@ -2259,9 +2292,11 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			//	2 / A = 32bit
     		{
     			int i, off, n, incoff;
-    			uint32_t val, incval;
+    			uint32_t val, incval, wv32;
     			char t = line[1];
     			char* write;
+				uint8_t wv8;
+				uint16_t wv16;
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
@@ -2286,30 +2321,33 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				for (i = 0; i < n; i++)
 				{
 	    			write = data + off + (incoff * i);
-					BE32(val);
 
 					switch (t)
 					{
 						case '0':
 						case '8':
-			    			memcpy(write, (char*) &val +3, 1);
-			    			LOG("M-Wrote 1 byte (%02X) to 0x%lX", val, write - data);
+							wv8 = val;
+							memcpy(write, &wv8, 1);
+							LOG("M-Wrote 1 byte (%02X) to 0x%lX", val, write - data);
 							break;
 
 						case '1':
 						case '9':
-			    			memcpy(write, (char*) &val +2, 2);
-			    			LOG("M-Wrote 2 bytes (%04X) to 0x%lX", val, write - data);
+							wv16 = val;
+							MEM16(wv16);
+							memcpy(write, &wv16, 2);
+							LOG("M-Wrote 2 bytes (%04X) to 0x%lX", val, write - data);
 							break;
 
 						case '2':
 						case 'A':
-			    			memcpy(write, (char*) &val, 4);
-			    			LOG("M-Wrote 4 bytes (%08X) to 0x%lX", val, write - data);
+							wv32 = val;
+							MEM32(wv32);
+							memcpy(write, &wv32, 4);
+							LOG("M-Wrote 4 bytes (%08X) to 0x%lX", val, write - data);
 							break;
 					}
 
-					BE32(val);
 	    			val += incval;
 				}
     		}
@@ -2368,8 +2406,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				char x = line[3];
 				char y = line[5];
 				char z = line[7];
-				uint32_t val;
-				uint16_t tmp_val;
+				uint32_t val, wv32;
+				uint16_t wv16;
+				uint8_t wv8;
 
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%x", &val);
@@ -2400,17 +2439,18 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					case '9':
 						// Data size = 16 bits
 						// 0000VVVV
-						tmp_val = ((uint16_t*) write)[0];
-						BE16(tmp_val);
-						ptr_value = tmp_val;
+						wv16 = ((uint16_t*) write)[0];
+						MEM16(wv16);
+						ptr_value = wv16;
 						break;
 
 					case '2':
 					case 'A':
 						// Data size = 32 bits
 						// VVVVVVVV
-						ptr_value = ((uint32_t*) write)[0];
-						BE32(ptr_value);
+						wv32 = ((uint32_t*) write)[0];
+						MEM32(wv32);
+						ptr_value = wv32;
 						break;
 					}
 
@@ -2477,19 +2517,24 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					{
 						case '0':
 						case '8':
-							memcpy(write, (char*) &val +3, 1);
+							wv8 = val;
+							memcpy(write, &wv8, 1);
 							LOG("6-Wrote 1 byte (%02X) to 0x%lX", val, pointer);
 							break;
 
 						case '1':
 						case '9':
-							memcpy(write, (char*) &val +2, 2);
+							wv16 = val;
+							MEM16(wv16);
+							memcpy(write, &wv16, 2);
 							LOG("6-Wrote 2 bytes (%04X) to 0x%lX", val, pointer);
 							break;
 
 						case '2':
 						case 'A':
-							memcpy(write, (char*) &val, 4);
+							wv32 = val;
+							MEM32(wv32);
+							memcpy(write, &wv32, 4);
 							LOG("6-Wrote 4 bytes (%08X) to 0x%lX", val, pointer);
 							break;
 					}
@@ -2512,7 +2557,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			//	Y=Increase Value By
     		{
     			int off;
-    			uint32_t val;
+				uint32_t val, wv32;
+				uint16_t wv16;
+				uint8_t wv8;
     			char t = line[1];
 
     			sprintf(tmp6, "%.6s", line+2);
@@ -2521,7 +2568,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
-				BE32(val);
 
     			char* write = data + off;
 
@@ -2530,21 +2576,26 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					case '0':
 					case '8':
 						val += (uint8_t) write[0];
-		    			memcpy(write, (char*) &val +3, 1);
+						wv8 = val;
+						memcpy(write, &wv8, 1);
 		    			LOG("Add-Wrote 1 byte (%02X) to 0x%X", val, off);
 						break;
 
 					case '1':
 					case '9':
 						val += ((uint16_t*) write)[0];
-		    			memcpy(write, (char*) &val +2, 2);
+						wv16 = val;
+						MEM16(wv16);
+						memcpy(write, &wv16, 2);
 		    			LOG("Add-Wrote 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '2':
 					case 'A':
 						val += ((uint32_t*) write)[0];
-		    			memcpy(write, (char*) &val, 4);
+						wv32 = val;
+						MEM32(wv32);
+		    			memcpy(write, &wv32, 4);
 		    			LOG("Add-Wrote 4 bytes (%08X) to 0x%X", val, off);
 						break;
 				}
@@ -2642,7 +2693,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					case '0':
 						val = *(uint32_t*)(data + off);
-						BE32(val);
+						MEM32(val);
 						pointer = val;
 						break;
 					case '2':
