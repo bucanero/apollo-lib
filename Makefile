@@ -30,7 +30,7 @@ export DEPSDIR		:=	$(DEPS)/$(PLATFORM)
 endif
 #---------------------------------------------------------------------------------
 
-TARGET		:=	libapollo_PS3
+TARGET		:=	libapollo
 BUILD		:=	build-ps3
 SOURCE		:=	source
 INCLUDE		:=	include
@@ -81,7 +81,7 @@ $(BUILD):
 install: $(BUILD)
 	@echo Copying...
 	@cp -frv include/apollo.h $(PORTLIBS)/include
-	@cp -frv $(OUTPUT).a $(PORTLIBS)/lib/libapollo.a
+	@cp -frv $(OUTPUT).a $(PORTLIBS)/lib
 	@echo Done!
 
 clean:

@@ -28,7 +28,7 @@ export DEPSDIR		:=	$(DEPS)/$(PLATFORM)
 endif
 #---------------------------------------------------------------------------------
 
-TARGET		:=	libapollo_PS4
+TARGET		:=	build-ps4/libapollo
 BUILD		:=	build-ps4
 SOURCE		:=	source
 INCLUDE		:=	include
@@ -70,7 +70,7 @@ $(BUILD):
 install: $(BUILD)
 	@echo Copying...
 	@cp -frv include/apollo.h $(OO_PS4_TOOLCHAIN)/include
-	@cp -frv $(TARGET).a $(OO_PS4_TOOLCHAIN)/lib/libapollo.a
+	@cp -frv $(TARGET).a $(OO_PS4_TOOLCHAIN)/lib
 	@echo lib installed!
 clean:
 	@echo Clean...
