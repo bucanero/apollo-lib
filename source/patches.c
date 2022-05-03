@@ -230,6 +230,24 @@ static void _parse_start_end(char* line, int pointer, int dsize, int *start_val,
 	*tmp = ')';
 }
 
+static void swap_u16_data(uint16_t* data, int count)
+{
+	for (int i=0; i < count; i++)
+		data[i] = ES16(data[i]);
+}
+
+static void swap_u32_data(uint32_t* data, int count)
+{
+	for (int i=0; i < count; i++)
+		data[i] = ES32(data[i]);
+}
+
+static void swap_u64_data(uint64_t* data, int count)
+{
+	for (int i=0; i < count; i++)
+		data[i] = ES64(data[i]);
+}
+
 int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 {
     char *data;
@@ -507,9 +525,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
     			    if (var->len != wlen)
     			    {
-    			        // variable has different length
-    			        LOG("[%s]:XOR: error! var length doesn't match", var->name);
-    			        return 0;
+						// variable has different length
+						LOG("[%s]:XOR: error! var length doesn't match", var->name);
+						dsize = 0;
+						goto bsd_end;
     			    }
     			    
     			    for (int i=0; i < wlen; i++)
@@ -523,11 +542,12 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				// set [*]:endian_swap*
 				else if (wildcard_match_icase(line, "endian_swap*"))
 				{
-					if (var->len != BSD_VAR_INT16 && var->len != BSD_VAR_INT32)
+					if (var->len != BSD_VAR_INT16 && var->len != BSD_VAR_INT32 && var->len != BSD_VAR_INT64)
 					{
 						// variable has different length
 						LOG("[%s]:endian_swap error! unsupported var length (%d)", var->name, var->len);
-						return 0;
+						dsize = 0;
+						goto bsd_end;
 					}
 
 					uint8_t* le_val = malloc(var->len);
@@ -1386,7 +1406,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					default:
 						LOG("Error: unsupported read() length = %d", read_l);
-						return 0;
+						dsize = 0;
+						goto bsd_end;
 					}
 
 					var->data = malloc(var->len);
@@ -1539,9 +1560,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			}
 			else
 			{
-			    // invalid command
-			    LOG("ERROR: Invalid write command");
-			    return 0;
+				// invalid command
+				LOG("ERROR: Invalid write command");
+				dsize = 0;
+				goto bsd_end;
 			}
 
 		    skip_spaces(line);
@@ -1624,9 +1646,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 			if (!write_val)
 			{
-			    // no data to write
-			    LOG("ERROR: No data to write");
-			    return 0;
+				// no data to write
+				LOG("ERROR: No data to write");
+				dsize = 0;
+				goto bsd_end;
 			}
 
 //			for (int i=0; i < wlen; i++)
@@ -1663,9 +1686,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			}
 			else
 			{
-			    // invalid command
-			    LOG("ERROR: Invalid insert command");
-			    return 0;
+				// invalid command
+				LOG("ERROR: Invalid insert command");
+				dsize = 0;
+				goto bsd_end;
 			}
 
 			skip_spaces(line);
@@ -1690,7 +1714,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			if (!idata)
 			{
 				LOG("Error: no data to insert");
-				return 0;
+				dsize = 0;
+				goto bsd_end;
 			}
 
 			char* write = malloc(dsize + ilen);
@@ -1732,9 +1757,10 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			}
 			else
 			{
-			    // invalid command
-			    LOG("ERROR: Invalid delete command");
-			    return 0;
+				// invalid command
+				LOG("ERROR: Invalid delete command");
+				dsize = 0;
+				goto bsd_end;
 			}
 
 		    skip_spaces(line);
@@ -1765,8 +1791,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    
 			    if (!find)
 			    {
-			    	LOG("Error: no data to search {%s}", line);
-			    	return 0;
+					LOG("Error: no data to search {%s}", line);
+					dsize = 0;
+					goto bsd_end;
 			    }
 			    
 			    dlen = search_data(data, dsize, off, find, flen, 1) - off;
@@ -1828,7 +1855,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 		    {
 		        // error decoding
 				LOG("Error parsing search pattern! {%s}", line);
-		        return 0;
+				dsize = 0;
+				goto bsd_end;
 		    }
 
 			LOG("Searching {%s} ...", line);
@@ -1838,11 +1866,11 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			{
 				LOG("ERROR: SEARCH PATTERN NOT FOUND");
 				free(find);
-				return 0;
+				dsize = 0;
+				goto bsd_end;
 			}
 			
 			LOG("POINTER = %ld (0x%lX)", pointer, pointer);
-
 			free(find);
 		}
 
@@ -1850,6 +1878,41 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 		{
 			// copy data
 			// UNUSED
+		}
+
+		else if (wildcard_match_icase(line, "endian_swap(*)*"))
+		{
+			int mode;
+			char *tmp;
+			uint8_t* start = (uint8_t*)data + range_start;
+
+			line += strlen("endian_swap(");
+			tmp = strrchr(line, ')');
+			*tmp = 0;
+
+			mode = _parse_int_value(line, pointer, dsize);
+			*tmp = ')';
+
+			switch (mode)
+			{
+			case 16:
+				swap_u16_data((uint16_t*) start, (range_end - range_start)/2);
+				break;
+
+			case 32:
+				swap_u32_data((uint32_t*) start, (range_end - range_start)/4);
+				break;
+
+			case 64:
+				swap_u64_data((uint64_t*) start, (range_end - range_start)/8);
+				break;
+
+			default:
+				LOG("ERROR: unsupported swap length (%d)", mode);
+				dsize = 0;
+				goto bsd_end;
+			}
+			LOG("Swap %d bits data on the defined range", mode);
 		}
 
 		else if (wildcard_match_icase(line, "decrypt *"))
@@ -2214,12 +2277,13 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     }
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
-	free(data);
 
+bsd_end:
+	free(data);
 	// remove 0x00 from previous strtok(...)
     remove_char(code->codes, codelen, '\0');
 
-	return 1;
+	return (dsize);
 }
 
 int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
@@ -2692,9 +2756,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					LOG("SEARCH PATTERN NOT FOUND");
 					free(find);
-					free(data);
+					dsize = 0;
 
-					return 0;
+					goto gg_end;
 				}
 
 				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
@@ -2790,12 +2854,13 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     }
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
-	free(data);
 
+gg_end:
+	free(data);
 	// remove 0x00 from previous strtok(...)
     remove_char(code->codes, codelen, '\0');
 
-	return 1;
+	return (dsize);
 }
 
 int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t* code, const char* tmp_dir)

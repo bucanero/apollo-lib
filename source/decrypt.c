@@ -570,7 +570,7 @@ void mgs_Encrypt(uint8_t* data, int size, const char* key, int keylen)
 void mgs_EncodeBase64(uint8_t* data, uint32_t size)
 {
     int i, j, k;
-    uint8_t chars[64];
+    const char *chars;
     uint8_t tmpArray[28];
 
     LOG("[*] Total Encoded Size Is 0x%X (%d bytes)", size, size);
@@ -579,7 +579,7 @@ void mgs_EncodeBase64(uint8_t* data, uint32_t size)
         return;
 
     uint8_t type = data[31];
-    memcpy(chars, (type == 2) ? MGS2_ALPHABET : MGS3_ALPHABET, sizeof(chars));
+    chars = (type == 2) ? MGS2_ALPHABET : MGS3_ALPHABET;
 
     data[31] = 0;
     data[20] = 0;
@@ -615,7 +615,7 @@ void mgs_EncodeBase64(uint8_t* data, uint32_t size)
 void mgs_DecodeBase64(uint8_t* data, uint32_t size)
 {
     int i, j, k, m;
-    uint8_t chars[64];
+    const char *chars;
     uint8_t b64_table[0x100];
     uint8_t tmpArray[0x20];
 
@@ -627,7 +627,7 @@ void mgs_DecodeBase64(uint8_t* data, uint32_t size)
     uint8_t type = (data[0] == 0x5F) + 2;
     memset(tmpArray, 0, sizeof(tmpArray));
     memset(b64_table, 0xFF, sizeof(b64_table));
-    memcpy(chars, (type == 2) ? MGS2_ALPHABET : MGS3_ALPHABET, sizeof(chars));
+    chars = (type == 2) ? MGS2_ALPHABET : MGS3_ALPHABET;
 
     for (k = 0; k < 64; k++)
         b64_table[(uint8_t)chars[k]] = (uint8_t)k;
