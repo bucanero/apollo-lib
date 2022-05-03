@@ -787,3 +787,41 @@ void dw8xl_encode_data(uint8_t* data, uint32_t size)
 	LOG("[*] Encoded File Successfully!");
 	return;
 }
+
+void borderlands3_Decrypt(uint8_t* buffer, int length, int mode)
+{
+	char b;
+	const char* XorMagic = mode ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
+	const char* PrefixMagic = mode ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
+
+	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", length, length);
+
+	for(int i = length - 1; i >= 0; i--)
+	{
+		b = (i < 32) ? PrefixMagic[i] : buffer[i - 32];
+		b ^= XorMagic[i % 32];
+		buffer[i] ^= b;
+	}
+
+	LOG("[*] Decrypted File Successfully!");
+	return;
+}
+
+void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
+{
+	char b;
+	const char* XorMagic = mode ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
+	const char* PrefixMagic = mode ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
+
+	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", length, length);
+
+	for(int i = 0; i < length; i++)
+	{
+		b = (i < 32) ? PrefixMagic[i] : buffer[i - 32];
+		b ^= XorMagic[i % 32];
+		buffer[i] ^= b;
+	}
+
+	LOG("[*] Encrypted File Successfully!");
+	return;
+}

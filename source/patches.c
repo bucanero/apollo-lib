@@ -1902,6 +1902,22 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				ff13_decrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
+			else if (wildcard_match_icase(line, "borderlands3(*)*"))
+			{
+				int s_type;
+				char *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("borderlands3(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("Borderlands 3 Save Type=%s", line);
+
+				s_type = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				borderlands3_Decrypt(start, (range_end - range_start), s_type);
+			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Decrypt MGS Peace Walker data");
@@ -2064,6 +2080,22 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 				ff13_encrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
+			}
+			else if (wildcard_match_icase(line, "borderlands3(*)*"))
+			{
+				int s_type;
+				char *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("borderlands3(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("Borderlands 3 Save Type=%s", line);
+
+				s_type = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				borderlands3_Encrypt(start, (range_end - range_start), s_type);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{

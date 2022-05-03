@@ -50,3 +50,7 @@ void mgspw_Decrypt(uint32_t* data, uint32_t len);
 void ff13_decrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 void ff13_encrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
+
+// Borderlands 3 save data encryption
+void borderlands3_Decrypt(uint8_t* buffer, int length, int mode);
+void borderlands3_Encrypt(uint8_t* buffer, int length, int mode);
