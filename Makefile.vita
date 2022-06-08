@@ -1,0 +1,27 @@
+TARGET    = vita-libapollo.a
+OBJS      = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
+			source/patches.o source/wildcard.o
+
+PREFIX   = $(VITASDK)/bin/arm-vita-eabi
+CC       = $(PREFIX)-gcc
+CXX      = $(PREFIX)-g++
+AR       = $(PREFIX)-ar
+CFLAGS   = -Wl,-q -Wall -O3 -Wno-unused-variable -Wno-unused-but-set-variable -ffat-lto-objects -flto -D__PS4__ -Iinclude
+CXXFLAGS = $(CFLAGS) -std=gnu++11 -fno-rtti
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(AR) rcu $@ $^
+
+clean:
+	@rm -rf $(TARGET) $(OBJS)
+	@echo "Cleaned up!"
+
+install:
+	@echo Copying...
+	@cp -frv include/apollo.h $(VITASDK)/arm-vita-eabi/include
+	@cp -frv $(TARGET) $(VITASDK)/arm-vita-eabi/lib/libapollo.a
+	@echo lib installed!
