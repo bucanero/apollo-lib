@@ -20,7 +20,7 @@ clean:
 	@rm -rf $(TARGET) $(OBJS)
 	@echo "Cleaned up!"
 
-install:
+install: $(TARGET)
 	@echo Copying...
 	@cp -frv include/apollo.h $(VITASDK)/arm-vita-eabi/include
 	@cp -frv $(TARGET) $(VITASDK)/arm-vita-eabi/lib/libapollo.a

@@ -24,6 +24,7 @@
 #define LE16(var)		var = ES16(var)
 #define LE32(var)		var = ES32(var)
 #define LE64(var)		var = ES64(var)
+#define PADDING(X)		X
 
 #elif __PS4__
 #define MEM16(...)
@@ -35,6 +36,7 @@
 #define LE16(...)
 #define LE32(...)
 #define LE64(...)
+#define PADDING(X)		0
 
 #elif __PS3_PC__
 #define MEM16(var)		var = ES16(var)
@@ -46,6 +48,7 @@
 #define LE16(...)
 #define LE32(...)
 #define LE64(...)
+#define PADDING(X)		X
 
 #else
 #define MEM16(...)
@@ -57,6 +60,7 @@
 #define LE16(...)
 #define LE32(...)
 #define LE64(...)
+#define PADDING(X)		0
 #endif
 
 #if !defined(MAX_PATH)

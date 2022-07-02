@@ -503,7 +503,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    if (var->data)
     			    {
     			        free(var->data);
-    			        var->data = (uint8_t*) &old_val + (4 - var->len);
+    			        var->data = (uint8_t*) &old_val + PADDING(4 - var->len);
     			    }
 
     			    LOG("Old value 0x%X", old_val);
@@ -1259,7 +1259,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    while (read < data + add_e)
     			    {
 						uint16_t radd = (*(uint16_t*)read);
-						BE32(radd);
+						BE16(radd);
     			    	add += radd;
     			    	read += BSD_VAR_INT16;
     			    }
@@ -1271,7 +1271,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + carry, var->len);
+                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
     			    
     			    LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1301,7 +1301,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + carry, var->len);
+                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
     			    
     			    LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -2310,44 +2310,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     		case '0':
     			//	8-bit write
     			//	0TXXXXXX 000000YY
-			{
-				int off;
-				uint8_t val;
-
-				sprintf(tmp6, "%.6s", line+2);
-				sscanf(tmp6, "%x", &off);
-				off += (line[1] == '8' ? pointer : 0);
-
-				sprintf(tmp3, "%.2s", line+15);
-				sscanf(tmp3, "%hhx", &val);
-
-				memcpy(data + off, &val, 1);
-
-				LOG("Wrote 1 byte (%s) to 0x%X", tmp3, off);
-			}
-				break;
-
     		case '1':
     			//	16-bit write
     			//	1TXXXXXX 0000YYYY
-    		{
-    			int off;
-    			uint16_t val;
-
-    			sprintf(tmp6, "%.6s", line+2);
-    			sscanf(tmp6, "%x", &off);
-    			off += (line[1] == '8' ? pointer : 0);
-
-    			sprintf(tmp4, "%.4s", line+13);
-    			sscanf(tmp4, "%hx", &val);
-				MEM16(val);
-
-				memcpy(data + off, &val, 2);
-
-				LOG("Wrote 2 bytes (%s) to 0x%X", tmp4, off);
-    		}
-    			break;
-
     		case '2':
     			//	32-bit write
     			//	2TXXXXXX YYYYYYYY
@@ -2357,6 +2322,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     		{
     			int off;
     			uint32_t val;
+    			uint8_t bytes = 1 << (line[0] - 0x30);
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
@@ -2366,9 +2332,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			sscanf(tmp8, "%x", &val);
 				MEM32(val);
 
-				memcpy(data + off, &val, 4);
+    			memcpy(data + off, (char*) &val + PADDING(4 - bytes), bytes);
 
-				LOG("Wrote 4 bytes (%s) to 0x%X", tmp8, off);
+    			LOG("Wrote %d bytes (%s) to 0x%X", bytes, tmp8 + (8 - bytes*2), off);
     		}
     			break;
 
