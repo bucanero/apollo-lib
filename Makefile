@@ -30,7 +30,7 @@ export DEPSDIR		:=	$(DEPS)/$(PLATFORM)
 endif
 #---------------------------------------------------------------------------------
 
-TARGET		:=	libapollo
+TARGET		:=	build-ps3/libapollo
 BUILD		:=	build-ps3
 SOURCE		:=	source
 INCLUDE		:=	include

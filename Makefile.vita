@@ -6,7 +6,7 @@ PREFIX   = $(VITASDK)/bin/arm-vita-eabi
 CC       = $(PREFIX)-gcc
 CXX      = $(PREFIX)-g++
 AR       = $(PREFIX)-ar
-CFLAGS   = -Wl,-q -Wall -O3 -Wno-unused-variable -Wno-unused-but-set-variable -ffat-lto-objects -flto -D__PS4__ -Iinclude
+CFLAGS   = -Wl,-q -Wall -O3 -ffat-lto-objects -flto -D__PS4__ -D_GNU_SOURCE -Iinclude
 CXXFLAGS = $(CFLAGS) -std=gnu++11 -fno-rtti
 
 .PHONY: all clean

@@ -427,7 +427,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    else if (wildcard_match_icase(line, "polynomial:*"))
 			    {
     			    line += strlen("polynomial:");
-    			    sscanf(line, "%lx", &custom_crc.poly);
+    			    sscanf(line, "%" PRIx64, &custom_crc.poly);
 			    }
 
 			    else if (wildcard_match_icase(line, "initial_value:[*]*"))
@@ -439,13 +439,13 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				else if (wildcard_match_icase(line, "initial_value:*"))
 				{
 					line += strlen("initial_value:");
-					sscanf(line, "%lx", &custom_crc.init);
+					sscanf(line, "%" PRIx64, &custom_crc.init);
 				}
 
 			    else if (wildcard_match_icase(line, "output_xor:*"))
 			    {
     			    line += strlen("output_xor:");
-    			    sscanf(line, "%lx", &custom_crc.xor);
+    			    sscanf(line, "%" PRIx64, &custom_crc.xor);
 			    }
 
 			    else if (wildcard_match_icase(line, "reflection_input:*"))
@@ -582,7 +582,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    tmp = strchr(line, ':');
     			    if (tmp)
     			    {
-    			        sscanf(tmp+1, "%lx", &custom_crc.init);
+    			        sscanf(tmp+1, "%" PRIx64, &custom_crc.init);
     			    }
     			    
     			    uint8_t* start = (uint8_t*)data + range_start;
