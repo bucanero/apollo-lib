@@ -39,8 +39,7 @@ static list_t* var_list = NULL;
 
 void remove_char(char * str, int len, char seek)
 {
-	int x;
-	for (x = 0; x < len; x++)
+	for (int x = 0; x < len; x++)
 		if (str[x] == seek)
 			str[x] = '\n';
 }
@@ -2728,12 +2727,23 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				}
 
 				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
-
-    			free(find);
+				free(find);
     		}
     			break;
 
     		case '9':
+    			//	Pointer Manipulator (Set/Move Pointer)
+    			//	Adjusts the Pointer Offset using numerous Operators
+    			//	9Y000000 XXXXXXXX
+    			//	Y = Operator
+    			//	0 = Set Pointer to Big Endian value at XXXXXXXX
+    			//	1 = Set Pointer to Little Endian value at XXXXXXXX
+    			//	2 = Add X to Pointer
+    			//	3 = Sub X to Pointer
+    			//	4 = Set Pointer to the end of file and subtract X
+    			//	5 = Set Pointer to X
+    			//	X = Value to set / change
+    			//	---
     			//	Move pointer to offset in address XXXXXXXXX (CONFIRMED CODE)
     			//	90000000 XXXXXXXX
     			//	---
@@ -2755,7 +2765,12 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					case '0':
 						val = *(uint32_t*)(data + off);
-						MEM32(val);
+						BE32(val);
+						pointer = val;
+						break;
+					case '1':
+						val = *(uint32_t*)(data + off);
+						LE32(val);
 						pointer = val;
 						break;
 					case '2':
@@ -2767,24 +2782,30 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					case '4':
 						pointer = dsize - off;
 						break;
+					case '5':
+						pointer = off;
+						break;
 				}
     		}
     			break;
 
     		case 'A':
     			//	Multi-write
-    			//	Axxxxxxx 0000yyyy  (xxxxxxxx = address, yyyy = size)
+    			//	ATxxxxxx yyyyyyyy  (xxxxxx = address, yyyyyyyy = size)
     			//	zzzzzzzz zzzzzzzz  <-data to write at address
+    			//	T= Address/Offset type (0 = Normal / 8 = Offset From Pointer)
     		{
     			int i, off;
     			uint32_t val, size;
     			char* write;
+    			char t = line[1];
 
-    			sprintf(tmp8, "%.7s", line+1);
-    			sscanf(tmp8, "%x", &off);
+    			sprintf(tmp6, "%.6s", line+2);
+    			sscanf(tmp6, "%x", &off);
+    			off += ((t == '8') ? pointer : 0);
 
-    			sprintf(tmp4, "%.4s", line+13);
-    			sscanf(tmp4, "%x", &size);
+    			sprintf(tmp8, "%.8s", line+9);
+    			sscanf(tmp8, "%x", &size);
 
 				for (i = 0; i < size; i += 8)
 				{
@@ -2794,7 +2815,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     				sscanf(tmp8, "%x", &val);
 					BE32(val);
 
-	    			write = data + off + i; //+ ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
+	    			write = data + off + i;
 	    			memcpy(write, (char*) &val, 4);
 					LOG("m-Wrote 4 bytes (%s) to 0x%lX", tmp8, write - data);
 
