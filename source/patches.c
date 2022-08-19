@@ -56,6 +56,17 @@ static long search_data(const char* data, size_t size, int start, const char* se
     return -1;
 }
 
+static long reverse_search_data(const char* data, size_t size, int start, const char* search, int len, int count)
+{
+	int k = 1;
+
+	for (long i = start ? start : (size -len -1); i >= 0; i--)
+		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
+			return i;
+
+	return -1;
+}
+
 static bsd_variable_t* _get_bsd_variable(const char* vname)
 {
 	list_node_t *node;
@@ -2337,6 +2348,118 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     		}
     			break;
 
+    		case '3':
+				//	Increase / Decrease Write
+				//	Increases or Decreases a specified amount of data from a specific Address
+				//	This does not add/remove Bytes into the save, it just adjusts the value of the Bytes already in it
+				//	For the 8 Byte Value Type, it will write 4 Bytes of data but will continue to write the bytes afterwards if it cannot write any more.
+				//	3BYYYYYY XXXXXXXX
+				//	B = Byte Value & Offset Type
+				//	0 = Add 1 Byte  (000000XX)
+				//	1 = Add 2 Bytes (0000XXXX)
+				//	2 = Add 4 Bytes
+				//	3 = Add 8 Bytes
+				//	4 = Sub 1 Byte  (000000XX)
+				//	5 = Sub 2 Bytes (0000XXXX)
+				//	6 = Sub 4 Bytes
+				//	7 = Sub 8 Bytes
+				//	8 = Offset from Pointer; Add 1 Byte  (000000XX)
+				//	9 = Offset from Pointer; Add 2 Bytes (0000XXXX)
+				//	A = Offset from Pointer; Add 4 Bytes
+				//	B = Offset from Pointer; Add 8 Bytes
+				//	C = Offset from Pointer; Sub 1 Byte  (000000XX)
+				//	D = Offset from Pointer; Sub 2 Bytes (0000XXXX)
+				//	E = Offset from Pointer; Sub 4 Bytes
+				//	F = Offset from Pointer; Sub 8 Bytes
+				//	Y = Address
+				//	X = Bytes to Add/Sub
+			{
+				int off;
+				uint32_t val, wv32;
+				uint16_t wv16;
+				uint8_t wv8;
+				char t = line[1];
+
+				sprintf(tmp6, "%.6s", line+2);
+				sscanf(tmp6, "%x", &off);
+				off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
+
+				sprintf(tmp8, "%.8s", line+9);
+				sscanf(tmp8, "%x", &val);
+
+				char* write = data + off;
+
+				switch (t)
+				{
+					case '0':
+					case '8':
+						wv8 = (uint8_t) write[0];
+						wv8 += (val & 0x000000FF);
+						memcpy(write, &wv8, 1);
+						LOG("Add-Write 1 byte (%02X) to 0x%X", val, off);
+						break;
+
+					case '1':
+					case '9':
+						wv16 = ((uint16_t*) write)[0];
+						MEM16(wv16);
+						wv16 += (val & 0x0000FFFF);
+						MEM16(wv16);
+						memcpy(write, &wv16, 2);
+						LOG("Add-Write 2 bytes (%04X) to 0x%X", val, off);
+						break;
+
+					case '2':
+					case 'A':
+						wv32 = ((uint32_t*) write)[0];
+						MEM32(wv32);
+						wv32 += val;
+						MEM32(wv32);
+						memcpy(write, &wv32, 4);
+						LOG("Add-Write 4 bytes (%08X) to 0x%X", val, off);
+						break;
+
+					case '3':
+					case 'B':
+						LOG("Not Implemented! Add-Wrote 8 bytes (%08X) to 0x%X", val, off);
+						break;
+
+					case '4':
+					case 'C':
+						wv8 = (uint8_t) write[0];
+						wv8 -= (val & 0x000000FF);
+						memcpy(write, &wv8, 1);
+						LOG("Sub-Write 1 byte (%02X) to 0x%X", val, off);
+						break;
+
+					case '5':
+					case 'D':
+						wv16 = ((uint16_t*) write)[0];
+						MEM16(wv16);
+						wv16 -= (val & 0x0000FFFF);
+						MEM16(wv16);
+						memcpy(write, &wv16, 2);
+						LOG("Sub-Write 2 bytes (%04X) to 0x%X", val, off);
+						break;
+
+					case '6':
+					case 'E':
+						wv32 = ((uint32_t*) write)[0];
+						MEM32(wv32);
+						wv32 -= val;
+						MEM32(wv32);
+						memcpy(write, &wv32, 4);
+						LOG("Sub-Write 4 bytes (%08X) to 0x%X", val, off);
+						break;
+
+					case '7':
+					case 'F':
+						LOG("Not Implemented! Sub-Write 8 bytes (%08X) to 0x%X", val, off);
+						break;
+				}
+    		}
+    			break;
+
     		case '4':
     			//	multi write
     			//	4TXXXXXX YYYYYYYY
@@ -2660,7 +2783,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 		    			LOG("Add-Wrote 4 bytes (%08X) to 0x%X", val, off);
 						break;
 				}
-
     		}
     			break;
 
@@ -2716,7 +2838,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					LOG("(%02d) %02X", i, find[i]);
 
 				pointer = search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
-				
 				if (pointer < 0)
 				{
 					LOG("SEARCH PATTERN NOT FOUND");
@@ -2829,11 +2950,211 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 		    			memcpy(write, (char*) &val, 4);
 		    			LOG("m-Wrote 4 bytes (%s) to 0x%lX", tmp8, write - data);
 					}
-
 				}
-
     		}
     			break;
+
+			case 'B':
+				//	Backward Byte Search (Set Pointer)
+				//	Searches Backwards for a specified Value and saves the Value's Address as the Pointer Offset
+				//	Will start from the end of the save file, but can be changed using a previous Pointer Offset
+				//	BTCCYYYY XXXXXXXX
+				//	*Other Code Here, Use Specific Offset Type*
+				//	T = Offset Type
+				//	0 = Default
+				//	8 = Offset from Pointer
+				//	C = Amount of Times to Find until Pointer Set
+				//	Y = Amount of Bytes to Search
+				//	1 = 1 Byte
+				//	2 = 2 Bytes
+				//	and so on...
+				//	X = Bytes to Search, use Multiple Lines if Needed
+			{
+				int i, cnt, len;
+				uint32_t val;
+				char* find;
+				char t = line[1];
+
+				sprintf(tmp3, "%.2s", line+2);
+				sscanf(tmp3, "%x", &cnt);
+
+				sprintf(tmp4, "%.4s", line+4);
+				sscanf(tmp4, "%x", &len);
+
+				sprintf(tmp8, "%.8s", line+9);
+				sscanf(tmp8, "%x", &val);
+				BE32(val);
+
+				find = malloc(len);
+				if (!cnt) cnt = 1;
+
+				memcpy(find, (char*) &val, 4);
+				
+				for (i=4; i < len; i += 8)
+				{
+					line = strtok(NULL, "\n");
+
+					sprintf(tmp8, "%.8s", line);
+					sscanf(tmp8, "%x", &val);
+					BE32(val);
+
+					memcpy(find + i, (char*) &val, 4);
+
+					sprintf(tmp8, "%.8s", line+9);
+					sscanf(tmp8, "%x", &val);
+					BE32(val);
+
+					if (i+4 < len)
+						memcpy(find + i+4, (char*) &val, 4);
+				}
+
+				LOG("Searching (len=%d count=%d) ...", len, cnt);
+				for (int i=0; i < len; i++)
+					LOG("(%02d) %02X", i, find[i]);
+
+				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
+				if (pointer < 0)
+				{
+					LOG("SEARCH PATTERN NOT FOUND");
+					free(find);
+					dsize = 0;
+
+					goto gg_end;
+				}
+
+				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				free(find);
+			}
+				break;
+
+			case 'C':
+				//	Address Byte Search (Set Pointer)
+				//	Searches for a Value from a specified Address and saves the new Value's Address as the Pointer Offset
+				//	Rather than searching for Bytes already given such as code types 8 and B, this code will instead search using the bytes at a specific Address
+				//	CBFFYYYY XXXXXXXX
+				//	*Other Code Here, Use Specific Offset Type*
+				//	B = Offset Type
+				//	0 = Search Forwards from Address Given
+				//	4 = Search from 0x0 to Address Given
+				//	8 = Offset from Pointer; Search Forwards from Address Given
+				//	C = Offset from Pointer; Search from 0x0 to Address Given
+				//	F = Amount of Times to Find until Pointer Set
+				//	Y = Amount of Bytes to Search from Address
+				//	1 = 1 Byte
+				//	2 = 2 Bytes
+				//	and so on...
+				//	X = Address of Bytes to Search with
+			{
+				int cnt, len;
+				uint32_t addr;
+				char* find;
+				char t = line[1];
+
+				sprintf(tmp3, "%.2s", line+2);
+				sscanf(tmp3, "%x", &cnt);
+
+				sprintf(tmp4, "%.4s", line+4);
+				sscanf(tmp4, "%x", &len);
+
+				sprintf(tmp8, "%.8s", line+9);
+				sscanf(tmp8, "%x", &addr);
+				addr += ((t == '8' || t == 'C') ? pointer : 0);
+
+				find = data + addr;
+				if (!cnt) cnt = 1;
+
+				LOG("Searching (len=%d count=%d) ...", len, cnt);
+				for (int i=0; i < len; i++)
+					LOG("(%02d) %02X", i, find[i]);
+
+				pointer = search_data(data, (t == '0' || t == '8') ? dsize : addr, (t == '0' || t == '8') ? addr : 0, find, len, cnt);
+				if (pointer < 0)
+				{
+					LOG("SEARCH PATTERN NOT FOUND");
+					dsize = 0;
+
+					goto gg_end;
+				}
+
+				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+			}
+				break;
+
+			case 'D':
+				//	2 Byte Test Commands (Code Skipper)
+				//	Test a specific Address using an Operation; skips the following code lines if Operation fails
+				//	DBYYYYYY CCDDXXXX
+				//	B = Offset Type
+				//	0 = Normal
+				//	8 = Offset from Pointer
+				//	Y = Address to test
+				//	C = Lines of code to skip if test fails
+				//	D = Test Operation
+				//	0 = Equal
+				//	1 = Not Equal
+				//	2 = Greater Than (Value at the Address is greater than the tested value)
+				//	3 = Less Than (Value at the Address is less than the tested value)
+				//	X = Value to test
+			{
+				int l, val, off;
+				uint16_t src;
+				char t = line[1];
+				char op = line[12];
+
+				sprintf(tmp6, "%.6s", line+2);
+				sscanf(tmp6, "%x", &off);
+				off += ((t == '8') ? pointer : 0);
+
+				sprintf(tmp3, "%.2s", line+9);
+				sscanf(tmp3, "%x", &l);
+
+				sprintf(tmp4, "%.4s", line+13);
+				sscanf(tmp4, "%x", &val);
+
+				src = *(uint16_t*)(data + off);
+				MEM16(src);
+
+				switch (op)
+				{
+				case '0':
+					/* Equal */
+					LOG("Byte Test (%08X) %X = %X", off, src, val);
+					off = (src == val);
+					break;
+
+				case '1':
+					/* Not equal */
+					LOG("Byte Test (%08X) %X != %X", off, src, val);
+					off = (src != val);
+					break;
+
+				case '2':
+					/* Greater than */
+					LOG("Byte Test (%08X) %X > %X", off, src, val);
+					off = (src > val);
+					break;
+
+				case '3':
+					/* Less than */
+					LOG("Byte Test (%08X) %X < %X", off, src, val);
+					off = (src < val);
+					break;
+
+				default:
+					off = 1;
+					LOG("Byte Test Unexpected operation (%c)!", op);
+					break;
+				}
+
+				if (!off)
+				{
+					LOG("Skipping %d lines...", l);
+					while (l--)
+						line = strtok(NULL, "\n");
+				}
+			}
+				break;
+
     		default:
     			break;
     	}
