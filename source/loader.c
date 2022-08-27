@@ -182,6 +182,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
 						(line[0] != '0') && (line[0] != '1') && (line[0] != '2') && (line[0] != '4') &&
 						(line[0] != '5') && (line[0] != '6') && (line[0] != '7') && (line[0] != '8') &&
+						(line[0] != '3') && (line[0] != 'B') && (line[0] != 'C') && (line[0] != 'D') &&
 						(line[0] != '9') && (line[0] != 'A')))
 						entry->type = APOLLO_CODE_BSD;
 
