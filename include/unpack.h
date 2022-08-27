@@ -1,3 +1,5 @@
+#include <inttypes.h>
+
 #define OFFZIP_WBITS_ZLIB		15
 #define OFFZIP_WBITS_DEFLATE	-15
 
