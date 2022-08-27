@@ -21,6 +21,7 @@
 *.a
 *.la
 *.lo
+oosdk_libraries/
 
 # Shared objects (inc. Windows DLLs)
 *.dll
