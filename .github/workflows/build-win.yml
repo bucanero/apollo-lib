@@ -35,14 +35,15 @@ jobs:
           uname
           echo "$GITHUB_WORKSPACE"
           #pacman -S --noconfirm ${{ matrix.package }}-zlib-devel
+          # build the project
 
-    - name: Install polarSSL
-      run: |
-        git clone https://github.com/bucanero/oosdk_libraries.git --depth 1
-        cd oosdk_libraries/polarssl-1.3.9
-        mkdir build && cd build
-        cmake ..
-        make polarssl
+      - name: Install polarSSL
+        run: |
+          git clone https://github.com/bucanero/oosdk_libraries.git --depth 1
+          cd oosdk_libraries/polarssl-1.3.9/library
+          mkdir -p ../build/library
+          CC=gcc make static
+          cp libpolarssl.a ../build/library
 
       - name: Build binaries
         run: |
