@@ -45,8 +45,8 @@ int main(int argc, char **argv)
     }
 
     code_entry_t* code = calloc(1, sizeof(code_entry_t));
-    code->name = strrchr(argv[1], '/') + 1;
-    code->file = strrchr(argv[1], '/');
+    code->name = argv[1];
+    code->file = argv[1];
 
     list_codes = list_alloc();
     list_append(list_codes, code);
@@ -61,27 +61,10 @@ int main(int argc, char **argv)
 
     for (len = 1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
-
-        if ((code->name[1] & 0xFF) == 0xE2)
-            code->name = code->name+4;
-        else if ((code->name[0] & 0xFF) == 0xE2)
-            code->name = code->name+3;
-
-        if ((code->name[1] & 0xFF) == 0x0F)
-            code->name = code->name+2;
-
-        printf("%d. %s%s\n", len, code->name, code->codes[0] ? "" : " (Empty)");
-        fprintf(fp, "### %d. %s\n\nTarget File: `%s`\n\n", len, code->name, code->file);
+        printf("%4d. %s%s\n", len, code->name, code->flags & APOLLO_CODE_FLAG_EMPTY ? " (Empty)":"");
+        fprintf(fp, "### %d. %s\n", len, code->name);
         if (code->codes && code->codes[0])
-            fprintf(fp, "```\n%s```\n\n", code->codes);
-/*
-        if (bv->data)
-            free(bv->data);
-        if (bv->name)
-            free(bv->name);
-
-        free(bv);
-*/
+            fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
     }
 
     fclose(fp);
