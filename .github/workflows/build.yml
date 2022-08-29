@@ -49,7 +49,7 @@ jobs:
     
     - name: Compress output
       run: |
-        tar -zcvf build.tar.gz tools/patcher tools/mdparser
+        tar -zcvf build.tar.gz tools/patcher tools/parser
 
     - uses: actions/upload-artifact@v2
       with:

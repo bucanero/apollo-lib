@@ -56,7 +56,7 @@ jobs:
     
       - name: Compress output
         run: |
-          tar -zcvf build.tar.gz tools/patcher.exe tools/mdparser.exe
+          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe
 
       - uses: actions/upload-artifact@v2
         with:

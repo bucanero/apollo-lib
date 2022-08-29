@@ -3,6 +3,8 @@
 #include <string.h>
 #include "apollo.h"
 
+static int log = 0;
+
 void print_usage(const char* argv0)
 {
     printf("USAGE: %s filename.savepatch\n\n", argv0);
@@ -11,17 +13,17 @@ void print_usage(const char* argv0)
 
 void dbglogger_log(const char* fmt, ...)
 {
-    if (0)
-    {
-        char buffer[0x800];
+    if (!log)
+        return;
 
-        va_list arg;
-        va_start(arg, fmt);
-        vsnprintf(buffer, sizeof(buffer), fmt, arg);
-        va_end(arg);
+    char buffer[0x800];
 
-        printf("[log] %s\n", buffer);
-    }
+    va_list arg;
+    va_start(arg, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, arg);
+    va_end(arg);
+
+    printf("%s\n", buffer);
 }
 
 int main(int argc, char **argv)
@@ -53,20 +55,29 @@ int main(int argc, char **argv)
     load_patch_code_list(data, list_codes, NULL, NULL);
     free(data);
 
+    log = (argc == 2 && argv[2][1] == 'd');
     list_node_t *node = list_head(list_codes);
-    FILE *fp = fopen("out.md", "w");
+    FILE *fp = NULL;
 
     printf("Parsing file %s...\n\n", argv[1]);
-    fprintf(fp, "# %s\n\n", code->name);
+    if (log)
+    {
+        data = strdup(argv[1]);
+        strcpy(strrchr(data, '.'), ".md");
+        fp = fopen(data, "w");
+        fprintf(fp, "# %s\n\n", code->name);
+        free(data);
+    }
 
     for (len = 1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         printf("%4d. %s%s\n", len, code->name, code->flags & APOLLO_CODE_FLAG_EMPTY ? " (Empty)":"");
-        fprintf(fp, "### %d. %s\n", len, code->name);
-        if (code->codes && code->codes[0])
+
+        if (log) fprintf(fp, "### %d. %s\n", len, code->name);
+        if (log && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
             fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
     }
 
-    fclose(fp);
+    if (log) fclose(fp);
     printf("\nParse completed: %d codes\n\n", len-1);
 }
