@@ -7,6 +7,13 @@
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
 
+#define APOLLO_CODE_FLAG_PARENT    1
+#define APOLLO_CODE_FLAG_CHILD     2
+#define APOLLO_CODE_FLAG_REQUIRED  4
+#define APOLLO_CODE_FLAG_ALERT     8
+#define APOLLO_CODE_FLAG_EMPTY     16
+#define APOLLO_CODE_FLAG_ENABLED   32
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,6 +43,7 @@ typedef struct option_entry
 typedef struct code_entry
 {
     uint8_t type;
+    uint8_t flags;
     char * name;
     char * file;
     uint8_t activated;

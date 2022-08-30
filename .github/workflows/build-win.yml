@@ -1,0 +1,66 @@
+name: Build Windows binaries
+
+on:
+  push:
+  pull_request:
+  repository_dispatch:
+    types: [run_build]
+
+jobs:
+  msys:
+    runs-on: windows-2019
+    strategy:
+      matrix:
+        mingw: ["MINGW32", "MINGW64"]
+        include:
+          - mingw: "MINGW32"
+            package: "mingw-w64-i686"
+          - mingw: "MINGW64"
+            package: "mingw-w64-x86_64"
+    defaults:
+      run:
+        shell: bash.exe --login -eo pipefail "{0}"
+    env:
+      MSYSTEM: ${{ matrix.mingw }}
+      CHERE_INVOKING: 1
+    name: MSYS2 ${{ matrix.mingw }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up shell
+        run: echo "C:\msys64\usr\bin\" >> $GITHUB_PATH
+        shell: pwsh
+
+      - name: Install MinGW requirements
+        run: |
+          uname
+          echo "$GITHUB_WORKSPACE"
+          #pacman -S --noconfirm ${{ matrix.package }}-zlib-devel
+          # build the project
+
+      - name: Install polarSSL
+        run: |
+          git clone https://github.com/bucanero/oosdk_libraries.git --depth 1
+          cd oosdk_libraries/polarssl-1.3.9/library
+          mkdir -p ../build/library
+          CC=gcc make static
+          cp libpolarssl.a ../build/library
+
+      - name: Build binaries
+        run: |
+          cd tools
+          make BIGENDIAN=1
+          mv patcher.exe patcher-bigendian.exe
+          make clean && make
+
+      - name: Get short SHA
+        id: slug
+        run: echo "::set-output name=sha8::$(echo ${GITHUB_SHA} | cut -c1-8)"
+    
+      - name: Compress output
+        run: |
+          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ steps.slug.outputs.sha8 }}-${{matrix.mingw}}
+          path: build.tar.gz

@@ -182,6 +182,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
 						(line[0] != '0') && (line[0] != '1') && (line[0] != '2') && (line[0] != '4') &&
 						(line[0] != '5') && (line[0] != '6') && (line[0] != '7') && (line[0] != '8') &&
+						(line[0] != '3') && (line[0] != 'B') && (line[0] != 'C') && (line[0] != 'D') &&
 						(line[0] != '9') && (line[0] != 'A')))
 						entry->type = APOLLO_CODE_BSD;
 
@@ -271,15 +272,13 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 		{
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
 			{
-				line += 6;
-				line[1] = CHAR_TAG_WARNING;
-				line[2] = ' ';
+				line += 8;
+				line[0] = APOLLO_CODE_FLAG_ALERT;
 			}
 			else if (wildcard_match_icase(line, "[INFO:*"))
 			{
-				line += 3;
-				line[1] = CHAR_TAG_WARNING;
-				line[2] = ' ';
+				line += 5;
+				line[0] = APOLLO_CODE_FLAG_ALERT;
 			}
 			else if (wildcard_match_icase(line, "*GROUP:\\*"))
 			{
@@ -290,13 +289,13 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 			else if (wildcard_match_icase(line, "[GROUP:*"))
 			{
 				line += 6;
-				group = 1;
+				group = APOLLO_CODE_FLAG_PARENT;
 				LOG("GROUP: %s\n", line);
 			}
 			else if (wildcard_match(line, "; --- * ---") || wildcard_match_icase(line, "GROUP:*"))
 			{
 				line += 5;
-				group = 1;
+				group = APOLLO_CODE_FLAG_PARENT;
 				LOG("GROUP: %s\n", line);
 			}
 			line++;
@@ -306,20 +305,24 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 			code->options = (file_opt ? get_files_opt(save_path, file_opt) : NULL);
 			code->options_count = (file_opt ? 1 : 0);
 			code->file = strdup(filePath);
+			code->name = strdup(line);
 			list_append(list_codes, code);
+
+			if(line[-1] == APOLLO_CODE_FLAG_ALERT)
+				code->flags |= APOLLO_CODE_FLAG_ALERT;
+
+			if (wildcard_match_icase(code->name, "*(REQUIRED)*"))
+				code->flags |= APOLLO_CODE_FLAG_REQUIRED;
 
 			switch (group)
 			{
-				case 1:
-					asprintf(&code->name, UTF8_CHAR_GROUP " %s", line);
-					group = 2;
+				case APOLLO_CODE_FLAG_PARENT:
+					code->flags |= APOLLO_CODE_FLAG_PARENT;
+					group = APOLLO_CODE_FLAG_CHILD;
 					break;
-				case 2:
-					asprintf(&code->name, " " UTF8_CHAR_ITEM " %s", line);
-					break;
-				
-				default:
-					code->name = strdup(line);
+
+				case APOLLO_CODE_FLAG_CHILD:
+					code->flags |= APOLLO_CODE_FLAG_CHILD;
 					break;
 			}
 
@@ -339,6 +342,9 @@ void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*ge
 		// remove 0x00 from previous strtok(...)
 		remove_char(buffer, bufferLen, '\0');
 		get_patch_code(buffer, code_count++, code);
+
+		if(!code->codes[0])
+			code->flags |= APOLLO_CODE_FLAG_EMPTY;
 
 		LOG("[%d] Name: %s\nFile: %s\nCode (%d): %s\n", code_count, code->name, code->file, code->type, code->codes);
 	}
