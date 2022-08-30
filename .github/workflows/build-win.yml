@@ -48,7 +48,9 @@ jobs:
       - name: Build binaries
         run: |
           cd tools
-          make
+          make BIGENDIAN=1
+          mv patcher.exe patcher-bigendian.exe
+          make clean && make
 
       - name: Get short SHA
         id: slug
@@ -56,7 +58,7 @@ jobs:
     
       - name: Compress output
         run: |
-          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe
+          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
 
       - uses: actions/upload-artifact@v2
         with:

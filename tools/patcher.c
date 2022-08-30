@@ -3,6 +3,18 @@
 #include <string.h>
 #include "apollo.h"
 
+#ifdef __WIN32__
+#define TMP_FOLDER      "C:\\WINDOWS\\TEMP\\"
+#else
+#define TMP_FOLDER      "/tmp/"
+#endif
+
+#ifdef __PS3_PC__
+#define CLI_VERSION     "0.1.0 PS3/big-endian"
+#else
+#define CLI_VERSION     "0.1.0"
+#endif
+
 static int log = 0;
 
 void print_usage(const char* argv0)
@@ -29,10 +41,9 @@ void dbglogger_log(const char* fmt, ...)
 int is_active_code(const char* a, int id)
 {
     int val;
-    char* tmp;
     char* arg = strdup(a);
 
-     for (tmp = strtok(arg, ","); tmp; tmp = strtok(NULL, ","))
+     for (char* tmp = strtok(arg, ","); tmp; tmp = strtok(NULL, ","))
      {
         sscanf(tmp, "%d", &val);
         if (val == id)
@@ -49,10 +60,10 @@ int is_active_code(const char* a, int id)
 int main(int argc, char **argv)
 {
     size_t len;
-    char *data, title[32], file[256];
+    char *data, title[32];
     list_t* list_codes;
 
-    printf("\nApollo cheat patcher 0.1.0 - (c) 2021 by Bucanero\n\n");
+    printf("\nApollo cheat patcher v%s - (c) 2022 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 3)
     {
@@ -67,8 +78,8 @@ int main(int argc, char **argv)
     }
 
     code_entry_t* code = calloc(1, sizeof(code_entry_t));
-    code->name = strrchr(argv[1], '/') + 1;
-    code->file = strrchr(argv[1], '/');
+    code->name = argv[1];
+    code->file = argv[1];
 
     list_codes = list_alloc();
     list_append(list_codes, code);
@@ -78,19 +89,21 @@ int main(int argc, char **argv)
     list_node_t *node = list_head(list_codes);
 
     snprintf(title, sizeof(title), "%p", data);
-    printf("[i] Applying codes %s to (%s)...\n\n", argv[2], argv[3]);
+    printf("[i] Applying codes [%s] to %s...\n\n", argv[2], argv[3]);
 
-    for (log=1, len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
+    for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         if (is_active_code(argv[2], len))
         {
+            log++;
             printf("[+] Applying code #%d...\n", len);
-            if (apply_cheat_patch_code(argv[3], title, code, "/tmp/"))
+            if (apply_cheat_patch_code(argv[3], title, code, TMP_FOLDER))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
         }
     }
 
-//    fclose(log);
+    free_patch_var_list();
+    printf("\nPatching completed: %d codes applied\n\n", log);
 }

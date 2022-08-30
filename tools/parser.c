@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo .savepatch to markdown parser 0.1.0 - (c) 2021 by Bucanero\n\n");
+    printf("\nApollo .savepatch parser v0.1.0 - (c) 2021 by Bucanero\n\n");
 
     if (--argc < 1)
     {
