@@ -19,7 +19,7 @@ static int log = 0;
 
 void print_usage(const char* argv0)
 {
-    printf("USAGE: %s <FILE.savepatch> 1,2,7,..,18 target.file\n\n", argv0);
+    printf("USAGE: %s file.savepatch 1,2,7,10,18 target.file\n\n", argv0);
     return;
 }
 

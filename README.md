@@ -1,15 +1,84 @@
-# Apollo Save Tool library (PS3/PS4)
+# Apollo Save Tool library (PS3/PS4/PS Vita)
 
-[![License][img_license]][app_license]
+[![Downloads][img_downloads]][app_downloads] [![Release][img_latest]][app_latest] [![License][img_license]][app_license]
+[![macOS Linux binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml)
+[![Windows binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml)
 
-# License
+This library and command-line tools implement a save-data patch engine that supports Save Wizard/Game Genie codes and Bruteforce Save Data scripts.
 
-[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2022  Damian Parrino
+The library is cross-platform and is required to build:
+- [Apollo Save Tool PS3](https://github.com/bucanero/apollo-ps3)
+- [Apollo Save Tool PS4](https://github.com/bucanero/apollo-ps4)
+- [Apollo Save Tool PS Vita](https://github.com/bucanero/apollo-vita)
+
+## Supported Code formats
+
+- Save Wizard / Game Genie
+- Bruteforce Save Data scripts
+
+### Save Wizard / Game Genie
+
+- Code Type 0: Standard 1 Byte Write
+- Code Type 1: Standard 2 Byte Write
+- Code Type 2: Standard 4 Byte Write
+- Code Type 3: Increase / Decrease Write
+- Code Type 4: Multi-Write (Repeater)
+- Code Type 5: Copy and Paste
+- Code Type 6: Special Mega-code
+- Code Type 7: No More / No Less than Write
+- Code Type 8: Forward Byte Search (Set Pointer)
+- Code Type 9: Pointer Manipulator: (Set/Move Pointer)
+- Code Type A: Mass Write
+- Code Type B: Backward Byte Search (Set Pointer)
+- Code Type C: Address Byte Search (Set Pointer)
+- Code Type D: 2 Byte Test Commands (Code Skipper)
+
+### Bruteforce Save Data (BSD)
+
+- Commands: `set`, `write`, `search`, `insert`, `delete`, `copy`, `decrypt`, `encrypt`, `endian_swap`, `compress`, `decompress`
+- Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md2`, `md4`, `md5`, `md5_xor`, `sha1`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`
+- Custom hashes: `eachecksum`, `ffx_checksum`, `ff13_checksum`, `ducktales_checksum`, `kh25_checksum`, `khcom_checksum`, `mgs2_checksum`, `sw4_checksum`, `toz_checksum`, `tiara2_checksum`
+- Encryption: `aes_ecb`, `des_ecb`, `des3_cbc`, `blowfish_ecb`
+- Custom encryption: `diablo3`, `dw8xl`, `silent_hill3`, `nfs_undercover`, `ffxiii`, `borderlands3`, `mgs_pw`, `mgs_base64`, `mgs`
+
+## CLI Tools
+
+These command-line tools are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
+
+### parser
+
+The `parser` command-line tool reads a `.savepatch` file, and provide a numbered list of detected cheat patches.
+
+```
+Apollo .savepatch parser v0.1.0 - (c) 2021 by Bucanero
+
+USAGE: ./parser filename.savepatch
+```
+
+### patcher
+
+The `patcher` command-line tool reads a `.savepatch` file and a comma-separated list of patches, and apply the selected cheat codes to the target file.
+
+```
+Apollo cheat patcher v0.1.0 - (c) 2022 by Bucanero
+
+USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
+```
+
+**Note:** `patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files.
+
+## License
+
+[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2022  [Damian Parrino](https://twitter.com/dparrino)
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the [GNU General Public License](LICENSE) as published by
+it under the terms of the [GNU General Public License][app_license] as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 [app_license]: https://github.com/bucanero/apollo-lib/blob/master/LICENSE
 [img_license]: https://img.shields.io/github/license/bucanero/apollo-lib.svg?maxAge=2592000
+[app_downloads]: https://github.com/bucanero/apollo-lib/releases
+[app_latest]: https://github.com/bucanero/apollo-lib/releases/latest
+[img_downloads]: https://img.shields.io/github/downloads/bucanero/apollo-lib/total.svg?maxAge=3600
+[img_latest]: https://img.shields.io/github/release/bucanero/apollo-lib.svg?maxAge=3600

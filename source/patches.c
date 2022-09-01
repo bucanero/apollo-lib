@@ -1816,9 +1816,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					dlen = dsize - off;
 			}
 
-			char* write = data + off;
 			dsize -= dlen;
-			bcopy(write + dlen, write, dsize - off);
+			memmove(data + off, data + off + dlen, dsize - off);
 
             LOG("Deleted %d bytes (%s) from 0x%X to 0x%X", dlen, line, off, off + dlen);
 		}
@@ -1884,10 +1883,33 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			free(find);
 		}
 
-		else if (wildcard_match_icase(line, "copy *"))
+		else if (wildcard_match_icase(line, "copy *:*:*"))
 		{
+			// copy <from address>:<to address>:<size>
 			// copy data
-			// UNUSED
+
+			int from = 0, len, off = 0;
+			char* tmp = NULL;
+
+			line += strlen("copy");
+			skip_spaces(line);
+
+			tmp = strchr(line, ':');
+			*tmp = 0;
+			from = _parse_int_value(line, pointer, dsize);
+			*tmp++ = ':';
+			line = tmp;
+
+			tmp = strchr(line, ':');
+			*tmp = 0;
+			off = _parse_int_value(line, pointer, dsize);
+			*tmp++ = ':';
+			line = tmp;
+
+			len = _parse_int_value(line, pointer, dsize);
+			memmove(data + off, data + from, len);
+
+			LOG("Copied %d bytes from 0x%X to 0x%X", len, from, off);
 		}
 
 		else if (wildcard_match_icase(line, "endian_swap(*)*"))
@@ -2768,17 +2790,19 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					case '0':
 					case '8':
+						val &= 0x000000FF;
 						wv8 = (uint8_t) write[0];
-						if (val > wv8) wv8 = (val & 0x000000FF);
+						if (val > wv8) wv8 = val;
 						memcpy(write, &wv8, 1);
 						LOG("nlt-Wrote 1 byte (%02X) to 0x%X", val, off);
 						break;
 
 					case '1':
 					case '9':
+						val &= 0x0000FFFF;
 						wv16 = ((uint16_t*) write)[0];
 						MEM16(wv16);
-						if (val > wv16) wv16 = (val & 0x0000FFFF);
+						if (val > wv16) wv16 = val;
 						MEM16(wv16);
 						memcpy(write, &wv16, 2);
 						LOG("nlt-Wrote 2 bytes (%04X) to 0x%X", val, off);
@@ -2796,17 +2820,19 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 					case '4':
 					case 'C':
+						val &= 0x000000FF;
 						wv8 = (uint8_t) write[0];
-						if (val < wv8) wv8 = (val & 0x000000FF);
+						if (val < wv8) wv8 = val;
 						memcpy(write, &wv8, 1);
 						LOG("nmt-Wrote 1 byte (%02X) to 0x%X", val, off);
 						break;
 
 					case '5':
 					case 'D':
+						val &= 0x0000FFFF;
 						wv16 = ((uint16_t*) write)[0];
 						MEM16(wv16);
-						if (val < wv16) wv16 = (val & 0x0000FFFF);
+						if (val < wv16) wv16 = val;
 						MEM16(wv16);
 						memcpy(write, &wv16, 2);
 						LOG("nmt-Wrote 2 bytes (%04X) to 0x%X", val, off);
