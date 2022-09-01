@@ -2729,16 +2729,25 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				break;
 
     		case '7':
-    			//	Add Write
-    			//	7TXXXXXX YYYYYYYY 
-    			//	 T: 0=1byte/1=2byte/2=4byte
-    			//	T=Address/Offset type
-    			//	Normal/Pointer
-    			//	0 / 8 = 8bit
-    			//	1 / 9 = 16bit
-    			//	2 / A = 32bit
-    			//	X= Address/Offset
-    			//	Y=Increase Value By
+				//	Writes Bytes up to a specified Maximum/Minimum to a specific Address
+				//	This code is the same as a standard write code however it will only write the bytes if the current value at the address is no more or no less than X.
+				//	For example, you can use a no less than value to make sure the address has more than X but will take no effect if it already has more than the value on the save.
+				//	7BYYYYYY XXXXXXXX
+				//	B = Byte Value & Offset Type
+				//	0 = No Less Than: 1 Byte  (000000XX)
+				//	1 = No Less Than: 2 Bytes (0000XXXX)
+				//	2 = No Less Than: 4 Bytes
+				//	4 = No More Than: 1 Byte  (000000XX)
+				//	5 = No More Than: 2 Bytes (0000XXXX)
+				//	6 = No More Than: 4 Bytes
+				//	8 = Offset from Pointer; No Less Than: 1 Byte  (000000XX)
+				//	9 = Offset from Pointer; No Less Than: 2 Bytes (0000XXXX)
+				//	A = Offset from Pointer; No Less Than: 4 Bytes
+				//	C = Offset from Pointer; No More Than: 1 Byte  (000000XX)
+				//	D = Offset from Pointer; No More Than: 2 Bytes (0000XXXX)
+				//	E = Offset from Pointer; No More Than: 4 Bytes
+				//	Y = Address
+				//	X = Bytes to Write
     		{
     			int off;
 				uint32_t val, wv32;
@@ -2748,7 +2757,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
-				off += ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
+				off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &val);
@@ -2759,28 +2768,58 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					case '0':
 					case '8':
-						val += (uint8_t) write[0];
-						wv8 = val;
+						wv8 = (uint8_t) write[0];
+						if (val > wv8) wv8 = (val & 0x000000FF);
 						memcpy(write, &wv8, 1);
-		    			LOG("Add-Wrote 1 byte (%02X) to 0x%X", val, off);
+						LOG("nlt-Wrote 1 byte (%02X) to 0x%X", val, off);
 						break;
 
 					case '1':
 					case '9':
-						val += ((uint16_t*) write)[0];
-						wv16 = val;
+						wv16 = ((uint16_t*) write)[0];
+						MEM16(wv16);
+						if (val > wv16) wv16 = (val & 0x0000FFFF);
 						MEM16(wv16);
 						memcpy(write, &wv16, 2);
-		    			LOG("Add-Wrote 2 bytes (%04X) to 0x%X", val, off);
+						LOG("nlt-Wrote 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '2':
 					case 'A':
-						val += ((uint32_t*) write)[0];
-						wv32 = val;
+						wv32 = ((uint32_t*) write)[0];
 						MEM32(wv32);
-		    			memcpy(write, &wv32, 4);
-		    			LOG("Add-Wrote 4 bytes (%08X) to 0x%X", val, off);
+						if (val > wv32) wv32 = val;
+						MEM32(wv32);
+						memcpy(write, &wv32, 4);
+						LOG("nlt-Wrote 4 bytes (%08X) to 0x%X", val, off);
+						break;
+
+					case '4':
+					case 'C':
+						wv8 = (uint8_t) write[0];
+						if (val < wv8) wv8 = (val & 0x000000FF);
+						memcpy(write, &wv8, 1);
+						LOG("nmt-Wrote 1 byte (%02X) to 0x%X", val, off);
+						break;
+
+					case '5':
+					case 'D':
+						wv16 = ((uint16_t*) write)[0];
+						MEM16(wv16);
+						if (val < wv16) wv16 = (val & 0x0000FFFF);
+						MEM16(wv16);
+						memcpy(write, &wv16, 2);
+						LOG("nmt-Wrote 2 bytes (%04X) to 0x%X", val, off);
+						break;
+
+					case '6':
+					case 'E':
+						wv32 = ((uint32_t*) write)[0];
+						MEM32(wv32);
+						if (val < wv32) wv32 = val;
+						MEM32(wv32);
+						memcpy(write, &wv32, 4);
+						LOG("nmt-Wrote 4 bytes (%08X) to 0x%X", val, off);
 						break;
 				}
     		}
