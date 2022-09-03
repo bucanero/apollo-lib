@@ -240,6 +240,22 @@ static void _parse_start_end(char* line, int pointer, int dsize, int *start_val,
 	*tmp = ')';
 }
 
+static void _log_dump(const char* name, const uint8_t* buf, int size)
+{
+	char msgout[64];
+
+	LOG("----- %s %d bytes -----", name, size);
+	for (int i = 0; i < size; i++)
+	{
+		if (i && !(i % 16))
+			LOG("%s", msgout);
+
+		sprintf(msgout + (i % 16)*3, "%02X ", buf[i]);
+	}
+	LOG("%s", msgout);
+	LOG("----- %s %d bytes -----", name, size);
+}
+
 static void swap_u16_data(uint16_t* data, int count)
 {
 	for (int i=0; i < count; i++)
@@ -819,7 +835,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
 			        sha1(start, len, var->data);
 
-    			    LOG("len %d SHA1 HASH = %llx%llx%x", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint32_t*)var->data)[4]);
+					LOG("len %d SHA1", len);
+					_log_dump("SHA1 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:sha256*
@@ -832,7 +849,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
 					sha256(start, len, var->data, 0);
 
-    			    LOG("len %d SHA256 HASH = %llx%llx%llx%llx", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint64_t*)var->data)[2], ((uint64_t*)var->data)[3]);
+					LOG("len %d SHA256", len);
+					_log_dump("SHA256 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:sha384*
@@ -845,9 +863,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
 					sha512(start, len, var->data, 1);
 
-    			    LOG("len %d SHA384 HASH = %llx%llx%llx%llx %llx%llx%llx%llx", len,
-						((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint64_t*)var->data)[2], ((uint64_t*)var->data)[3],
-						((uint64_t*)var->data)[4], ((uint64_t*)var->data)[5], ((uint64_t*)var->data)[6], ((uint64_t*)var->data)[7]);
+					LOG("len %d SHA384", len);
+					_log_dump("SHA384 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:sha512*
@@ -860,9 +877,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
 					sha512(start, len, var->data, 0);
 
-    			    LOG("len %d SHA512 HASH = %llx%llx%llx%llx %llx%llx%llx%llx", len,
-						((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint64_t*)var->data)[2], ((uint64_t*)var->data)[3],
-						((uint64_t*)var->data)[4], ((uint64_t*)var->data)[5], ((uint64_t*)var->data)[6], ((uint64_t*)var->data)[7]);
+					LOG("len %d SHA512", len);
+					_log_dump("SHA512 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:adler32*
@@ -919,7 +935,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					sha1_hmac((uint8_t*) key, key_len, start, len, var->data);
 					free(key);
 
-					LOG("len %d SHA1/HMAC HASH = %llx%llx%x", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint32_t*)var->data)[4]);
+					LOG("len %d SHA1/HMAC", len);
+					_log_dump("SHA1/HMAC HASH", var->data, var->len);
 			    }
 
 			    // set [*]:eachecksum*
@@ -1065,7 +1082,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					var->data = malloc(var->len);
 					toz_hash(start, len, var->data);
 
-					LOG("len %d TOZ SHA1 HASH = %llx%llx%x", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1], ((uint32_t*)var->data)[4]);
+					LOG("len %d TOZ SHA1", len);
+					_log_dump("TOZ SHA1 HASH", var->data, var->len);
 				}
 
 				// set [*]:tiara2_checksum*
@@ -1150,7 +1168,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					// qwadd(<start>,<endrange>)
 					// 64-bit	0xFFFFFFFFFFFFFFFF
 					int add_s, add_e;
-					uint32_t add = 0;
+					uint32_t add = old_val;
 
 					line += strlen("qwadd(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1177,7 +1195,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			        // dwadd(<start>,<endrange>)
 			        // 32-bit	0xFFFFFFFF
 			        int add_s, add_e;
-			        uint32_t add = 0;
+			        uint32_t add = old_val;
 
 			        line += strlen("dwadd(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1205,7 +1223,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					// wadd_le(<start>,<endrange>)
 					// 32-bit	0xFFFFFFFF
 					int add_s, add_e;
-					uint32_t add = 0;
+					uint32_t add = old_val;
 
 					line += strlen("wadd_le(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1233,7 +1251,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					// dwadd_le(<start>,<endrange>)
 					// 32-bit	0xFFFFFFFF
 					int add_s, add_e;
-					uint32_t add = 0;
+					uint32_t add = old_val;
 
 					line += strlen("dwadd_le(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1260,7 +1278,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			        // wadd(<start>,<endrange>)
 			        // 16-bit	0xFFFF
 			        int add_s, add_e;
-			        uint32_t add = 0;
+			        uint32_t add = old_val;
 
 			        line += strlen("wadd(");
 			        _parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1292,7 +1310,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			        // add(<start>,<endrange>)
 			        // 8-bit	0xFF
 			        int add_s, add_e;
-			        uint32_t add = 0;
+			        uint32_t add = old_val;
 
 			        line += strlen("add(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
@@ -1325,7 +1343,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					// dwsub()			dbl word	32-bit	0xFFFFFFFF
 					// qwsub()			quad word	64-bit	0xFFFFFFFFFFFFFFFF
 			        int sub_s, sub_e;
-			        uint32_t sub = 0;
+			        uint32_t sub = old_val;
 
 			        line += strlen("wsub(");
 			        _parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
@@ -1333,7 +1351,9 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
     			    
     			    while (read < data + sub_e)
     			    {
-    			    	sub -= (*(uint16_t*)read);
+						uint16_t rsub = (*(uint16_t*)read);
+						BE16(rsub);
+    			    	sub -= rsub;
     			    	read += BSD_VAR_INT16;
     			    }
 
@@ -1910,6 +1930,19 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			memmove(data + off, data + from, len);
 
 			LOG("Copied %d bytes from 0x%X to 0x%X", len, from, off);
+		}
+
+		else if (wildcard_match_icase(line, "msgbox [*]*"))
+		{
+			int len;
+			char* buf;
+
+			line += strlen("msgbox");
+			skip_spaces(line);
+
+			buf = _decode_variable_data(line, &len);
+			_log_dump(line, (uint8_t*) buf, len);
+			free(buf);
 		}
 
 		else if (wildcard_match_icase(line, "endian_swap(*)*"))
@@ -2899,8 +2932,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			}
 
 				LOG("Searching (len=%d count=%d) ...", len, cnt);
-				for (i=0; i < len; i++)
-					LOG("(%02d) %02X", i, find[i]);
+				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
 				if (pointer < 0)
@@ -3074,8 +3106,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				}
 
 				LOG("Searching (len=%d count=%d) ...", len, cnt);
-				for (int i=0; i < len; i++)
-					LOG("(%02d) %02X", i, find[i]);
+				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
 				if (pointer < 0)
@@ -3129,8 +3160,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				if (!cnt) cnt = 1;
 
 				LOG("Searching (len=%d count=%d) ...", len, cnt);
-				for (int i=0; i < len; i++)
-					LOG("(%02d) %02X", i, find[i]);
+				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = search_data(data, (t == '0' || t == '8') ? dsize : addr, (t == '0' || t == '8') ? addr : 0, find, len, cnt);
 				if (pointer < 0)
