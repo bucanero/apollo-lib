@@ -46,10 +46,9 @@ void remove_char(char * str, int len, char seek)
 
 static long search_data(const char* data, size_t size, int start, const char* search, int len, int count)
 {
-	long i;
 	int k = 1;
 
-	for (i = start; i < (size-len); i++)
+	for (size_t i = start; i < (size-len); i++)
 		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
@@ -248,11 +247,11 @@ static void _log_dump(const char* name, const uint8_t* buf, int size)
 	for (int i = 0; i < size; i++)
 	{
 		if (i && !(i % 16))
-			LOG("%s", msgout);
+			LOG("%06X: %s", i-0x10, msgout);
 
 		sprintf(msgout + (i % 16)*3, "%02X ", buf[i]);
 	}
-	LOG("%s", msgout);
+	LOG("%06X: %s", (size-1) & ~15, msgout);
 	LOG("----- %s %d bytes -----", name, size);
 }
 
@@ -2908,7 +2907,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			sscanf(tmp8, "%x", &val);
 				BE32(val);
 
-    			find = malloc(len);
+    			find = malloc((len+3) & ~3);
     			if (!cnt) cnt = 1;
 
 				memcpy(find, (char*) &val, 4);
@@ -2935,17 +2934,17 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
+				free(find);
+
 				if (pointer < 0)
 				{
 					LOG("SEARCH PATTERN NOT FOUND");
-					free(find);
 					dsize = 0;
 
 					goto gg_end;
 				}
 
 				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
-				free(find);
     		}
     			break;
 
@@ -3013,7 +3012,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			//	zzzzzzzz zzzzzzzz  <-data to write at address
     			//	T= Address/Offset type (0 = Normal / 8 = Offset From Pointer)
     		{
-    			int i, off;
+    			int off;
     			uint32_t val, size;
     			char* write;
     			char t = line[1];
@@ -3024,8 +3023,9 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%x", &size);
+				write = malloc((size+3) & ~3);
 
-				for (i = 0; i < size; i += 8)
+				for (uint32_t i = 0; i < size; i += 8)
 				{
 				    line = strtok(NULL, "\n");
 
@@ -3033,21 +3033,21 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     				sscanf(tmp8, "%x", &val);
 					BE32(val);
 
-	    			write = data + off + i;
-	    			memcpy(write, (char*) &val, 4);
-					LOG("m-Wrote 4 bytes (%s) to 0x%lX", tmp8, write - data);
+					memcpy(write + i, (char*) &val, 4);
 
     				sprintf(tmp8, "%.8s", line+9);
     				sscanf(tmp8, "%x", &val);
 					BE32(val);
 
-	    			write += 4;
 					if (i + 4 < size)
-					{
-		    			memcpy(write, (char*) &val, 4);
-		    			LOG("m-Wrote 4 bytes (%s) to 0x%lX", tmp8, write - data);
-					}
+						memcpy(write + i+4, (char*) &val, 4);
 				}
+
+				_log_dump("m-Write", (uint8_t*) write, size);
+				memcpy(data + off, write, size);
+				free(write);
+
+				LOG("m-Wrote %d bytes to 0x%X", size, off);
     		}
     			break;
 
@@ -3082,7 +3082,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				sscanf(tmp8, "%x", &val);
 				BE32(val);
 
-				find = malloc(len);
+				find = malloc((len+3) & ~3);
 				if (!cnt) cnt = 1;
 
 				memcpy(find, (char*) &val, 4);
@@ -3109,17 +3109,17 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
+				free(find);
+
 				if (pointer < 0)
 				{
 					LOG("SEARCH PATTERN NOT FOUND");
-					free(find);
 					dsize = 0;
 
 					goto gg_end;
 				}
 
 				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
-				free(find);
 			}
 				break;
 
