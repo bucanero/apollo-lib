@@ -71,13 +71,13 @@ int main(int argc, char **argv)
 
     for (len = 1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
-        printf("%4d. %s%s\n", len, code->name, code->flags & APOLLO_CODE_FLAG_EMPTY ? " (Empty)":"");
+        printf("%4ld. %s%s\n", len, code->name, code->flags & APOLLO_CODE_FLAG_EMPTY ? " (Empty)":"");
 
-        if (log) fprintf(fp, "### %d. %s\n", len, code->name);
+        if (log) fprintf(fp, "### %ld. %s\n", len, code->name);
         if (log && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
             fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
     }
 
     if (log) fclose(fp);
-    printf("\nParse completed: %d codes\n\n", len-1);
+    printf("\nParse completed: %ld codes\n\n", len-1);
 }

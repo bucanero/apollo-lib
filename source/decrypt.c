@@ -61,7 +61,7 @@ void diablo_decrypt_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Decrypted Size 0x%X (%d bytes)", size, size);
 
-	for (int i = 0; i < size; i++)
+	for (uint32_t i = 0; i < size; i++)
 	{
 		data[i] ^= (xor_key1 & 0xFF);
 		tmp = data[i] ^ xor_key1;
@@ -81,7 +81,7 @@ void diablo_encrypt_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Encrypted Size 0x%X (%d bytes)", size, size);
 
-	for (int i = 0; i < size; i++)
+	for (uint32_t i = 0; i < size; i++)
 	{
 		tmp = data[i] ^ xor_key1;
 		data[i] ^= (xor_key1 & 0xFF);
@@ -778,7 +778,7 @@ void dw8xl_encode_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Encoded Size Is 0x%X (%d bytes)", size, size);
 
-    for(int i = 0; i <= size; i++)
+    for(uint32_t i = 0; i <= size; i++)
     {
         xor_key = (xor_key * DW8XL_KEY2) + 0x3039;
         data[i] ^= ((xor_key >> 16) & 0xff);

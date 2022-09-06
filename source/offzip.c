@@ -61,8 +61,8 @@ static int buffread(FILE *fd, uint8_t *buff, int size);
 static void buffseek(FILE *fd, int off, int mode);
 static void buffinc(int increase);
 static int zip_search(FILE *fd);
-static int unzip_all(FILE *fd, const char* out_path, int zipdo);
-static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname);
+static int unzip_all(FILE *fd, const char* out_path);
+static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname);
 static int zlib_err(int err);
 static FILE *save_file(const char *fname);
 static int myfwrite(uint8_t *buff, int size, FILE *fd);
@@ -157,7 +157,7 @@ int offzip_util(const char *file_input, const char *output_dir, const char *base
     LOG("| hex_offset | blocks_dots | zip_size --> unzip_size |");
     LOG("+------------+-------------+-------------------------+");
 
-    files = unzip_all(fd, output_dir, ZIPDOFILE);
+    files = unzip_all(fd, output_dir); //ZIPDOFILE
     if(files) {
         LOG("- %u valid zip blocks found", files);
     } else {
@@ -247,7 +247,7 @@ static int zip_search(FILE *fd) {
 }
 
 
-static int unzip_all(FILE *fd, const char* out_path, int zipdo) {
+static int unzip_all(FILE *fd, const char* out_path) {
     FILE    *fdo    = NULL;
     uint32_t inlen,
             outlen;
@@ -262,7 +262,7 @@ static int unzip_all(FILE *fd, const char* out_path, int zipdo) {
         snprintf(filename, sizeof(filename), "%s[%s]%08x.dat", out_path, g_basename, g_offset);
         LOG("Unzip (0x%08x) to %s", g_offset, filename);
 
-        zipres = unzip(fd, &fdo, &inlen, &outlen, zipdo, filename);
+        zipres = unzip(fd, &fdo, &inlen, &outlen, filename);
         FCLOSE(fdo);
 
         if((zipres < 0) && filename[0]) {
@@ -285,7 +285,7 @@ static int unzip_all(FILE *fd, const char* out_path, int zipdo) {
 }
 
 
-static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, int zipdo, const char *dumpname) {
+static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname) {
     uint32_t oldsz = 0,
             oldoff,
             len;

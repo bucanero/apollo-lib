@@ -96,7 +96,7 @@ int main(int argc, char **argv)
         if (is_active_code(argv[2], len))
         {
             log++;
-            printf("[+] Applying code #%d...\n", len);
+            printf("[+] Applying code #%ld...\n", len);
             if (apply_cheat_patch_code(argv[3], title, code, TMP_FOLDER))
                 printf("- OK\n");
             else

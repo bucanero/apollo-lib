@@ -8,10 +8,6 @@
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
-#define UTF8_CHAR_GROUP		"\xe2\x97\x86"
-#define UTF8_CHAR_ITEM		"\xe2\x94\x97"
-#define CHAR_TAG_WARNING    15
-
 
 void remove_char(char * str, int len, char seek);
 
