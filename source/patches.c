@@ -761,6 +761,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			        	hash[2] ^= hash[j+2];
 			        	hash[3] ^= hash[j+3];
 					}
+					LE32(*(uint32_t*)hash);
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
@@ -779,7 +780,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
 			        md5(start, len, var->data);
 
-    			    LOG("len %d MD5 HASH = %llx%llx", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1]);
+					LOG("len %d MD5", len);
+					_log_dump("MD5 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:md2*
@@ -792,7 +794,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
                     md(md_info_from_type(POLARSSL_MD_MD2), start, len, var->data);
 
-    			    LOG("len %d MD2 HASH = %llx%llx", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1]);
+					LOG("len %d MD2", len);
+					_log_dump("MD2 HASH", var->data, var->len);
 			    }
 
 			    // set [*]:md4*
@@ -805,7 +808,8 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
                     var->data = malloc(var->len);
                     md(md_info_from_type(POLARSSL_MD_MD4), start, len, var->data);
 
-    			    LOG("len %d MD4 HASH = %llx%llx", len, ((uint64_t*)var->data)[0], ((uint64_t*)var->data)[1]);
+					LOG("len %d MD4", len);
+					_log_dump("MD4 HASH", var->data, var->len);
 				}
 
 				// set [*]:sha1_xor64*
