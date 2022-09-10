@@ -748,13 +748,12 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    else if (wildcard_match_icase(line, "md5_xor*"))
 			    {
 			        uint8_t hash[BSD_VAR_MD5];
-			        int j;
     			    uint8_t* start = (uint8_t*)data + range_start;
     			    len = range_end - range_start;
 
 			        md5(start, len, hash);
 			        
-			        for (j = 4; j < BSD_VAR_MD5; j += 4)
+			        for (int j = 4; j < BSD_VAR_MD5; j += 4)
 			        {
 			        	hash[0] ^= hash[j];
 			        	hash[1] ^= hash[j+1];
@@ -940,6 +939,28 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					LOG("len %d SHA1/HMAC", len);
 					_log_dump("SHA1/HMAC HASH", var->data, var->len);
+			    }
+
+			    // set [*]:force_crc32(*)*
+			    else if (wildcard_match_icase(line, "force_crc32(*)*"))
+			    {
+					uint32_t hash, newcrc;
+					len = range_end - range_start;
+
+					line += strlen("force_crc32(");
+					tmp = strrchr(line, ')');
+					*tmp = 0;
+
+					newcrc = _parse_int_value(line, pointer, dsize);
+					*tmp = ')';
+
+					hash = force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d Force-CRC32 (%X) HASH = %X", len, newcrc, hash);
 			    }
 
 			    // set [*]:eachecksum*

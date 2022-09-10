@@ -177,6 +177,13 @@ uint32_t tiara2_hash(const uint8_t* data, uint32_t len);
  */
 void toz_hash(const uint8_t* data, uint32_t len, uint8_t* sha_hash);
 
+/**
+ * This function brute-force a CRC32 hash calculation to match newcrc on Length data bytes
+ *
+ * RETURN VALUE: 32 bit data result to update offset
+ */
+int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc);
+
 #ifdef __cplusplus
 }
 #endif

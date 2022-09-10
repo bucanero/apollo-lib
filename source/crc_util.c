@@ -43,7 +43,159 @@
         return (crc ^ (UINT)cfg->xor); \
     }
 
-void generate_crc16_table(uint16_t poly, uint16_t* crc_table)
+uint64_t reflect(uint64_t data, uint8_t nBits)
+{
+    uint64_t reflection = 0;
+    uint8_t bit;
+    /*
+     * Reflect the data about the center bit.
+     */
+    for (bit = 0; bit < nBits; ++bit)
+    {
+        /*
+         * If the LSB bit is set, set the reflection of it.
+         */
+        if (data & 0x01)
+            reflection |= ((uint64_t)1 << ((nBits - 1) - bit));
+
+        data = (data >> 1);
+    }
+
+    return (reflection);
+
+}   /* reflect() */
+
+/* crc16_hash() */
+CREATE_CRC_FUNCTION(uint16_t, 16)
+
+/* crc32_hash() */
+CREATE_CRC_FUNCTION(uint32_t, 32)
+
+/* crc64_hash() */
+CREATE_CRC_FUNCTION(uint64_t, 64)
+
+/* 
+ * CRC-32 forcer (C)
+ * https://github.com/nayuki/Nayuki-web-published-code/blob/master/forcing-a-files-crc-to-any-value/forcecrc32.c
+ * 
+ * Copyright (c) 2022 Project Nayuki
+ * https://www.nayuki.io/page/forcing-a-files-crc-to-any-value
+ */
+ 
+// Returns polynomial x multiplied by polynomial y modulo the generator polynomial.
+static uint64_t multiply_mod(uint64_t x, uint64_t y) {
+	// Russian peasant multiplication algorithm
+	uint64_t z = 0;
+	while (y != 0) {
+		z ^= x * (y & 1);
+		y >>= 1;
+		x <<= 1;
+		if (((x >> 32) & 1) != 0)
+			x ^= (CRC_32_POLYNOMIAL + 0x100000000);
+	}
+	return z;
+}
+
+// Returns polynomial x to the power of natural number y modulo the generator polynomial.
+static uint64_t pow_mod(uint64_t x, uint64_t y) {
+	// Exponentiation by squaring
+	uint64_t z = 1;
+	while (y != 0) {
+		if ((y & 1) != 0)
+			z = multiply_mod(z, x);
+		x = multiply_mod(x, x);
+		y >>= 1;
+	}
+	return z;
+}
+
+static int get_degree(uint64_t x) {
+	int result = -1;
+	for (; x != 0; x >>= 1)
+		result++;
+	return result;
+}
+
+// Computes polynomial x divided by polynomial y, returning the quotient and remainder.
+static void divide_and_remainder(uint64_t x, uint64_t y, uint64_t* q, uint64_t* r) {
+	if (y == 0) {
+		// ERROR "Division by zero"
+		return;
+	}
+	if (x == 0) {
+		*q = 0;
+		*r = 0;
+		return;
+	}
+
+	int ydeg = get_degree(y);
+	uint64_t z = 0;
+	for (int i = get_degree(x) - ydeg; i >= 0; i--) {
+		if (((x >> (i + ydeg)) & 1) != 0) {
+			x ^= y << i;
+			z |= (uint64_t)1 << i;
+		}
+	}
+	*q = z;
+	*r = x;
+}
+
+// Returns the reciprocal of polynomial x with respect to the generator polynomial.
+static uint64_t reciprocal_mod(uint64_t x) {
+	// Based on a simplification of the extended Euclidean algorithm
+	uint64_t y = x;
+	x = (CRC_32_POLYNOMIAL + 0x100000000);
+	uint64_t a = 0;
+	uint64_t b = 1;
+	while (y != 0) {
+		uint64_t q, r;
+		divide_and_remainder(x, y, &q, &r);
+		uint64_t c = a ^ multiply_mod(q, b);
+		x = y;
+		y = r;
+		a = b;
+		b = c;
+	}
+	if (x == 1)
+		return a;
+	else {
+		// ERROR "Reciprocal does not exist"
+		return 0;
+	}
+}
+
+int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc) {
+	int ret = 0;
+	custom_crc_t cfg = {
+		.init = CRC_32_INIT_VALUE,
+		.poly = CRC_32_POLYNOMIAL,
+		.xor = CRC_32_XOR_VALUE,
+		.refIn = 1,
+		.refOut = 0,
+	};
+
+	if (length < 4 || offset > length - 4) {
+		// Error: Byte offset plus 4 exceeds file length
+		return 0;
+	}
+
+	// Read entire file and calculate original CRC-32 value.
+	uint32_t delta = (uint32_t)reflect(newcrc, 32) ^ crc32_hash(data, length, &cfg);
+	// Compute the change to make
+	delta = (uint32_t)multiply_mod(reciprocal_mod(pow_mod(2, (length - offset) * 8)), delta);
+	delta = (uint32_t)reflect(delta, 32);
+
+	// Patch 4 bytes in the file
+	for (int i = 0; i < 4; i++) {
+		ret |= (data[offset + i] ^ ((delta >> (i * 8)) & 0xFF)) << (24 - i*8);
+	}
+
+	return ret;
+}
+
+/* ------------------------------------------------------------------ */
+
+static void generate_crc16_table(uint16_t poly, uint16_t* crc_table)
 {
     for (int i = 0; i < 256; ++i)
     {
@@ -56,7 +208,7 @@ void generate_crc16_table(uint16_t poly, uint16_t* crc_table)
     }
 }
 
-void generate_crc32_table(uint32_t poly, uint32_t* crc_table)
+static void generate_crc32_table(uint32_t poly, uint32_t* crc_table)
 {
     for (int i = 0; i < 256; ++i)
     {
@@ -69,7 +221,7 @@ void generate_crc32_table(uint32_t poly, uint32_t* crc_table)
     }
 }
 
-uint32_t add_csum(const uint8_t* data, uint32_t len)
+static uint32_t add_csum(const uint8_t* data, uint32_t len)
 {
     uint32_t checksum = 0;
 
@@ -251,6 +403,9 @@ uint64_t duckTales_hash(const uint8_t* data, uint32_t size)
 
 int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
 {
+	if (size < SW4_OFF_JP)
+		return 0;
+
 	uint32_t num1, num2, num3, num4, num5, num6;
 	uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);
 
@@ -354,34 +509,3 @@ uint16_t adler16(const uint8_t *data, size_t len)
 
     return ((b << 8) | a);
 }
-
-uint64_t reflect(uint64_t data, uint8_t nBits)
-{
-    uint64_t reflection = 0;
-    uint8_t bit;
-    /*
-     * Reflect the data about the center bit.
-     */
-    for (bit = 0; bit < nBits; ++bit)
-    {
-        /*
-         * If the LSB bit is set, set the reflection of it.
-         */
-        if (data & 0x01)
-            reflection |= ((uint64_t)1 << ((nBits - 1) - bit));
-
-        data = (data >> 1);
-    }
-
-    return (reflection);
-
-}   /* reflect() */
-
-/* crc16_hash() */
-CREATE_CRC_FUNCTION(uint16_t, 16)
-
-/* crc32_hash() */
-CREATE_CRC_FUNCTION(uint32_t, 32)
-
-/* crc64_hash() */
-CREATE_CRC_FUNCTION(uint64_t, 64)
