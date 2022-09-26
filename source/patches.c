@@ -941,18 +941,14 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					_log_dump("SHA1/HMAC HASH", var->data, var->len);
 			    }
 
-			    // set [*]:force_crc32(*)*
-			    else if (wildcard_match_icase(line, "force_crc32(*)*"))
+			    // set [*]:force_crc32:*
+			    else if (wildcard_match_icase(line, "force_crc32:*"))
 			    {
 					uint32_t hash, newcrc;
 					len = range_end - range_start;
 
-					line += strlen("force_crc32(");
-					tmp = strrchr(line, ')');
-					*tmp = 0;
-
+					line = strchr(line, ':')+1;
 					newcrc = _parse_int_value(line, pointer, dsize);
-					*tmp = ')';
 
 					hash = force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
 

@@ -3,6 +3,8 @@
 #include <string.h>
 #include "apollo.h"
 
+#define CLI_VERSION     APOLLO_LIB_VERSION
+
 static int log = 0;
 
 void print_usage(const char* argv0)
@@ -32,7 +34,7 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo .savepatch parser v0.1.0 - (c) 2021 by Bucanero\n\n");
+    printf("\nApollo .savepatch parser v%s - (c) 2021 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 1)
     {

@@ -36,7 +36,7 @@ The library is cross-platform and is required to build:
 ### Bruteforce Save Data (BSD)
 
 - Commands: `set`, `write`, `search`, `insert`, `delete`, `copy`, `decrypt`, `encrypt`, `endian_swap`, `compress`, `decompress`
-- Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md2`, `md4`, `md5`, `md5_xor`, `sha1`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`
+- Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md2`, `md4`, `md5`, `md5_xor`, `sha1`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`, `force_crc32`
 - Custom hashes: `eachecksum`, `ffx_checksum`, `ff13_checksum`, `ducktales_checksum`, `kh25_checksum`, `khcom_checksum`, `mgs2_checksum`, `sw4_checksum`, `toz_checksum`, `tiara2_checksum`
 - Encryption: `aes_ecb`, `des_ecb`, `des3_cbc`, `blowfish_ecb`
 - Custom encryption: `diablo3`, `dw8xl`, `silent_hill3`, `nfs_undercover`, `ffxiii`, `borderlands3`, `mgs_pw`, `mgs_base64`, `mgs`
@@ -66,6 +66,15 @@ USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
 ```
 
 **Note:** `patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files.
+
+## Credits
+
+* [Bucanero](http://www.bucanero.com.ar/): [Project developer](https://github.com/bucanero)
+
+### Acknowledgments
+
+* [aldostools](https://aldostools.org/): [Bruteforce Save Data](https://bruteforcesavedata.forumms.net/)
+* [aluigi](http://aluigi.org): [offzip/packzip](http://aluigi.altervista.org/mytoolz.htm)
 
 ## License
 

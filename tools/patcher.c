@@ -10,9 +10,9 @@
 #endif
 
 #ifdef __PS3_PC__
-#define CLI_VERSION     "0.1.0 PS3/big-endian"
+#define CLI_VERSION     APOLLO_LIB_VERSION " PS3/big-endian"
 #else
-#define CLI_VERSION     "0.1.0"
+#define CLI_VERSION     APOLLO_LIB_VERSION
 #endif
 
 static int log = 0;
