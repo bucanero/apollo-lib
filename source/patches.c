@@ -1076,6 +1076,21 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					LOG("len %d MGS2 HASH = %X", len, hash);
 				}
 
+				// set [*]:mgspw_checksum*
+				else if (wildcard_match_icase(line, "mgspw_checksum*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
+
+					hash = mgspw_Checksum((uint8_t*)data + range_start, len);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d MGS PW HASH = %08X", len, hash);
+				}
+
 				// set [*]:sw4_checksum*
 				else if (wildcard_match_icase(line, "sw4_checksum*"))
 				{

@@ -797,13 +797,6 @@ void mgspw_Encrypt(uint32_t* data, uint32_t size)
     if (size < 0x35998)
         return;
 
-    data[0xD683] = mgspw_Checksum((uint8_t*)data + 0x35a18, 0xf0d0);
-    data[12] = mgspw_Checksum((uint8_t*)data + 0x1cb68, 0x18e68);
-    data[15] = mgspw_Checksum((uint8_t*)data + 0x1af68, 0x1c00);
-    data[14] = mgspw_Checksum((uint8_t*)data + 68, 0x1af24);
-
-    LOG("[*] New Checksums: %08X %08X %08X %08X", data[12], data[14], data[15], data[0xD683]);
-
     mgspw_SwapBlock(data + 17, 0xd665);
     mgspw_SetSalts(salts, data + 0xD676);
     mgspw_DeEncryptBlock(data + 0xD686, 0x3C34, salts);
