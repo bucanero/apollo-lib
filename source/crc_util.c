@@ -232,7 +232,7 @@ static uint32_t add_csum(const uint8_t* data, uint32_t len)
 }
 
 // Custom CRC table for Kingdom Hearts 2.5
-void kh25_crc32_table(uint32_t poly, uint32_t* crc_table)
+static void kh25_crc32_table(uint32_t poly, uint32_t* crc_table)
 {
     for (int x = 0; x < 0x100; x++)
     {
@@ -469,7 +469,7 @@ uint32_t tiara2_hash(const uint8_t* data, uint32_t len)
 	return (crc);
 }
 
-void _toz_sha1(const uint8_t* data, uint32_t length, const char* key, uint8_t* hash_out)
+static void _toz_sha1(const uint8_t* data, uint32_t length, const char* key, uint8_t* hash_out)
 {
     sha1_context ctx;
 

@@ -207,7 +207,7 @@ void des3_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t 
 	return;
 }
 
-void xor_block(const uint8_t* in, uint8_t* out)
+static void xor_block(const uint8_t* in, uint8_t* out)
 {
 	for (int i = 0; i < XOR_BLOCK_SIZE; i++)
 		out[i] ^= in[i];
@@ -265,8 +265,8 @@ void nfsu_encrypt_data(uint8_t* data, uint32_t size)
 
 void sh3_decrypt_data(uint8_t* data, uint32_t size)
 {
-	uint32_t out;
-	uint64_t input, key2 = SH3_KEY2;
+	uint32_t input, out;
+	uint64_t key2 = SH3_KEY2;
 
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
@@ -275,10 +275,12 @@ void sh3_decrypt_data(uint8_t* data, uint32_t size)
 	while (size--)
 	{
 		input = *(uint32_t*) data;
+		BE32(input);
 		out = (uint32_t)((input ^ (uint64_t)(key2 - SH3_KEY1)) & 0xFFFFFFFF);
+		BE32(out);
 		memcpy(data, &out, sizeof(uint32_t));
 
-		key2 = (input << 5 | input >> 27) + (uint64_t)SH3_KEY2;
+		key2 = (uint64_t)(input << 5 | input >> 27) + (uint64_t)SH3_KEY2;
 		data += 4;
 	}
 
@@ -287,8 +289,8 @@ void sh3_decrypt_data(uint8_t* data, uint32_t size)
 
 void sh3_encrypt_data(uint8_t* data, uint32_t size)
 {
-	uint32_t out;
-	uint64_t input, key2 = SH3_KEY2;
+	uint32_t input, out;
+	uint64_t key2 = SH3_KEY2;
 
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
@@ -297,10 +299,12 @@ void sh3_encrypt_data(uint8_t* data, uint32_t size)
 	while (size--)
 	{
 		input = *(uint32_t*) data;
+		BE32(input);
 		out = (uint32_t)((input ^ (uint64_t)(key2 - SH3_KEY1)) & 0xFFFFFFFF);
-		memcpy(data, &out, sizeof(uint32_t));
 
 		key2 = (uint64_t)(out << 5 | out >> 27) + (uint64_t)SH3_KEY2;
+		BE32(out);
+		memcpy(data, &out, sizeof(uint32_t));
 		data += 4;
 	}
 
@@ -314,13 +318,15 @@ void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* kdata)
 
 	if (ff_game > 1)
 	{
-		ff_key = (ff_game == 2) ? FFXIII_2_KEY : FFXIII_3_KEY;
-		ff_key ^= (kdata[0] ^ kdata[1]) | 1L;
+		ff_key = (kdata[0] ^ kdata[1]);
+		BE64(ff_key);
+		ff_key |= 1L;
+		ff_key ^= (ff_game == 2) ? FFXIII_2_KEY : FFXIII_3_KEY;
 	}
 
 	ff_key = ((ff_key & 0xFF00000000000000) >> 16) | ((ff_key & 0x0000FF0000000000) << 16) | (ff_key & 0x00FF00FFFFFFFFFF);
 	ff_key = ((ff_key & 0x00000000FF00FF00) >>  8) | ((ff_key & 0x0000000000FF00FF) <<  8) | (ff_key & 0xFFFFFFFF00000000);
-	ff_key = ES64(ff_key);
+	LE64(ff_key);
 
 	memcpy(key_table, &ff_key, sizeof(uint64_t));
 
@@ -335,9 +341,10 @@ void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* kdata)
 
 	for (int j = 0; j < 31; j++)
 	{
-		ff_key = ES64(*(uint64_t*)(key_table + j*8));
+		ff_key = *(uint64_t*)(key_table + j*8);
+		LE64(ff_key);
 		ff_key = ff_key + (uint64_t)((ff_key << 2) & 0xFFFFFFFFFFFFFFFC);
-		ff_key = ES64(ff_key);
+		LE64(ff_key);
 
 		memcpy(key_table + (j+1)*8, &ff_key, sizeof(uint64_t));
 	}
@@ -389,12 +396,13 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 			KeyBlockCtr = 0;
 
 		o.Cog64B = (uint64_t)ByteCounter << 0x14;
-		Gear1 = o.Cog32BArray[1] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
+		LE64(o.Cog64B);
+		Gear1 = o.Cog32BArray[0] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
 
 		CarryFlag1 = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
 
 		Gear1 = Gear1 + FFXIII_CONST;
-		Gear2 = (BlockCounter*2 | o.Cog32BArray[0]) + CarryFlag1;
+		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag1;
 
 		///THE INNER LOOP OF THE DECODER
 		for(int i = 0, BlockwiseByteCounter = 0; BlockwiseByteCounter < 8;)
@@ -429,23 +437,30 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 		///RESUMING THE OUTER LOOP
 		ByteCounter -=8;
 
-		TBlockA = ES32(*(uint32_t*) &MemBlock[ByteCounter]);
-		TBlockB = ES32(*(uint32_t*) &MemBlock[ByteCounter+4]);
+		TBlockA = *(uint32_t*) &MemBlock[ByteCounter];
+		TBlockB = *(uint32_t*) &MemBlock[ByteCounter+4];
+		LE32(TBlockA);
+		LE32(TBlockB);
 
-		KBlockA = ES32(*(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0]);
-		KBlockB = ES32(*(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4]);
+		KBlockA = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0];
+		KBlockB = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4];
+		LE32(KBlockA);
+		LE32(KBlockB);
 
 		CarryFlag2 = (TBlockA < KBlockA) ? 1 : 0;
 
-		TBlockA = ES32(KBlockA ^ Gear1 ^ (TBlockA - KBlockA));
-		TBlockB = ES32(KBlockB ^ Gear2 ^ (TBlockB - KBlockB - CarryFlag2));
+		TBlockA = (KBlockA ^ Gear1 ^ (TBlockA - KBlockA));
+		TBlockB = (KBlockB ^ Gear2 ^ (TBlockB - KBlockB - CarryFlag2));
+		LE32(TBlockA);
+		LE32(TBlockB);
 
 		memcpy(&MemBlock[ByteCounter],   &TBlockB, sizeof(uint32_t));
 		memcpy(&MemBlock[ByteCounter+4], &TBlockA, sizeof(uint32_t));
 	}
 	///EXITING THE OUTER LOOP. FILE HAS NOW BEEN FULLY DECODED.
 
-	ff_csum = ES32(ff13_checksum(MemBlock, ByteCounter - 8));
+	ff_csum = ff13_checksum(MemBlock, ByteCounter - 8);
+	LE32(ff_csum);
 	csum = (uint32_t*)(MemBlock + ByteCounter - 4);
 
 	if (*csum == ff_csum)
@@ -487,25 +502,34 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 			KeyBlockCtr = 0;
 
 		o.Cog64B = (uint64_t)ByteCounter << 0x14;
-
-		Gear1 = o.Cog32BArray[1] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
+		LE64(o.Cog64B);
+		Gear1 = o.Cog32BArray[0] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
 
 		CarryFlag1 = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
 
 		Gear1 = Gear1 + FFXIII_CONST;
-		Gear2 = (BlockCounter*2 | o.Cog32BArray[0]) + CarryFlag1;
+		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag1;
 
-		KBlockA = ES32(*(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0]);
-		KBlockB = ES32(*(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4]);
+		KBlockA = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0];
+		KBlockB = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4];
+		LE32(KBlockA);
+		LE32(KBlockB);
 
-		TBlockB = KBlockB ^ Gear2 ^ ES32(*(uint32_t*) &MemBlock[ByteCounter]);
-		TBlockA = KBlockA ^ Gear1 ^ ES32(*(uint32_t*) &MemBlock[ByteCounter+4]);
+		TBlockB = *(uint32_t*) &MemBlock[ByteCounter];
+		TBlockA = *(uint32_t*) &MemBlock[ByteCounter+4];
+		LE32(TBlockA);
+		LE32(TBlockB);
+
+		TBlockB ^= (KBlockB ^ Gear2);
+		TBlockA ^= (KBlockA ^ Gear1);
 
 		///Reverse of TBlockA < KBlockA from the Decoder.
 		CarryFlag2 = (TBlockA > ~KBlockA) ? 1 : 0;
 
-		TBlockB = ES32(TBlockB + KBlockB + CarryFlag2);       ///Reversed from subtraction to addition.
-		TBlockA = ES32(TBlockA + KBlockA);                    ///Reversed from subtraction to addition.
+		TBlockB = (TBlockB + KBlockB + CarryFlag2);       ///Reversed from subtraction to addition.
+		TBlockA = (TBlockA + KBlockA);                    ///Reversed from subtraction to addition.
+		LE32(TBlockA);
+		LE32(TBlockB);
 
 		memcpy(&MemBlock[ByteCounter],   &TBlockA, sizeof(uint32_t));
 		memcpy(&MemBlock[ByteCounter+4], &TBlockB, sizeof(uint32_t));
@@ -691,17 +715,29 @@ void mgspw_DeEncryptBlock(uint32_t* data, int size, uint32_t* pwSalts)
 {
 	for (int i = 0; i < size; i++)
 	{
+		BE32(data[i]);
 		data[i] ^= pwSalts[0];
+		BE32(data[i]);
 		pwSalts[0] = pwSalts[0] * 0x2e90edd + pwSalts[1];
 	}
 }
 
 void mgspw_SetSalts(uint32_t* pwSalts, const uint32_t *data)
 {
-    uint32_t offset = (data[1] | 0xAD47DE8F) ^ data[0];
+    uint32_t offset, d0 = data[0], d1 = data[1];
 
-    pwSalts[0] = (data[offset + 2] ^ 0x1327de73) ^ (data[offset + 3] ^ 0x2d71d26c);
-    pwSalts[1] = pwSalts[0] * (data[offset + 7] ^ 0xBC4DEFA2);
+    BE32(d0);
+    BE32(d1);
+    offset = (d1 | 0xAD47DE8F) ^ d0;
+    d0 = data[offset + 2];
+    d1 = data[offset + 3];
+    BE32(d0);
+    BE32(d1);
+
+    pwSalts[0] = (d0 ^ 0x1327de73) ^ (d1 ^ 0x2d71d26c);
+    d1 = data[offset + 7];
+    BE32(d1);
+    pwSalts[1] = pwSalts[0] * (d1 ^ 0xBC4DEFA2);
     pwSalts[0] = (pwSalts[0] ^ 0x6576) << 16 | pwSalts[0];
 }
 
@@ -728,16 +764,24 @@ void mgspw_Decrypt(uint32_t* data, uint32_t size)
     mgspw_DeEncryptBlock(data + 0xD686, 0x3C34, salts);
     mgspw_SwapBlock(data + 17, 0xd665);
 
-    if (mgspw_Checksum((uint8_t*)data + 68, 0x1af24) != data[14])
+    salts[0] = mgspw_Checksum((uint8_t*)data + 68, 0x1af24);
+    BE32(salts[0]);
+    if (salts[0] != data[14])
         LOG("[!] Checksum error (%x)", 68);
 
-    if (mgspw_Checksum((uint8_t*)data + 0x1af68, 0x1c00) != data[15])
+    salts[0] = mgspw_Checksum((uint8_t*)data + 0x1af68, 0x1c00);
+    BE32(salts[0]);
+    if (salts[0] != data[15])
         LOG("[!] Checksum error (%x)", 0x1af68);
 
-    if (mgspw_Checksum((uint8_t*)data + 0x1cb68, 0x18e68) != data[12])
+    salts[0] = mgspw_Checksum((uint8_t*)data + 0x1cb68, 0x18e68);
+    BE32(salts[0]);
+    if (salts[0] != data[12])
         LOG("[!] Checksum error (%x)", 0x1cb68);
 
-    if (mgspw_Checksum((uint8_t*)data + 0x35a18, 0xf0d0) != data[0xD683])
+    salts[0] = mgspw_Checksum((uint8_t*)data + 0x35a18, 0xf0d0);
+    BE32(salts[0]);
+    if (salts[0] != data[0xD683])
         LOG("[!] Checksum error (%x)", 0x35a18);
 
     LOG("[*] Decrypted File Successfully!");

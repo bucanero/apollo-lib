@@ -984,7 +984,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					// FFX hash is stored in little-endian
 					hash = ffx_hash(start, len);
-					LE16(hash);
+					hash = ES16(hash);
 
 					var->len = BSD_VAR_INT16;
 					var->data = malloc(var->len);
@@ -1002,7 +1002,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					// FFXIII hash is stored in little-endian
 					hash = ff13_checksum(start, len);
-					LE32(hash);
+					hash = ES32(hash);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1036,7 +1036,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					// Kingdom Hearts 2.5 hash is stored in little-endian
 					hash = kh25_hash(start, len);
-					LE32(hash);
+					hash = ES32(hash);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
