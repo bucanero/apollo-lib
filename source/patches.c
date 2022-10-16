@@ -555,7 +555,17 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 						dsize = 0;
 						goto bsd_end;
     			    }
+#ifndef __PPU__
+					// workaround: _decode_variable_data() returns data as big endian
+					// if not PPU, we need to convert it to little endian to match the data
+					char* le_val = malloc(wlen);
     			    
+					for (int i=0; i < wlen; i++)
+						le_val[i] = xor_val[wlen - i - 1];
+
+					memcpy(xor_val, le_val, wlen);
+					free(le_val);
+#endif
     			    for (int i=0; i < wlen; i++)
     			        xor_val[i] ^= var->data[i];
 
@@ -747,20 +757,13 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    // set [*]:md5_xor*
 			    else if (wildcard_match_icase(line, "md5_xor*"))
 			    {
-			        uint8_t hash[BSD_VAR_MD5];
+    			    uint32_t hash[4];
     			    uint8_t* start = (uint8_t*)data + range_start;
     			    len = range_end - range_start;
 
-			        md5(start, len, hash);
-			        
-			        for (int j = 4; j < BSD_VAR_MD5; j += 4)
-			        {
-			        	hash[0] ^= hash[j];
-			        	hash[1] ^= hash[j+1];
-			        	hash[2] ^= hash[j+2];
-			        	hash[3] ^= hash[j+3];
-					}
-					LE32(*(uint32_t*)hash);
+					md5(start, len, (uint8_t*) hash);
+					hash[0] ^= (hash[1] ^ hash[2] ^ hash[3]);
+					LE32(hash[0]);
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
@@ -819,10 +822,12 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					len = range_end - range_start;
 
 					sha1(start, len, (uint8_t*) sha);
+					sha[0] ^= (sha[1] ^ sha[2]);
+					BE64(sha[0]);
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					*(uint64_t*) var->data = (sha[0] ^ sha[1] ^ sha[2]);
+					memcpy(var->data, (uint8_t*) sha, var->len);
 
 					LOG("len %d SHA1_XOR64 HASH = %llX", len, ((uint64_t*)var->data)[0]);
 				}
@@ -1995,15 +2000,15 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 			switch (mode)
 			{
-			case 16:
+			case 2:
 				swap_u16_data((uint16_t*) start, (range_end - range_start)/2);
 				break;
 
-			case 32:
+			case 4:
 				swap_u32_data((uint32_t*) start, (range_end - range_start)/4);
 				break;
 
-			case 64:
+			case 8:
 				swap_u64_data((uint64_t*) start, (range_end - range_start)/8);
 				break;
 
@@ -2012,7 +2017,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				dsize = 0;
 				goto bsd_end;
 			}
-			LOG("Swap %d bits data on the defined range", mode);
+			LOG("Endian Swap (%d bits) data 0x%X..0x%X", mode*8, range_start, range_end);
 		}
 
 		else if (wildcard_match_icase(line, "decrypt *"))
