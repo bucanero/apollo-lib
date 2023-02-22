@@ -381,7 +381,7 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	uint32_t ByteCounter = 0, BlockCounter = 0, KeyBlockCtr = 0;
 	uint32_t Gear1 = 0, Gear2 = 0;
 	uint32_t TBlockA = 0, TBlockB = 0, KBlockA = 0, KBlockB = 0;
-	uint8_t CarryFlag1 = 0, CarryFlag2 = 0;
+	uint8_t CarryFlag = 0;
 	uint8_t IntermediateCarrier = 0, OldMemblockValue = 0;
 
 	union u {
@@ -397,12 +397,14 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 
 		o.Cog64B = (uint64_t)ByteCounter << 0x14;
 		LE64(o.Cog64B);
+		LE32(o.Cog32BArray[0]);
+		LE32(o.Cog32BArray[1]);
 		Gear1 = o.Cog32BArray[0] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
 
-		CarryFlag1 = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
+		CarryFlag = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
 
 		Gear1 = Gear1 + FFXIII_CONST;
-		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag1;
+		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag;
 
 		///THE INNER LOOP OF THE DECODER
 		for(int i = 0, BlockwiseByteCounter = 0; BlockwiseByteCounter < 8;)
@@ -447,10 +449,10 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 		LE32(KBlockA);
 		LE32(KBlockB);
 
-		CarryFlag2 = (TBlockA < KBlockA) ? 1 : 0;
+		CarryFlag = (TBlockA < KBlockA) ? 1 : 0;
 
 		TBlockA = (KBlockA ^ Gear1 ^ (TBlockA - KBlockA));
-		TBlockB = (KBlockB ^ Gear2 ^ (TBlockB - KBlockB - CarryFlag2));
+		TBlockB = (KBlockB ^ Gear2 ^ (TBlockB - KBlockB - CarryFlag));
 		LE32(TBlockA);
 		LE32(TBlockB);
 
@@ -487,7 +489,7 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	uint32_t ByteCounter = 0, BlockCounter = 0, KeyBlockCtr = 0;
 	uint32_t Gear1 = 0, Gear2 = 0;
 	uint32_t TBlockA = 0, TBlockB = 0, KBlockA = 0, KBlockB = 0;
-	uint8_t CarryFlag1 = 0, CarryFlag2 = 0;
+	uint8_t CarryFlag = 0;
 	uint8_t OldMemblockValue = 0;
 
 	union u {
@@ -503,12 +505,14 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 
 		o.Cog64B = (uint64_t)ByteCounter << 0x14;
 		LE64(o.Cog64B);
+		LE32(o.Cog32BArray[0]);
+		LE32(o.Cog32BArray[1]);
 		Gear1 = o.Cog32BArray[0] | (ByteCounter << 0x0A) | ByteCounter; ///Will this work badly when Gear1 becomes higher than 7FFFFFFF?
 
-		CarryFlag1 = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
+		CarryFlag = (Gear1 > ~FFXIII_CONST) ? 1 : 0;
 
 		Gear1 = Gear1 + FFXIII_CONST;
-		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag1;
+		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag;
 
 		KBlockA = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0];
 		KBlockB = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4];
@@ -524,10 +528,10 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 		TBlockA ^= (KBlockA ^ Gear1);
 
 		///Reverse of TBlockA < KBlockA from the Decoder.
-		CarryFlag2 = (TBlockA > ~KBlockA) ? 1 : 0;
+		CarryFlag = (TBlockA > ~KBlockA) ? 1 : 0;
 
-		TBlockB = (TBlockB + KBlockB + CarryFlag2);       ///Reversed from subtraction to addition.
-		TBlockA = (TBlockA + KBlockA);                    ///Reversed from subtraction to addition.
+		TBlockB += (KBlockB + CarryFlag);      ///Reversed from subtraction to addition.
+		TBlockA += KBlockA;                    ///Reversed from subtraction to addition.
 		LE32(TBlockA);
 		LE32(TBlockB);
 
