@@ -53,13 +53,13 @@ jobs:
           make clean && make
 
       - name: Get short SHA
-        run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_PATH
+        run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
     
       - name: Compress output
         run: |
           tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: build-${{ env.sha_name }}-${{matrix.mingw}}
           path: build.tar.gz
