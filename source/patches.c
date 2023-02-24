@@ -2981,16 +2981,11 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					do
 					{
-						if ((line = strtok(NULL, "\n")) == NULL)
-						{
-							LOG("SEARCH PATTERN NOT FOUND");
-							dsize = 0;
-							goto gg_end;
-						}
-					} while ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8');
+						line = strtok(NULL, "\n");
+					} while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
 
 					pointer = 0;
-					LOG("NOT FOUND - SKIP TO NEXT SEARCH");
+					LOG(line ? "NOT FOUND - SKIP TO NEXT SEARCH" : "SEARCH PATTERN NOT FOUND");
 					continue;
 				}
 
@@ -3165,16 +3160,11 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					do
 					{
-						if ((line = strtok(NULL, "\n")) == NULL)
-						{
-							LOG("SEARCH PATTERN NOT FOUND");
-							dsize = 0;
-							goto gg_end;
-						}
-					} while ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8');
+						line = strtok(NULL, "\n");
+					} while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
 
 					pointer = 0;
-					LOG("NOT FOUND - SKIP TO NEXT SEARCH");
+					LOG(line ? "NOT FOUND - SKIP TO NEXT SEARCH" : "SEARCH PATTERN NOT FOUND");
 					continue;
 				}
 
@@ -3226,16 +3216,11 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				{
 					do
 					{
-						if ((line = strtok(NULL, "\n")) == NULL)
-						{
-							LOG("SEARCH PATTERN NOT FOUND");
-							dsize = 0;
-							goto gg_end;
-						}
-					} while ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8');
+						line = strtok(NULL, "\n");
+					} while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
 
 					pointer = 0;
-					LOG("NOT FOUND - SKIP TO NEXT SEARCH");
+					LOG(line ? "NOT FOUND - SKIP TO NEXT SEARCH" : "SEARCH PATTERN NOT FOUND");
 					continue;
 				}
 
