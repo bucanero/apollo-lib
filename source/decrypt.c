@@ -311,7 +311,7 @@ void sh3_encrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* kdata)
+static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* kdata)
 {
 	uint32_t init[2];
 	uint64_t ff_key = FFXIII_KEY;
@@ -715,7 +715,7 @@ uint32_t mgspw_Checksum(const uint8_t* data, int size)
     return ~csum;
 }
 
-void mgspw_DeEncryptBlock(uint32_t* data, int size, uint32_t* pwSalts)
+static void mgspw_DeEncryptBlock(uint32_t* data, int size, uint32_t* pwSalts)
 {
 	for (int i = 0; i < size; i++)
 	{
@@ -726,7 +726,7 @@ void mgspw_DeEncryptBlock(uint32_t* data, int size, uint32_t* pwSalts)
 	}
 }
 
-void mgspw_SetSalts(uint32_t* pwSalts, const uint32_t *data)
+static void mgspw_SetSalts(uint32_t* pwSalts, const uint32_t *data)
 {
     uint32_t offset, d0 = data[0], d1 = data[1];
 
@@ -745,7 +745,7 @@ void mgspw_SetSalts(uint32_t* pwSalts, const uint32_t *data)
     pwSalts[0] = (pwSalts[0] ^ 0x6576) << 16 | pwSalts[0];
 }
 
-void mgspw_SwapBlock(uint32_t* data, int len)
+static void mgspw_SwapBlock(uint32_t* data, int len)
 {
     for (int i = 0; i < len; i++)
     	data[i] = ES32(data[i]);
