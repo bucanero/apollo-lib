@@ -48,7 +48,7 @@ static long search_data(const char* data, size_t size, int start, const char* se
 {
 	int k = 1;
 
-	for (size_t i = start; i < (size-len); i++)
+	for (size_t i = start; i <= (size-len); i++)
 		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
@@ -3159,7 +3159,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 						memcpy(find + i+4, (char*) &val, 4);
 				}
 
-				LOG("Searching (len=%d count=%d) ...", len, cnt);
+				LOG("Backward Searching (len=%d count=%d) ...", len, cnt);
 				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : end_pointer, find, len, cnt);
@@ -3217,7 +3217,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				find = data + addr;
 				if (!cnt) cnt = 1;
 
-				LOG("Searching (len=%d count=%d) ...", len, cnt);
+				LOG("Address Searching (len=%d count=%d) ...", len, cnt);
 				_log_dump("Search", (uint8_t*) find, len);
 
 				pointer = search_data(data, (t == '0' || t == '8') ? dsize : addr, (t == '0' || t == '8') ? addr : 0, find, len, cnt);
