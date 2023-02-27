@@ -59,8 +59,8 @@ static long reverse_search_data(const char* data, size_t size, int start, const 
 {
 	int k = 1;
 
-	for (long i = start ? start : (size -len -1); i >= 0; i--)
-		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
+	for (long i = start; i >= 0; i--)
+		if ((i+len <= (long)size) && (memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
 	return -1;
@@ -2395,7 +2395,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 {
     char *data;
 	size_t dsize;
-	long pointer = 0;
+	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
 	int codelen = strlen(code->codes);
@@ -3004,6 +3004,8 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			//	3 = Sub X to Pointer
     			//	4 = Set Pointer to the end of file and subtract X
     			//	5 = Set Pointer to X
+    			//	D = Set End Address = to X
+    			//	E = Set End Address From Pointer + X
     			//	X = Value to set / change
     			//	---
     			//	Move pointer to offset in address XXXXXXXXX (CONFIRMED CODE)
@@ -3046,6 +3048,12 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 						break;
 					case '5':
 						pointer = off;
+						break;
+					case 'D':
+						end_pointer = off;
+						break;
+					case 'E':
+						end_pointer = pointer + off;
 						break;
 				}
     		}
@@ -3129,6 +3137,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 				find = malloc((len+3) & ~3);
 				if (!cnt) cnt = 1;
+				if (!end_pointer) end_pointer = dsize - 1;
 
 				memcpy(find, (char*) &val, 4);
 				
@@ -3153,7 +3162,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				LOG("Searching (len=%d count=%d) ...", len, cnt);
 				_log_dump("Search", (uint8_t*) find, len);
 
-				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : 0, find, len, cnt);
+				pointer = reverse_search_data(data, dsize, (t == '8') ? pointer : end_pointer, find, len, cnt);
 				free(find);
 
 				if (pointer < 0)
@@ -3231,12 +3240,15 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 			case 'D':
 				//	2 Byte Test Commands (Code Skipper)
 				//	Test a specific Address using an Operation; skips the following code lines if Operation fails
-				//	DBYYYYYY CCDDXXXX
+				//	DBYYYYYY CCZDXXXX
 				//	B = Offset Type
 				//	0 = Normal
 				//	8 = Offset from Pointer
 				//	Y = Address to test
 				//	C = Lines of code to skip if test fails
+				//	Z = Value data type
+				//	0 = 16-bit
+				//	1 = 8-bit
 				//	D = Test Operation
 				//	0 = Equal
 				//	1 = Not Equal
@@ -3248,6 +3260,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				uint16_t src;
 				char t = line[1];
 				char op = line[12];
+				char bit = line[11];
 
 				sprintf(tmp6, "%.6s", line+2);
 				sscanf(tmp6, "%x", &off);
@@ -3261,6 +3274,12 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 				src = *(uint16_t*)(data + off);
 				MEM16(src);
+
+				if (bit == '1')
+				{
+					val &= 0xFF;
+					src = (uint8_t)data[off];
+				}
 
 				switch (op)
 				{
