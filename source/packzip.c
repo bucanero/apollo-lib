@@ -18,7 +18,7 @@
     http://www.gnu.org/licenses/gpl-2.0.txt
 */
 
-
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
