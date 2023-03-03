@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <polarssl/sha1.h>
+#include "apollo.h"
 #include "crc_util.h"
 
 #define SW4_OFF_1      0x00004

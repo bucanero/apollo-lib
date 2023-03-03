@@ -25,7 +25,6 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <zlib.h>
-#include "unpack.h"
 
 #include <dbglogger.h>
 #define LOG dbglogger_log

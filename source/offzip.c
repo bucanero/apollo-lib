@@ -28,8 +28,6 @@
 #include <zlib.h>
 #include <dirent.h>
 
-#include "unpack.h"
-
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
@@ -41,20 +39,11 @@
 #define SHOWX           0x7ff   // AND to show the current scanned offset each SHOWX offsets
 #define FCLOSE(X)       { if(X) fclose(X); X = NULL; }
 
-enum {
-    ZIPDOSCAN1,
-    ZIPDOSCAN,
-    ZIPDOWRITE,
-    ZIPDODUMP,
-    ZIPDOFILE,
-};
-
 #define Z_INIT_ERROR    -1000
 #define Z_END_ERROR     -1001
 #define Z_RESET_ERROR   -1002
 
 #define g_minzip        32
-
 
 
 static int buffread(FILE *fd, uint8_t *buff, int size);
@@ -69,12 +58,12 @@ static int myfwrite(uint8_t *buff, int size, FILE *fd);
 
 
 static z_stream    z;
-uint32_t g_offset        = 0,
+static uint32_t g_offset = 0,
         g_filebuffoff   = 0,
         g_filebuffsz    = 0;
-int     g_zipwbits      = OFFZIP_WBITS_ZLIB;
-char    *g_basename     = NULL;
-uint8_t *g_in           = NULL,
+static int g_zipwbits   = 0;
+static const char *g_basename = NULL;
+static uint8_t *g_in    = NULL,
         *g_out          = NULL,
         *g_filebuff     = NULL;
 
@@ -121,7 +110,7 @@ int offzip_util(const char *file_input, const char *output_dir, const char *base
 */
 
     g_zipwbits = wbits;
-    g_basename = (char*)basename;
+    g_basename = basename;
     g_offset        = 0;
     g_filebuffoff   = 0;
     g_filebuffsz    = 0;
@@ -397,7 +386,7 @@ static int myfwrite(uint8_t *buff, int size, FILE *fd) {
         return(0);
     }
     if(size <= 0) return 1;
-    if(fwrite(buff, 1, size, fd) != size) {
+    if(fwrite(buff, 1, size, fd) != (size_t)size) {
         LOG("Error: problems during files writing, check permissions and disk space");
         return(0);
     }

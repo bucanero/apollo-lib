@@ -9,7 +9,6 @@
 #include "apollo.h"
 #include "types.h"
 #include "crc_util.h"
-#include "unpack.h"
 
 #define SUCCESS                 0
 #define skip_spaces(str)        while (*str == ' ') str++;
@@ -430,7 +429,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    *tmp = ',';
 
 				range_end = _parse_int_value(line, pointer - eof, dsize) + 1;
-				if (range_end > dsize)
+				if (range_end > (long)dsize)
 					range_end = dsize;
 
                 LOG("RANGE = %ld (0x%lX) - %ld (0x%lX)", range_start, range_start, range_end, range_end);
@@ -1872,7 +1871,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			else
 			{
 			    dlen = _parse_int_value(line, pointer, dsize);
-				if (dlen + off > dsize)
+				if (dlen + off > (long)dsize)
 					dlen = dsize - off;
 			}
 
@@ -3330,7 +3329,6 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
 
-gg_end:
 	free(data);
 	// remove 0x00 from previous strtok(...)
     remove_char(code->codes, codelen, '\0');
