@@ -1,0 +1,20 @@
+TARGET_LIB = psp-libapollo.a
+OBJS       = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
+			 source/patches.o source/wildcard.o
+
+INCDIR = include
+CFLAGS = -O2 -Wall -D__PS4__ -D_GNU_SOURCE
+CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+ASFLAGS = $(CFLAGS)
+
+LIBDIR =
+LDFLAGS =
+
+PSPSDK=$(shell psp-config --pspsdk-path)
+include $(PSPSDK)/lib/build.mak
+
+install: $(TARGET_LIB)
+	@echo Copying...
+	@cp -frv include/apollo.h $(PSPDEV)/psp/include
+	@cp -frv $(TARGET_LIB) $(PSPDEV)/psp/lib/libapollo.a
+	@echo lib installed!

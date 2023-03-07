@@ -1,0 +1,27 @@
+TARGET    = ps2-libapollo.a
+OBJS      = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
+			source/patches.o source/wildcard.o
+
+PREFIX   = $(PS2DEV)/ee/bin/mips64r5900el-ps2-elf
+CC       = $(PREFIX)-gcc
+CXX      = $(PREFIX)-g++
+AR       = $(PREFIX)-ar
+CFLAGS   = -Wl,-q -Wall -O2 -D_EE -G0 -D__PS2__ -D_GNU_SOURCE -Iinclude -I$(PS2SDK)/ports/include
+CXXFLAGS = $(CFLAGS) -std=gnu++11
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(AR) rcu $@ $^
+
+clean:
+	@rm -rf $(TARGET) $(OBJS)
+	@echo "Cleaned up!"
+
+install: $(TARGET)
+	@echo Copying...
+	@cp -frv include/apollo.h $(PS2SDK)/ports/include
+	@cp -frv $(TARGET) $(PS2SDK)/ports/lib/libapollo.a
+	@echo lib installed!
