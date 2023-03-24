@@ -141,10 +141,15 @@ static char* _decode_variable_data(const char* line, int *data_len)
 
 static int _parse_int_value(const char* line, const int ptrval, const int size)
 {
-    int ret = 0;
+    int ret = 0, neg = 0;
 
     skip_spaces(line);
 	if (line[0] == '+') line++;
+	if (line[0] == '-')
+	{
+		neg = 1;
+		line++;
+	}
 
     if (strlen(line) == 0)
     {
@@ -198,7 +203,7 @@ static int _parse_int_value(const char* line, const int ptrval, const int size)
 	    sscanf(line, "%x", &ret);
 	}
 	
-	return ret;
+	return (neg ? -ret : ret);
 }
 
 void free_patch_var_list()
@@ -1511,7 +1516,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue + (4 - rlen), var->len);
+					memcpy(var->data, (uint8_t*) &rvalue + PADDING(4 - rlen), var->len);
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 			    }
@@ -1572,7 +1577,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    else
 			    {
 			        uint32_t tval;
-                    sscanf(line, "%x", &tval);
+                    sscanf(line, "%" PRIx32, &tval);
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
@@ -1664,7 +1669,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 			    for (int i=0; i < wlen; i++)
 			        write_val[i] ^= data[off + i];
 
-				LOG(":xor:%s", line);
+			    LOG(":xor:%s", line);
 			}
 
 			// write at/next *:repeat(*,*)*
@@ -2433,7 +2438,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			off += (line[1] == '8' ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &val);
+    			sscanf(tmp8, "%" PRIx32, &val);
 				MEM32(val);
 
     			memcpy(data + off, (char*) &val + PADDING(4 - bytes), bytes);
@@ -2479,7 +2484,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
 
 				sprintf(tmp8, "%.8s", line+9);
-				sscanf(tmp8, "%x", &val);
+				sscanf(tmp8, "%" PRIx32, &val);
 
 				char* write = data + off;
 
@@ -2581,7 +2586,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			off += ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &val);
+    			sscanf(tmp8, "%" PRIx32, &val);
 
 			    line = strtok(NULL, "\n");
 
@@ -2592,7 +2597,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			sscanf(tmp4, "%x", &incoff);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &incval);
+    			sscanf(tmp8, "%" PRIx32, &incval);
 			
 				LOG("Multi-write at (0x%X) %d times, inc-addr (%d) inc-val (%X)", off, n, incoff, incval);
 
@@ -2649,7 +2654,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			sscanf(tmp6, "%x", &off_src);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &val);
+    			sscanf(tmp8, "%" PRIx32, &val);
 
     			char* src = data + off_src + (line[1] == '8' ? pointer : 0);
 
@@ -2689,7 +2694,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				uint8_t wv8;
 
 				sprintf(tmp8, "%.8s", line+9);
-				sscanf(tmp8, "%x", &val);
+				sscanf(tmp8, "%" PRIx32, &val);
 
 				char* write = data;
 				int off = ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
@@ -2854,7 +2859,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &val);
+    			sscanf(tmp8, "%" PRIx32, &val);
 
     			char* write = data + off;
 
@@ -2944,7 +2949,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			sscanf(tmp4, "%x", &len);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &val);
+    			sscanf(tmp8, "%" PRIx32, &val);
 				BE32(val);
 
     			find = malloc((len+3) & ~3);
@@ -2957,13 +2962,13 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				    line = strtok(NULL, "\n");
 
 					sprintf(tmp8, "%.8s", line);
-	    			sscanf(tmp8, "%x", &val);
+	    			sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					memcpy(find + i, (char*) &val, 4);
 
 					sprintf(tmp8, "%.8s", line+9);
-	    			sscanf(tmp8, "%x", &val);
+	    			sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					if (i+4 < len)
@@ -3022,7 +3027,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			uint32_t off, val;
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &off);
+    			sscanf(tmp8, "%" PRIx32, &off);
 
 				switch (line[1])
 				{
@@ -3074,7 +3079,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
     			off += ((t == '8') ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
-    			sscanf(tmp8, "%x", &size);
+    			sscanf(tmp8, "%" PRIx32, &size);
 				write = malloc((size+3) & ~3);
 
 				for (uint32_t i = 0; i < size; i += 8)
@@ -3082,13 +3087,13 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				    line = strtok(NULL, "\n");
 
     				sprintf(tmp8, "%.8s", line);
-    				sscanf(tmp8, "%x", &val);
+    				sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					memcpy(write + i, (char*) &val, 4);
 
     				sprintf(tmp8, "%.8s", line+9);
-    				sscanf(tmp8, "%x", &val);
+    				sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					if (i + 4 < size)
@@ -3131,7 +3136,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				sscanf(tmp4, "%x", &len);
 
 				sprintf(tmp8, "%.8s", line+9);
-				sscanf(tmp8, "%x", &val);
+				sscanf(tmp8, "%" PRIx32, &val);
 				BE32(val);
 
 				find = malloc((len+3) & ~3);
@@ -3145,13 +3150,13 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 					line = strtok(NULL, "\n");
 
 					sprintf(tmp8, "%.8s", line);
-					sscanf(tmp8, "%x", &val);
+					sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					memcpy(find + i, (char*) &val, 4);
 
 					sprintf(tmp8, "%.8s", line+9);
-					sscanf(tmp8, "%x", &val);
+					sscanf(tmp8, "%" PRIx32, &val);
 					BE32(val);
 
 					if (i+4 < len)
@@ -3210,7 +3215,7 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 				sscanf(tmp4, "%x", &len);
 
 				sprintf(tmp8, "%.8s", line+9);
-				sscanf(tmp8, "%x", &addr);
+				sscanf(tmp8, "%" PRIx32, &addr);
 				addr += ((t == '8' || t == 'C') ? pointer : 0);
 
 				find = data + addr;
@@ -3390,7 +3395,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t
 				if (wildcard_match(dir->d_name, "[*]*.dat") && strncmp(dir->d_name + 1, title_id, 9) == 0)
 				{
 					tmp = strchr(dir->d_name, ']') + 1;
-					sscanf(tmp, "%x.dat", &offset);
+					sscanf(tmp, "%" PRIx32 ".dat", &offset);
 					snprintf(infile, sizeof(infile), "%s%s", tmp_dir, dir->d_name);
 
 					LOG("Adding '%s' to '%s' at %d (0x%X)...", dir->d_name, code->file, offset, offset);

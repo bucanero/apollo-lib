@@ -248,7 +248,7 @@ static int unzip_all(FILE *fd, const char* out_path) {
     zipres    = -1;
 
     while(!zip_search(fd)) {
-        snprintf(filename, sizeof(filename), "%s[%s]%08x.dat", out_path, g_basename, g_offset);
+        snprintf(filename, sizeof(filename), "%s[%s]%08" PRIx32 ".dat", out_path, g_basename, g_offset);
         LOG("Unzip (0x%08x) to %s", g_offset, filename);
 
         zipres = unzip(fd, &fdo, &inlen, &outlen, filename);
