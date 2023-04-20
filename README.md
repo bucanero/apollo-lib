@@ -1,4 +1,4 @@
-# Apollo Save Tool library (PS3/PS4/PS Vita)
+# Apollo Save Tool library (PS3/PS4/PSP/PS Vita)
 
 [![Downloads][img_downloads]][app_downloads] [![Release][img_latest]][app_latest] [![License][img_license]][app_license]
 [![macOS Linux binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml)
@@ -9,6 +9,7 @@ This library and command-line tools implement a save-data patch engine that supp
 The library is cross-platform and is required to build:
 - [Apollo Save Tool PS3](https://github.com/bucanero/apollo-ps3)
 - [Apollo Save Tool PS4](https://github.com/bucanero/apollo-ps4)
+- [Apollo Save Tool PSP](https://github.com/bucanero/apollo-psp)
 - [Apollo Save Tool PS Vita](https://github.com/bucanero/apollo-vita)
 
 ## Supported Code formats
@@ -65,7 +66,9 @@ Apollo cheat patcher v0.1.0 - (c) 2022 by Bucanero
 USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
 ```
 
-**Note:** `patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files.
+### patcher-bigendian
+
+`patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files.
 
 ## Credits
 
@@ -76,9 +79,15 @@ USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
 * [aldostools](https://aldostools.org/): [Bruteforce Save Data](https://bruteforcesavedata.forumms.net/)
 * [aluigi](http://aluigi.org): [offzip/packzip](http://aluigi.altervista.org/mytoolz.htm)
 
+## Dependencies
+
+This library requires:
+* [PolarSSL](https://github.com/bucanero/oosdk_libraries/tree/master/polarssl-1.3.9)
+* zlib
+
 ## License
 
-[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2022  [Damian Parrino](https://twitter.com/dparrino)
+[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2023 [Damian Parrino](https://twitter.com/dparrino)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the [GNU General Public License][app_license] as published by
