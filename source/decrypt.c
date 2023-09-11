@@ -866,3 +866,25 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 	LOG("[*] Encrypted File Successfully!");
 	return;
 }
+
+// MGSV_TPP_PS3KEY		0x1FBAB234
+// MGSV_TPP_PS4KEY		0x4131F8BE
+void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
+{
+	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
+
+	len /= 4;
+	for (uint32_t i = 0; i < len; i++)
+	{
+		key ^= (key << 13);
+		key ^= (key >> 7);
+		key ^= (key << 5);
+
+		MEM32(data[i]);
+		data[i] ^= key;
+		MEM32(data[i]);
+	}
+
+	LOG("[*] Encoded File Successfully!");
+	return;
+}

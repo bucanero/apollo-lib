@@ -510,3 +510,17 @@ uint16_t adler16(const uint8_t *data, size_t len)
 
     return ((b << 8) | a);
 }
+
+int castlevania_hash(const uint8_t* Bytes, uint32_t length)
+{
+	int num = 0;
+	int num2 = 0;
+
+	for (uint32_t i = 0; i < length; i += 2)
+	{
+		num += ((int)Bytes[i] ^ (i & 255));
+		num2 += ((int)Bytes[i + 1] ^ (i + 1 & 255));
+	}
+
+	return (num + num2);
+}

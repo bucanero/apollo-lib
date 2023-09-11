@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "0.4.1"
+#define APOLLO_LIB_VERSION         "0.5.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -146,6 +146,9 @@ void mgs_EncodeBase64(uint8_t* data, uint32_t size);
 void mgspw_Encrypt(uint32_t* data, uint32_t len);
 void mgspw_Decrypt(uint32_t* data, uint32_t len);
 
+// Metal Gear Solid 5 TPP save data encryption
+void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key);
+
 // Final Fantasy XIII (1/2/3) save data encryption
 void ff13_decrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 void ff13_encrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
@@ -276,6 +279,13 @@ int mgs2_hash(const uint8_t* data, uint32_t len);
  * RETURN VALUE: 32 bit result of CRC calculation
  */
 uint32_t tiara2_hash(const uint8_t* data, uint32_t len);
+
+/**
+ * This function makes Castlevania LOS 1/2 hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 32 bit result of CRC calculation
+ */
+int castlevania_hash(const uint8_t* Bytes, uint32_t length);
 
 /**
  * This function makes Tales of Zestiria hash calculation on Length data bytes

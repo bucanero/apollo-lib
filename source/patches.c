@@ -246,16 +246,18 @@ static void _parse_start_end(char* line, int pointer, int dsize, int *start_val,
 static void _log_dump(const char* name, const uint8_t* buf, int size)
 {
 	char msgout[64];
+	char ascii[32];
 
 	LOG("----- %s %d bytes -----", name, size);
 	for (int i = 0; i < size; i++)
 	{
 		if (i && !(i % 16))
-			LOG("%06X: %s", i-0x10, msgout);
+			LOG("%06X: %s | %s", i-0x10, msgout, ascii);
 
 		sprintf(msgout + (i % 16)*3, "%02X ", buf[i]);
+		sprintf(ascii  + (i % 16), "%c", (buf[i] > 32 && buf[i] < 128) ? buf[i] : '.');
 	}
-	LOG("%06X: %s", (size-1) & ~15, msgout);
+	LOG("%06X: %-48s | %s", (size-1) & ~15, msgout, ascii);
 	LOG("----- %s %d bytes -----", name, size);
 }
 
@@ -1018,6 +1020,22 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d FFXIII HASH = %X", len, hash);
+				}
+
+				// set [*]:ff13_checksum*
+				else if (wildcard_match_icase(line, "castlevania_checksum*"))
+				{
+					uint32_t hash;
+
+					// Castlevania LOS hash is stored in little-endian
+					hash = castlevania_hash((uint8_t*)data + range_start, range_end - range_start);
+					hash = ES32(hash);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d Castlevania HASH = %08X", len, hash);
 				}
 
 				// set [*]:ducktales_checksum*
@@ -2090,6 +2108,21 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 				borderlands3_Decrypt(start, (range_end - range_start), s_type);
 			}
+			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
+			{
+				int xor_key;
+				char *tmp;
+
+				line += strlen("mgs5_tpp(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("MGS 5 Key=%s", line);
+
+				xor_key = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
+			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Decrypt MGS Peace Walker data");
@@ -2268,6 +2301,21 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				*tmp = ')';
 
 				borderlands3_Encrypt(start, (range_end - range_start), s_type);
+			}
+			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
+			{
+				int xor_key;
+				char *tmp;
+
+				line += strlen("mgs5_tpp(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("MGS 5 Key=%s", line);
+
+				xor_key = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
