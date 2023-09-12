@@ -175,6 +175,9 @@ uint32_t mgspw_Checksum(const uint8_t* data, int size);
 /* hash calculation for Final Fantasy XIII */
 uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
 
+/* Rockstar custom CHKS calculation */
+uint32_t rockstar_chks(const uint8_t* data, uint32_t len);
+
 /**
  * This function makes a CRC16 calculation on Length data bytes
  *

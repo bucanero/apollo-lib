@@ -1022,13 +1022,14 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					LOG("len %d FFXIII HASH = %X", len, hash);
 				}
 
-				// set [*]:ff13_checksum*
+				// set [*]:castlevania_checksum*
 				else if (wildcard_match_icase(line, "castlevania_checksum*"))
 				{
 					uint32_t hash;
+					len = range_end - range_start;
 
 					// Castlevania LOS hash is stored in little-endian
-					hash = castlevania_hash((uint8_t*)data + range_start, range_end - range_start);
+					hash = castlevania_hash((uint8_t*)data + range_start, len);
 					hash = ES32(hash);
 
 					var->len = BSD_VAR_INT32;
@@ -1036,6 +1037,41 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Castlevania HASH = %08X", len, hash);
+				}
+
+				// set [*]:rockstar_checksum*
+				else if (wildcard_match_icase(line, "rockstar_checksum*"))
+				{
+					int chks_off;
+					uint32_t chks, chks_len = 0;
+					len = range_end - range_start;
+
+					// Updates all CHKS values
+					chks_off = search_data(data, len, range_start, "CHKS", 5, 1);
+					while (chks_off > 0)
+					{
+						chks     = (*(uint32_t*)(data + chks_off + 4));
+						chks_len = (*(uint32_t*)(data + chks_off + 8));
+						BE32(chks);
+						BE32(chks_len);
+
+						memset(data + chks_off + 8, 0, 8);
+						chks = rockstar_chks((uint8_t*) (data + chks_off - chks_len + chks), chks_len);
+						LOG(" + CHKS Size: 0x%X Offset: 0x%X - Wrote Checksum: %08X", chks_len, chks_off, chks);
+
+						BE32(chks);
+						BE32(chks_len);
+						memcpy(data + chks_off + 0xC, &chks, sizeof(uint32_t));
+						memcpy(data + chks_off + 0x8, &chks_len, sizeof(uint32_t));
+
+						chks_off = search_data(data, len, chks_off+1, "CHKS", 5, 1);
+					}
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &chks, var->len);
+
+					LOG("len %d Rockstar CHKS %s", len, chks_len ? "OK" : "ERROR");
 				}
 
 				// set [*]:ducktales_checksum*

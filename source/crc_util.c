@@ -524,3 +524,18 @@ int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 
 	return (num + num2);
 }
+
+// https://github.com/Zhaxxy/rdr2_enc_dec/blob/main/rdr2_enc_dec.py#L10
+uint32_t rockstar_chks(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0x3FAC7125;
+
+    while (len--)
+    {
+        checksum = ((checksum + (signed char) *data++) * 0x401) & 0xFFFFFFFF;
+        checksum = (checksum >> 6 ^ checksum) & 0xFFFFFFFF;
+    }
+    checksum = (checksum*9) & 0xFFFFFFFF;
+
+    return (((checksum >> 11 ^ checksum) * 0x8001) & 0xFFFFFFFF);
+}

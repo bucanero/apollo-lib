@@ -50,6 +50,15 @@ int main(int argc, char **argv)
 
     code_entry_t* code = calloc(1, sizeof(code_entry_t));
     code->name = argv[1];
+    code->file = strchr(data+1, ';');
+    if (code->file)
+    {
+        code->file++;
+        code->name = calloc(1, 128);
+        memcpy(code->name, code->file, strchr(code->file, '\n') - code->file);
+        for (char* c = code->name; c[0]; c++)
+            if (*c < ' ') c[0] = ' ';
+    }
     code->file = argv[1];
 
     list_codes = list_alloc();
@@ -67,7 +76,7 @@ int main(int argc, char **argv)
         data = strdup(argv[1]);
         strcpy(strrchr(data, '.'), ".md");
         fp = fopen(data, "w");
-        fprintf(fp, "# %s\n\n", code->name);
+        fprintf(fp, "# %s\n\n`%s`\n\n", code->name, code->file);
         free(data);
     }
 
