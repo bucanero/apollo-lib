@@ -25,7 +25,7 @@ jobs:
       CHERE_INVOKING: 1
     name: MSYS2 ${{ matrix.mingw }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up shell
         run: echo "C:\msys64\usr\bin\" >> $GITHUB_PATH
         shell: pwsh
@@ -59,7 +59,7 @@ jobs:
         run: |
           tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: build-${{ env.sha_name }}-${{matrix.mingw}}
           path: build.tar.gz
