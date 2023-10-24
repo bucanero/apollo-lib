@@ -59,7 +59,7 @@ jobs:
         run: |
           tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v3
         with:
           name: build-${{ env.sha_name }}-${{matrix.mingw}}
           path: build.tar.gz
