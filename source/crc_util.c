@@ -519,7 +519,7 @@ int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 	for (uint32_t i = 0; i < length; i += 2)
 	{
 		num += ((int)Bytes[i] ^ (i & 255));
-		num2 += ((int)Bytes[i + 1] ^ (i + 1 & 255));
+		num2 += ((int)Bytes[i + 1] ^ ((i + 1) & 255));
 	}
 
 	return (num + num2);

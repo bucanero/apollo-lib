@@ -3366,7 +3366,11 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 				LOG("Address Searching (len=%d count=%d) ...", len, cnt);
 				_log_dump("Search", (uint8_t*) find, len);
 
-				pointer = search_data(data, (t == '0' || t == '8') ? dsize : addr, (t == '0' || t == '8') ? addr : 0, find, len, cnt);
+				if (t == '4' || t == 'C')
+					pointer = search_data(data, addr + len, 0, find, len, cnt);
+				else
+					pointer = search_data(data, dsize, addr + len, find, len, cnt);
+
 				if (pointer < 0)
 				{
 					do
