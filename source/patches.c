@@ -29,11 +29,12 @@ typedef enum
 typedef struct
 {
     char* name;
-    uint8_t len;
+    int len;
     uint8_t* data;
 } bsd_variable_t;
 
 static list_t* var_list = NULL;
+static apollo_host_cb_t host_callback = NULL;
 
 
 void remove_char(char * str, int len, char seek)
@@ -279,7 +280,7 @@ static void swap_u64_data(uint64_t* data, int count)
 		data[i] = ES64(data[i]);
 }
 
-int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
+int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 {
     char *data;
 	size_t dsize;
@@ -1043,7 +1044,7 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 				else if (wildcard_match_icase(line, "rockstar_checksum*"))
 				{
 					int chks_off;
-					uint32_t chks, chks_len = 0;
+					uint32_t chks = 0, chks_len = 0;
 					len = range_end - range_start;
 
 					// Updates all CHKS values
@@ -1626,6 +1627,63 @@ int apply_bsd_patch_code(const char* filepath, code_entry_t* code)
 
 					LOG("[%s]:mid(..%d.., %X, %d)", var->name, mlen, mid_s, mid_c);
 			    }
+
+				// set [*]:host_lan_addr*
+				else if (wildcard_match_icase(line, "host_lan_addr*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_LAN_ADDR, &var->len);
+
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_lan_addr", var->data, var->len);
+				}
+
+				// set [*]:host_wlan_addr*
+				else if (wildcard_match_icase(line, "host_wlan_addr*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_WLAN_ADDR, &var->len);
+
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_wlan_addr", var->data, var->len);
+				}
+
+				// set [*]:host_account_id*
+				else if (wildcard_match_icase(line, "host_account_id*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_ACCOUNT_ID, &var->len);
+
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_account_id", var->data, var->len);
+				}
+
+				// set [*]:host_username*
+				else if (wildcard_match_icase(line, "host_username*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_USERNAME, NULL);
+
+					var->len = strlen(rval);
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_username", var->data, var->len);
+				}
+
+				// set [*]:host_sysname*
+				else if (wildcard_match_icase(line, "host_sysname*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_SYS_NAME, NULL);
+
+					var->len = strlen(rval);
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_sysname", var->data, var->len);
+				}
 
 			    // set [*]:* (e.g. 0x00000000)
 			    else
@@ -2479,7 +2537,7 @@ bsd_end:
 	return (dsize);
 }
 
-int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
+int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 {
     char *data;
 	size_t dsize;
@@ -3425,8 +3483,30 @@ int apply_ggenie_patch_code(const char* filepath, code_entry_t* code)
 	return (dsize);
 }
 
-int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t* code, const char* tmp_dir)
+static void* dummy_host_callback(int id, int* size)
 {
+	switch (id)
+	{
+	case APOLLO_HOST_TEMP_PATH:
+		break;
+
+	case APOLLO_HOST_USERNAME:
+	case APOLLO_HOST_SYS_NAME:
+	case APOLLO_HOST_LAN_ADDR:
+	case APOLLO_HOST_WLAN_ADDR:
+	case APOLLO_HOST_ACCOUNT_ID:
+		if (size) *size = 6;
+		return "APOLLO";
+	}
+
+	if (size) *size = 1;
+	return "";
+}
+
+int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb)
+{
+	host_callback = host_cb ? host_cb : dummy_host_callback;
+
 	if (code->type == APOLLO_CODE_GAMEGENIE)
 	{
 		LOG("Game Genie Code");
@@ -3439,6 +3519,8 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t
 
 		if (wildcard_match_icase(code->codes, "decompress *"))
 		{
+			const char* tmp_dir = host_callback(APOLLO_HOST_TEMP_PATH, NULL);
+
 			// decompress FILENAME
 			LOG("Decompressing '%s' (w=%d)...", fpath, OFFZIP_WBITS_ZLIB);
 
@@ -3459,7 +3541,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, code_entry_t
 			int wbits;
 			uint32_t offset;
 			char infile[2048];
-//			char infile[MAX_PATH];
+			const char* tmp_dir = host_callback(APOLLO_HOST_TEMP_PATH, NULL);
 
 			char* tmp = strchr(code->codes, ',') + 3;
 			sscanf(tmp, "%d", &wbits);

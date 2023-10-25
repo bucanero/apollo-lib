@@ -214,7 +214,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 	entry->codes = res;
 }
 
-void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*get_files_opt)(const char*, const char*), const char* save_path)
+void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
 {
 	int code_count = 0;
 	code_entry_t * code;

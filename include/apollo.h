@@ -20,6 +20,16 @@
 extern "C" {
 #endif
 
+typedef enum
+{
+    APOLLO_HOST_TEMP_PATH,
+    APOLLO_HOST_SYS_NAME,
+    APOLLO_HOST_USERNAME,
+    APOLLO_HOST_ACCOUNT_ID,
+    APOLLO_HOST_LAN_ADDR,
+    APOLLO_HOST_WLAN_ADDR,
+} apollo_host_data_t;
+
 typedef struct list_node_s
 {
 	void *value;
@@ -64,6 +74,9 @@ typedef struct
     uint8_t refOut;
 } custom_crc_t;
 
+typedef void* (*apollo_host_cb_t)(int info, int* size);
+typedef option_entry_t* (*apollo_get_files_cb_t)(const char*, const char*);
+
 //---  Generic list functions ---
 
 list_t * list_alloc(void);
@@ -96,11 +109,11 @@ int write_buffer(const char *file_path, uint8_t *buf, size_t size);
 
 //---  Apollo patch functions ---
 
-void free_patch_var_list();
-int apply_bsd_patch_code(const char* file_path, code_entry_t* code);
-int apply_ggenie_patch_code(const char* file_path, code_entry_t* code);
-int apply_cheat_patch_code(const char* file_path, const char* title_id, code_entry_t* code, const char* tmp_dir);
-void load_patch_code_list(char* buffer, list_t* list_codes, option_entry_t* (*get_files_opt)(const char*, const char*), const char* save_path);
+void free_patch_var_list(void);
+int apply_bsd_patch_code(const char* file_path, const code_entry_t* code);
+int apply_ggenie_patch_code(const char* file_path, const code_entry_t* code);
+int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
+void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 
 //---  Apollo encryption functions ---
