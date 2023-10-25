@@ -1661,6 +1661,17 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					_log_dump("host_account_id", var->data, var->len);
 				}
 
+				// set [*]:host_psid*
+				else if (wildcard_match_icase(line, "host_psid*"))
+				{
+					char* rval = host_callback(APOLLO_HOST_PSID, &var->len);
+
+					var->data = malloc(var->len);
+					memcpy(var->data, rval, var->len);
+
+					_log_dump("host_psid", var->data, var->len);
+				}
+
 				// set [*]:host_username*
 				else if (wildcard_match_icase(line, "host_username*"))
 				{
