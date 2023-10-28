@@ -902,6 +902,12 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
     			    uint8_t* start = (uint8_t*)data + range_start;
     			    len = range_end - range_start;
 
+					tmp = strchr(line, ':');
+					if (tmp)
+					{
+						hash = _parse_int_value(tmp+1, pointer, dsize);
+					}
+
     			    hash = adler32(hash, start, len);
 
                     var->len = BSD_VAR_INT32;
@@ -926,6 +932,24 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					LOG("len %d Adler16 HASH = %04X", len, hash);
 			    }
+
+				// set [*]:murmur3_32*
+				else if (wildcard_match_icase(line, "murmur3_32*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
+
+					tmp = strchr(line, ':');
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
+
+					hash = murmur3_32((uint8_t*)data + range_start, len, hash);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d Murmur3-32 HASH = %08X", len, hash);
+				}
 
 			    // set [*]:hmac_sha1*
 			    else if (wildcard_match_icase(line, "hmac_sha1(*)*"))

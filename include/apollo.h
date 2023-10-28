@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "0.5.0"
+#define APOLLO_LIB_VERSION         "0.5.5"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -317,6 +317,13 @@ void toz_hash(const uint8_t* data, uint32_t len, uint8_t* sha_hash);
  * RETURN VALUE: 32 bit data result to update offset
  */
 int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc);
+
+/**
+ * This function makes Murmur3 32 hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 32 bit result of CRC calculation
+ */
+uint32_t murmur3_32(const uint8_t *data, size_t len, uint32_t h);
 
 #ifdef __cplusplus
 }
