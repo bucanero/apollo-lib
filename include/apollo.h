@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "0.5.5"
+#define APOLLO_LIB_VERSION         "0.6.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -171,6 +171,9 @@ void ff13_encrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t
 void borderlands3_Decrypt(uint8_t* buffer, int length, int mode);
 void borderlands3_Encrypt(uint8_t* buffer, int length, int mode);
 
+// Monster Hunter save data encryption
+void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver);
+void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
 
 //---  offZip/packZip functions ---
 

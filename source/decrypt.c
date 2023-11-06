@@ -710,7 +710,7 @@ uint32_t mgspw_Checksum(const uint8_t* data, int size)
     uint32_t csum = -1;
 
     while (size--)
-        csum = mgspw_Table[(uint8_t)(*data++ ^ csum)] ^ csum >> 8 ^ mgspw_Table[0];
+        csum = MGS_PW_TABLE[(uint8_t)(*data++ ^ csum)] ^ csum >> 8 ^ MGS_PW_TABLE[0];
 
     return ~csum;
 }
@@ -867,8 +867,6 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 	return;
 }
 
-// MGSV_TPP_PS3KEY		0x1FBAB234
-// MGSV_TPP_PS4KEY		0x4131F8BE
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
 {
 	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
@@ -887,4 +885,104 @@ void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
 
 	LOG("[*] Encoded File Successfully!");
 	return;
+}
+
+static void mh_init_key(uint32_t* mh_key, uint32_t seed)
+{
+    // Initialize the XOR cipher key using a seed
+    mh_key[0] = seed >> 16;
+    if (mh_key[0] == 0)
+        mh_key[0] = MH_KEY_DEF0;
+
+    mh_key[1] = seed & 0xffff;
+    if (mh_key[1] == 0)
+        mh_key[1] = MH_KEY_DEF1;
+}
+
+static uint32_t mh_next_key(uint32_t* mh_key)
+{
+    // Calculate a new XOR cipher key based on the previous key
+    mh_key[0] *= MH_KEY_DEF0;
+    mh_key[0] %= MH_KEY_MOD0;
+    mh_key[1] *= MH_KEY_DEF1;
+    mh_key[1] %= MH_KEY_MOD1;
+
+    return ((mh_key[0] << 16) + mh_key[1]);
+}
+
+static void mh_buffer_translate(uint8_t* data, int len, const uint8_t* table)
+{
+    for(int i=0; i < len; i++)
+        data[i] = table[data[i]];
+}
+
+static void mh_xor_block(uint8_t* data, int len, int lba)
+{
+    uint32_t keys[2];
+    uint32_t* buff = (uint32_t*) data;
+    len /= 4;
+
+    // Use the block address to seed the XOR cipher key
+    mh_init_key(keys, lba);
+
+    // Apply an XOR cipher to the data using a new key every 4 bytes
+    for (int i=0; i < len; i++)
+    {
+        LE32(buff[i]);
+        buff[i] ^= mh_next_key(keys);
+        LE32(buff[i]);
+    }
+
+    return;
+}
+
+void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
+{
+    uint32_t seed;
+    const uint8_t* dec_table = (ver == 3) ? MH3_DEC_TABLE : MH2_DEC_TABLE;
+
+    LOG("[*] Total Decrypted Size: 0x%X (%d bytes)", size, size);
+
+    // Get the XOR cipher seed from the end of the data and apply a
+    // substitution cipher
+    mh_buffer_translate(&buff[size-4], 4, dec_table);
+    mh_buffer_translate(buff, size, dec_table);
+
+    seed = *((uint32_t*) &buff[size-4]);
+	LE32(seed);
+    LOG("[*] Encryption Seed: %08X", seed);
+
+    // Decrypt the data
+    mh_xor_block(buff, size-4, seed);
+
+    // Apply a substitution cipher to the data
+    mh_buffer_translate(buff, size-4, dec_table);
+
+    LOG("[*] Decrypted File Successfully!");
+
+    return;
+}
+
+void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
+{
+    uint32_t seed;
+    const uint8_t* enc_table = (ver == 3) ? MH3_ENC_TABLE : MH2_ENC_TABLE;
+
+    LOG("[*] Total Encrypted Size: 0x%X (%d bytes)", size, size);
+
+    // Get a new seed for the XOR cipher
+    seed = *((uint32_t*) &buff[size-4]);
+	LE32(seed);
+    LOG("[*] Encryption Seed: %08X", seed);
+
+    // Apply a substitution cipher to the data and encrypt it
+    mh_buffer_translate(buff, size-4, enc_table);
+    mh_xor_block(buff, size-4, seed);
+
+    // Apply a substitution cipher to the XOR cipher seed and append it to the data
+    mh_buffer_translate(buff, size, enc_table);
+    mh_buffer_translate(&buff[size-4], 4, enc_table);
+
+    LOG("[*] Encrypted File Successfully!");
+    return;
 }

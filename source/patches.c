@@ -1558,9 +1558,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 						break;
 
 					default:
-						LOG("Error: unsupported read() length = %d", read_l);
-						dsize = 0;
-						goto bsd_end;
+						LOG("custom read() length = %d", read_l);
+						var->len = read_l;
 					}
 
 					var->data = malloc(var->len);
@@ -1581,7 +1580,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 						break;
 					}
 
-					LOG("[%s]:read(0x%X , 0x%X) = %X", var->name, read_s, read_l, ((uint32_t*)var->data)[0]);
+					LOG("[%s]:read(0x%X , 0x%X)", var->name, read_s, read_l);
+					_log_dump("read()", var->data, var->len);
 			    }
 
 			    // set [*]:right(*,*)*
@@ -2237,6 +2237,21 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 				borderlands3_Decrypt(start, (range_end - range_start), s_type);
 			}
+			else if (wildcard_match_icase(line, "monster_hunter(*)*"))
+			{
+				int type;
+				char *tmp;
+
+				line += strlen("monster_hunter(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("Monster Hunter PSP Save Type=%s", line);
+
+				type = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				monsterhunter_decrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
+			}
 			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
 			{
 				int xor_key;
@@ -2430,6 +2445,21 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				*tmp = ')';
 
 				borderlands3_Encrypt(start, (range_end - range_start), s_type);
+			}
+			else if (wildcard_match_icase(line, "monster_hunter(*)*"))
+			{
+				int type;
+				char *tmp;
+
+				line += strlen("monster_hunter(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("Monster Hunter PSP Save Type=%s", line);
+
+				type = _parse_int_value(line, pointer, dsize);
+				*tmp = ')';
+
+				monsterhunter_encrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
 			}
 			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
 			{
@@ -3232,11 +3262,14 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 						break;
 					case 'D':
 						end_pointer = off;
+						LOG("End Pointer set to 0x%X (%d)", end_pointer, end_pointer);
 						break;
 					case 'E':
 						end_pointer = pointer + off;
+						LOG("End Pointer set to 0x%X (%d)", end_pointer, end_pointer);
 						break;
 				}
+				LOG("Pointer set to offset 0x%X (%d)", pointer, pointer);
     		}
     			break;
 
