@@ -22,6 +22,8 @@
 extern "C" {
 #endif
 
+/* The golden ration: an arbitrary value */
+#define JHASH_GOLDEN_RATIO                  0x9e3779b9
 
 #define MOD_ADLER_16                        251
 #define MOD_ADLER_32                        65521

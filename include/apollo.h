@@ -328,6 +328,13 @@ int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t 
  */
 uint32_t murmur3_32(const uint8_t *data, size_t len, uint32_t h);
 
+/**
+ * This function makes Jenkins hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 32 bit result of hash calculation
+ */
+uint32_t jhash(const uint8_t *data, uint32_t length, uint32_t initval);
+
 #ifdef __cplusplus
 }
 #endif

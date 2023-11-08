@@ -207,7 +207,7 @@ static int _parse_int_value(const char* line, const int ptrval, const int size)
 	return (neg ? -ret : ret);
 }
 
-void free_patch_var_list()
+void free_patch_var_list(void)
 {
 	list_node_t *node;
 	bsd_variable_t* bv;
@@ -949,6 +949,24 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Murmur3-32 HASH = %08X", len, hash);
+				}
+
+				// set [*]:jhash*
+				else if (wildcard_match_icase(line, "jhash*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
+
+					tmp = strchr(line, ':');
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
+
+					hash = jhash((uint8_t*)data + range_start, len, hash);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d JHASH = %08X", len, hash);
 				}
 
 			    // set [*]:hmac_sha1*
