@@ -147,6 +147,10 @@ void nfsu_encrypt_data(uint8_t* data, uint32_t size);
 void sh3_decrypt_data(uint8_t* data, uint32_t size);
 void sh3_encrypt_data(uint8_t* data, uint32_t size);
 
+// Patapon 3 save data encryption
+void patapon3_decrypt_data(uint8_t* data, int size);
+void patapon3_encrypt_data(uint8_t* data, int size);
+
 // Dynasty Warriors 8 Xtreme Legends save data encryption
 void dw8xl_encode_data(uint8_t* data, uint32_t len);
 
