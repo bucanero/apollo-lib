@@ -57,7 +57,7 @@ jobs:
     
       - name: Compress output
         run: |
-          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/patcher-bigendian.exe
+          tar -zcvf build.tar.gz tools/patcher.exe tools/parser.exe tools/dumper.exe tools/patcher-bigendian.exe
 
       - uses: actions/upload-artifact@v3
         with:

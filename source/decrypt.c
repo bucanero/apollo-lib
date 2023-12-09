@@ -966,9 +966,14 @@ void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
 void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
 {
     uint32_t seed;
-    const uint8_t* enc_table = (ver == 3) ? MH3_ENC_TABLE : MH2_ENC_TABLE;
+    uint8_t enc_table[256];
+    const uint8_t* dec_table = (ver == 3) ? MH3_DEC_TABLE : MH2_DEC_TABLE;
 
     LOG("[*] Total Encrypted Size: 0x%X (%d bytes)", size, size);
+
+    // Generate encoding table
+    for (int i=0; i < 0x100; i++)
+        enc_table[dec_table[i]] = i;
 
     // Get a new seed for the XOR cipher
     seed = *((uint32_t*) &buff[size-4]);
