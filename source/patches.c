@@ -969,6 +969,24 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("len %d JHASH = %08X", len, hash);
 				}
 
+				// set [*]:jenkins_oaat*
+				else if (wildcard_match_icase(line, "jenkins_oaat*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
+
+					tmp = strchr(line, ':');
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
+
+					hash = jenkins_oaat_hash((uint8_t*)data + range_start, len, hash);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d Jenkins OAAT HASH = %08X", len, hash);
+				}
+
 			    // set [*]:hmac_sha1*
 			    else if (wildcard_match_icase(line, "hmac_sha1(*)*"))
 			    {
@@ -1082,6 +1100,16 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("len %d Castlevania HASH = %08X", len, hash);
 				}
 
+				// set [*]:deadrising_checksum*
+				else if (wildcard_match_icase(line, "deadrising_checksum*"))
+				{
+					int blocks;
+					len = range_end - range_start;
+
+					blocks = deadrising_checksum((uint8_t*)data + range_start, len);
+					LOG("len %d Dead Rising checksum: %d blocks updated", len, blocks);
+				}
+
 				// set [*]:rockstar_checksum*
 				else if (wildcard_match_icase(line, "rockstar_checksum*"))
 				{
@@ -1099,7 +1127,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 						BE32(chks_len);
 
 						memset(data + chks_off + 8, 0, 8);
-						chks = rockstar_chks((uint8_t*) (data + chks_off - chks_len + chks), chks_len);
+						chks = jenkins_oaat_hash((uint8_t*) (data + chks_off - chks_len + chks), chks_len, 0x3FAC7125);
 						LOG(" + CHKS Size: 0x%X Offset: 0x%X - Wrote Checksum: %08X", chks_len, chks_off, chks);
 
 						BE32(chks);
@@ -1117,20 +1145,25 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("len %d Rockstar CHKS %s", len, chks_len ? "OK" : "ERROR");
 				}
 
-				// set [*]:ducktales_checksum*
-				else if (wildcard_match_icase(line, "ducktales_checksum*"))
+				// set [*]:lookup3_little2(*,*)*
+				else if (wildcard_match_icase(line, "lookup3_little2(*,*)*"))
 				{
 					uint64_t hash;
-					uint8_t* start = (uint8_t*)data + range_start;
+					uint32_t iv1, iv2;
 					len = range_end - range_start;
 
-					hash = duckTales_hash(start, len);
+					line += strlen("lookup3_little2(");
+					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2);
+					LOG("lookup3 init values %X %X", iv1, iv2);
+
+					lookup3_hashlittle2((uint8_t*)data + range_start, len, &iv1, &iv2);
+					hash = iv2 + (((uint64_t) iv1) << 32);
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
 					memcpy(var->data, (uint8_t*) &hash, var->len);
 
-					LOG("len %d DuckTales HASH = %016" PRIX64, len, hash);
+					LOG("len %d lookup3_little2 Hashes = %08X %08X", len, iv1, iv2);
 				}
 
 				// set [*]:kh25_checksum*

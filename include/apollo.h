@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "0.6.0"
+#define APOLLO_LIB_VERSION         "0.7.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -196,8 +196,8 @@ uint32_t mgspw_Checksum(const uint8_t* data, int size);
 /* hash calculation for Final Fantasy XIII */
 uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
 
-/* Rockstar custom CHKS calculation */
-uint32_t rockstar_chks(const uint8_t* data, uint32_t len);
+/* checksum update for Dead Rising */
+int deadrising_checksum(uint8_t* data, uint32_t size);
 
 /**
  * This function makes a CRC16 calculation on Length data bytes
@@ -277,11 +277,11 @@ uint32_t kh25_hash(const uint8_t* data, uint32_t len);
 uint32_t kh_com_hash(const uint8_t* data, uint32_t len);
 
 /**
- * This function makes DuckTales hash calculation on Length data bytes
+ * This function makes Jenkins Lookup3 little2 hash calculation on Length data bytes
  *
- * RETURN VALUE: 64 bit result of CRC calculation
+ * RETURN VALUES: 32 bit results of CRC calculation
  */
-uint64_t duckTales_hash(const uint8_t* data, uint32_t len);
+void lookup3_hashlittle2(const uint8_t *k, size_t length, uint32_t *pc, uint32_t *pb);
 
 /**
  * This function makes Samurai Warriors 4 hash calculation on Length data bytes
@@ -338,6 +338,13 @@ uint32_t murmur3_32(const uint8_t *data, size_t len, uint32_t h);
  * RETURN VALUE: 32 bit result of hash calculation
  */
 uint32_t jhash(const uint8_t *data, uint32_t length, uint32_t initval);
+
+/**
+ * This function makes Jenkins one-at-a-time hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 32 bit result of hash calculation
+ */
+uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
 
 #ifdef __cplusplus
 }

@@ -1,20 +1,3 @@
-/**********************************************************************
- *
- * Filename:    crc.c
- * 
- * Description: Slow and fast implementations of the CRC standards.
- *
- * Notes:       The parameters for each supported CRC standard are
- *				defined in the header file crc.h.  The implementations
- *				here should stand up to further additions to that list.
- *
- * 
- * Copyright (c) 2000 by Michael Barr.  This software is placed into
- * the public domain and may be used for any purpose.  However, this
- * notice must not be changed or removed and no warranty is either
- * expressed or implied by its publication or distribution.
- **********************************************************************/
-
 #include <stdio.h>
 #include <polarssl/sha1.h>
 #include "apollo.h"
@@ -24,6 +7,15 @@
 #define SW4_OFF_2      0x000A8
 #define SW4_OFF_3      0x00C16
 #define SW4_OFF_JP     0x58298
+
+
+/**********************************************************************
+ * Description: Slow and fast implementations of the CRC standards.
+ * Copyright (c) 2000 by Michael Barr.  This software is placed into
+ * the public domain and may be used for any purpose.  However, this
+ * notice must not be changed or removed and no warranty is either
+ * expressed or implied by its publication or distribution.
+ **********************************************************************/
 
 #define CREATE_CRC_FUNCTION(UINT, CRC_WIDTH) \
     UINT crc##CRC_WIDTH##_hash (const uint8_t* data, uint32_t len, custom_crc_t* cfg) \
@@ -44,7 +36,7 @@
         return (crc ^ (UINT)cfg->xor); \
     }
 
-uint64_t reflect(uint64_t data, uint8_t nBits)
+static uint64_t reflect(uint64_t data, uint8_t nBits)
 {
     uint64_t reflection = 0;
     uint8_t bit;
@@ -354,52 +346,94 @@ uint16_t ffx_hash(const uint8_t* data, uint32_t len)
     return (~crc);
 }
 
-uint64_t duckTales_hash(const uint8_t* data, uint32_t size)
+// lookup3.c, by Bob Jenkins, May 2006, Public Domain.
+// https://www.burtleburtle.net/bob/c/lookup3.c
+#define __rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+#define lookup3_mix(a,b,c) \
+{ \
+  a -= c;  a ^= __rot(c, 4);  c += b; \
+  b -= a;  b ^= __rot(a, 6);  a += c; \
+  c -= b;  c ^= __rot(b, 8);  b += a; \
+  a -= c;  a ^= __rot(c,16);  c += b; \
+  b -= a;  b ^= __rot(a,19);  a += c; \
+  c -= b;  c ^= __rot(b, 4);  b += a; \
+}
+
+#define lookup3_final(a,b,c) \
+{ \
+  c ^= b; c -= __rot(b,14); \
+  a ^= c; a -= __rot(c,11); \
+  b ^= a; b -= __rot(a,25); \
+  c ^= b; c -= __rot(b,16); \
+  a ^= c; a -= __rot(c,4);  \
+  b ^= a; b -= __rot(a,14); \
+  c ^= b; c -= __rot(b,24); \
+}
+
+/*
+ * hashlittle2: return 2 32-bit hash values
+ *
+ * This is identical to hashlittle(), except it returns two 32-bit hash
+ * values instead of just one.  This is good enough for hash table
+ * lookup with 2^^64 buckets, or if you want a second hash if you're not
+ * happy with the first, or if you want a probably-unique 64-bit ID for
+ * the key.  *pc is better mixed than *pb, so use *pc first.  If you want
+ * a 64-bit value do something like "*pc + (((uint64_t)*pb)<<32)".
+ */
+void lookup3_hashlittle2(
+  const uint8_t *k,      /* the key to hash */
+  size_t      length,    /* length of the key */
+  uint32_t   *pc,        /* IN: primary initval, OUT: primary hash */
+  uint32_t   *pb)        /* IN: secondary initval, OUT: secondary hash */
 {
-    uint32_t r1, r2, r3, r4, r5, r6, r7, r8;
-    uint32_t x0, x1;
-    int offset = 0;
+    uint32_t a,b,c;                                          /* internal state */
 
-    r4 = (uint32_t) size + 0xDEADC3C1;
-    r6 = r4 + 0x162E;
-    r5 = r4;
+    /* Set up the internal state */
+    a = b = c = LOOKUP3_INIT_VALUE + ((uint32_t)length) + *pc;
+    c += *pb;
 
-    for (int i = size / 12; i > 0; --i)
+    /* need to read the key one byte at a time */
+    /*--------------- all but the last block: affect some 32 bits of (a,b,c) */
+    while (length > 12)
     {
-        r7 =  (uint32_t) (data[offset]   + (data[offset+1] << 8) + (data[offset+2] << 16)  + (data[offset+3] << 24));
-        r4 += (uint32_t) (data[offset+4] + (data[offset+5] << 8) + (data[offset+6] << 16)  + (data[offset+7] << 24));
-        r6 += (uint32_t) (data[offset+8] + (data[offset+9] << 8) + (data[offset+10] << 16) + (data[offset+11] << 24));
-        offset += 12;
-
-        r5 = (r5 + r7 - r6) ^ ((r6 << 4) | (r6 >> 28));
-        r2 = r4 - r5;
-        r4 += r6;
-        r6 = r2 ^ ((r5 << 6) | (r5 >> 26));
-        r5 += r4;
-        r3 = r4 - r6;
-        r4 = r6 + r5;
-        r6 = r3 ^ ((r6 << 8) | (r6 >> 24));
-        r3 = r4 + r6;
-        r6 = (r5 - r6) ^ ((r6 << 16) | (r6 >> 16));
-        r5 = r3 + r6;
-        r6 = (r4 - r6) ^ ((r6 >> 13) | (r6 << 19));
-        r4 = r5 + r6;
-        r6 = (r3 - r6) ^ ((r6 <<  4) | (r6 >> 28));
+        a += k[0];
+        a += ((uint32_t)k[1])<<8;
+        a += ((uint32_t)k[2])<<16;
+        a += ((uint32_t)k[3])<<24;
+        b += k[4];
+        b += ((uint32_t)k[5])<<8;
+        b += ((uint32_t)k[6])<<16;
+        b += ((uint32_t)k[7])<<24;
+        c += k[8];
+        c += ((uint32_t)k[9])<<8;
+        c += ((uint32_t)k[10])<<16;
+        c += ((uint32_t)k[11])<<24;
+        lookup3_mix(a,b,c);
+        length -= 12;
+        k += 12;
+    }
+    /*-------------------------------- last block: affect all 32 bits of (c) */
+    switch(length)                   /* all the case statements fall through */
+    {
+    case 12: c+=((uint32_t)k[11])<<24;
+    case 11: c+=((uint32_t)k[10])<<16;
+    case 10: c+=((uint32_t)k[9])<<8;
+    case 9 : c+=k[8];
+    case 8 : b+=((uint32_t)k[7])<<24;
+    case 7 : b+=((uint32_t)k[6])<<16;
+    case 6 : b+=((uint32_t)k[5])<<8;
+    case 5 : b+=k[4];
+    case 4 : a+=((uint32_t)k[3])<<24;
+    case 3 : a+=((uint32_t)k[2])<<16;
+    case 2 : a+=((uint32_t)k[1])<<8;
+    case 1 : a+=k[0];
+             break;
+    case 0 : *pc=c; *pb=b; return;  /* zero length strings require no mixing */
     }
 
-    for (int i = 0; i < 4; ++i)
-        r5 += (uint32_t) data[offset++] << (i * 8);
-
-    r3 = (r6 ^ r4) - ((r4 << 14) | (r4 >> 18));
-    r1 = (r5 ^ r3) - ((r3 << 11) | (r3 >> 21));
-    r4 = (r4 ^ r1) - ((r1 >>  7) | (r1 << 25));
-    r6 = (r3 ^ r4) - ((r4 >> 16) | (r4 << 16));
-    r8 = (r1 ^ r6) - ((r6 <<  4) | (r6 >> 28));
-    r5 = (r4 ^ r8) - ((r8 << 14) | (r8 >> 18));
-    x1 = (r6 ^ r5) - ((r5 >> 8) | (r5 << 24));
-    x0 = r5;
-
-    return ((uint64_t) x1 << 32) | x0;
+    lookup3_final(a,b,c);
+    *pc=c; *pb=b;
 }
 
 int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
@@ -511,6 +545,29 @@ uint16_t adler16(const uint8_t *data, size_t len)
     return ((b << 8) | a);
 }
 
+int deadrising_checksum(uint8_t* data, uint32_t size)
+{
+    uint16_t sumL, sumH;
+    uint8_t* e = data + size;
+
+    for (uint8_t* s = data; s < e; s += 4)
+    {
+        sumL = sumH = 0;
+        for (int n = 0; n < 16; ++n, ++s)
+        {
+            sumL += *s;
+            sumH += (uint16_t) ((n % 2) == 0 ? *s : -*s);
+        }
+
+        s[0] = sumL & 0xFF;
+        s[1] = (sumL >> 8) & 0xFF;
+        s[2] = sumH & 0xFF;
+        s[3] = (sumH >> 8) & 0xFF;
+    }
+
+    return (size/4);
+}
+
 int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 {
 	int num = 0;
@@ -525,23 +582,26 @@ int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 	return (num + num2);
 }
 
-// https://github.com/Zhaxxy/rdr2_enc_dec/blob/main/rdr2_enc_dec.py#L10
-uint32_t rockstar_chks(const uint8_t* data, uint32_t len)
+// https://www.burtleburtle.net/bob/hash/doobs.html
+uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t hash)
 {
-    uint32_t checksum = 0x3FAC7125;
-
-    while (len--)
+    while (length--)
     {
-        checksum = ((checksum + (signed char) *data++) * 0x401) & 0xFFFFFFFF;
-        checksum = (checksum >> 6 ^ checksum) & 0xFFFFFFFF;
+        hash += (signed char) *data++;
+        hash += hash << 10;
+        hash ^= hash >> 6;
     }
-    checksum = (checksum*9) & 0xFFFFFFFF;
 
-    return (((checksum >> 11 ^ checksum) * 0x8001) & 0xFFFFFFFF);
+    hash += hash << 3;
+    hash ^= hash >> 11;
+    hash += hash << 15;
+
+    return hash;
 }
 
 // https://en.wikipedia.org/wiki/MurmurHash
-static inline uint32_t murmur_32_scramble(uint32_t k) {
+static inline uint32_t murmur_32_scramble(uint32_t k)
+{
     k *= 0xcc9e2d51;
     k = (k << 15) | (k >> 17);
     k *= 0x1b873593;

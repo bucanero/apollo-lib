@@ -1,22 +1,7 @@
-/**********************************************************************
- *
- * Filename:    crc.h
- * 
- * Description: Slow and fast implementations of the CRC standards.
- *
- * 
- * Copyright (c) 2000 by Michael Barr.  This software is placed into
- * the public domain and may be used for any purpose.  However, this
- * notice must not be changed or removed and no warranty is either
- * expressed or implied by its publication or distribution.
- **********************************************************************/
-
 #ifndef CRC_H_INCLUDED
 #define CRC_H_INCLUDED
 
-
 #include <stdint.h>
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +9,9 @@ extern "C" {
 
 /* The golden ration: an arbitrary value */
 #define JHASH_GOLDEN_RATIO                  0x9e3779b9
+
+/* Jenkins Lookup3 init arbitrary value */
+#define LOOKUP3_INIT_VALUE                  0xDEADBEEF
 
 #define MOD_ADLER_16                        251
 #define MOD_ADLER_32                        65521
@@ -61,6 +49,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif // CRC_H_INCLUDED

@@ -1130,26 +1130,26 @@ void patapon3_encrypt_data(uint8_t* in, int size)
 {
     uint32_t* v_out = (uint32_t*) in;
 
-	LOG("[*] Total Encrypted Size: 0x%X (%d bytes)", size, size);
+    LOG("[*] Total Encrypted Size: 0x%X (%d bytes)", size, size);
     size /= 4;
 
     for (int i = 0; i < size; i += 4)
         pat3_encryptBlock(&v_out[i]);
 
-	LOG("[*] Encrypted File Successfully!");
-	return;
+    LOG("[*] Encrypted File Successfully!");
+    return;
 }
 
 void patapon3_decrypt_data(uint8_t* in, int size)
 {
     uint32_t* v_out = (uint32_t*) in;
 
-	LOG("[*] Total Decrypted Size: 0x%X (%d bytes)", size, size);
+    LOG("[*] Total Decrypted Size: 0x%X (%d bytes)", size, size);
     size /= 4;
 
     for (int i = 0; i < size; i += 4)
         pat3_decryptBlock(&v_out[i]);
 
-	LOG("[*] Decrypted File Successfully!");
-	return;
+    LOG("[*] Decrypted File Successfully!");
+    return;
 }
