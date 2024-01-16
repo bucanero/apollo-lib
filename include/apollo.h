@@ -167,6 +167,9 @@ void mgspw_Decrypt(uint32_t* data, uint32_t len);
 // Metal Gear Solid 5 TPP save data encryption
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key);
 
+// RGG Studio save data encryption
+void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len);
+
 // Final Fantasy XIII (1/2/3) save data encryption
 void ff13_decrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 void ff13_encrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);

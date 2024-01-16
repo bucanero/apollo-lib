@@ -1153,3 +1153,14 @@ void patapon3_decrypt_data(uint8_t* in, int size)
     LOG("[*] Decrypted File Successfully!");
     return;
 }
+
+void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len)
+{
+    LOG("[*] Total Data Size: 0x%X (%d bytes)", size, size);
+
+    for (uint32_t i = 0; i < size; i++)
+        data[i] ^= key[i % key_len];
+
+    LOG("[*] Encoded File Successfully!");
+    return;
+}

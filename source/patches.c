@@ -2277,6 +2277,22 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				ff13_decrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
+			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
+			{
+				int klen;
+				char *tmp, *rggkey;
+
+				line += strlen("rgg_studio(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("RGG Key=%s", line);
+
+				rggkey = _decode_variable_data(line, &klen);
+				*tmp = ')';
+
+				rgg_xor_data((uint8_t*)data + range_start, (range_end - range_start), rggkey, klen);
+				free(rggkey);
+			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
 				int s_type;
@@ -2490,6 +2506,22 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 				ff13_encrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
+			}
+			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
+			{
+				int klen;
+				char *tmp, *rggkey;
+
+				line += strlen("rgg_studio(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("RGG Key=%s", line);
+
+				rggkey = _decode_variable_data(line, &klen);
+				*tmp = ')';
+
+				rgg_xor_data((uint8_t*)data + range_start, (range_end - range_start), rggkey, klen);
+				free(rggkey);
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
