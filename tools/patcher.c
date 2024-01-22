@@ -19,7 +19,7 @@ static int log = 0;
 
 void print_usage(const char* argv0)
 {
-    printf("USAGE: %s file.savepatch 1,2,7,10,18 target.file\n\n", argv0);
+    printf("USAGE: %s file.savepatch 1,2,7,10,18 [save-file.bin]\n\n", argv0);
     return;
 }
 
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 
     printf("\nApollo cheat patcher v%s - (c) 2022 by Bucanero\n\n", CLI_VERSION);
 
-    if (--argc < 3)
+    if (--argc < 2)
     {
         print_usage(argv[0]);
         return -1;
@@ -108,7 +108,7 @@ int main(int argc, char **argv)
     list_node_t *node = list_head(list_codes);
 
     snprintf(title, sizeof(title), "%p", data);
-    printf("[i] Applying codes [%s] to %s...\n\n", argv[2], argv[3]);
+    printf("[i] Applying codes [%s] to %s...\n\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
         {
             log++;
             printf("[+] Applying code #%ld...\n", len);
-            if (apply_cheat_patch_code(argv[3], title, code, &cli_host_callback))
+            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, &cli_host_callback))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
