@@ -11,6 +11,7 @@
 #include <polarssl/des.h>
 #include <polarssl/md5.h>
 #include <polarssl/blowfish.h>
+#include <polarssl/camellia.h>
 #include "keys.h"
 #include "types.h"
 
@@ -48,6 +49,44 @@ void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 	{
 		blowfish_crypt_ecb(&ctx, BLOWFISH_ENCRYPT, data, data);
 		data += BLOWFISH_BLOCKSIZE;
+	}
+
+	return;
+}
+
+void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+{
+	camellia_context ctx;
+
+	LOG("Decrypting Camellia ECB data (%d bytes)", len);
+
+	camellia_init(&ctx);
+	camellia_setkey_dec(&ctx, key, key_len * 8);
+	len = len / CAMELLIA_BLOCK_SIZE;
+
+	while (len--)
+	{
+		camellia_crypt_ecb(&ctx, CAMELLIA_DECRYPT, data, data);
+		data += CAMELLIA_BLOCK_SIZE;
+	}
+
+	return;
+}
+
+void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+{
+	camellia_context ctx;
+
+	LOG("Encrypting Camellia ECB data (%d bytes)", len);
+
+	camellia_init(&ctx);
+	camellia_setkey_enc(&ctx, key, key_len * 8);
+	len = len / CAMELLIA_BLOCK_SIZE;
+
+	while (len--)
+	{
+		camellia_crypt_ecb(&ctx, CAMELLIA_ENCRYPT, data, data);
+		data += CAMELLIA_BLOCK_SIZE;
 	}
 
 	return;
@@ -989,168 +1028,6 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
     mh_buffer_translate(&buff[size-4], 4, enc_table);
 
     LOG("[*] Encrypted File Successfully!");
-    return;
-}
-
-static void pat3_encrypt_keys(const uint32_t* pin, uint32_t* keys, uint32_t* off)
-{
-    keys[0] = PAT3_HASH_TABLE[(0xC01 + (((pin[1] >> 0x8) & 0xFF) << 0x2)) / 4] ^ (PAT3_HASH_TABLE[(0x801 + (((pin[1] >> 0x10) & 0xFF) << 0x2)) / 4] ^ PAT3_HASH_TABLE[(0x1 + ((pin[1] & 0xFF) << 0x2)) / 4] ^ PAT3_HASH_TABLE[(0x401 + (((pin[1] >> 0x18) & 0xFF) << 0x2)) / 4]);
-    keys[1] = PAT3_HASH_TABLE[((0xC01 + ((pin[0] & 0xFF) << 0x2)) ) / 4] ^ (PAT3_HASH_TABLE[((0x801 + (((pin[0] >> 0x8) & 0xFF) << 0x2)) ) / 4] ^ PAT3_HASH_TABLE[((0x1 + (((pin[0] >> 0x18) & 0xFF) << 0x2)) ) / 4] ^ PAT3_HASH_TABLE[((0x401 + (((pin[0] >> 0x10) & 0xFF) << 0x2)) ) / 4]);
-
-    keys[1] ^= PAT3_MAGIC_TABLE[++(*off)];
-    keys[0] ^= (PAT3_MAGIC_TABLE[++(*off)] ^ keys[1]);
-    keys[1] = (keys[1] >> 0x8) + (keys[1] << 0x18);
-}
-
-static void pat3_encryptBlock(uint32_t* block)
-{
-    uint32_t buf[4];
-    uint32_t xor_key[2];
-    uint32_t offset = 3;
-
-	memcpy(buf, block, sizeof(buf));
-    BE32(buf[0]);
-    BE32(buf[1]);
-    BE32(buf[2]);
-    BE32(buf[3]);
-
-    buf[0] ^= PAT3_MAGIC_TABLE[0];
-    buf[1] ^= PAT3_MAGIC_TABLE[1];
-    pat3_encrypt_keys(buf, xor_key, &offset);
-
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 5, k; j > 0; j--)
-        {
-            k = (j & 1)*2;
-            buf[k] ^= xor_key[0];
-            buf[k+1] ^= (xor_key[1] ^ xor_key[0]);
-
-            pat3_encrypt_keys(&buf[k], xor_key, &offset);
-        }
-        
-        if(i == 3)
-            continue;
-
-        buf[0] ^= xor_key[0];
-        offset++;
-
-        buf[1] ^= (xor_key[1] ^ xor_key[0]) ^ (((PAT3_MAGIC_TABLE[offset] & buf[0]) << 0x1) + ((PAT3_MAGIC_TABLE[offset] & buf[0]) >> 0x1F));
-        buf[0] ^= (PAT3_MAGIC_TABLE[++offset] | buf[1]);
-        buf[2] ^= (PAT3_MAGIC_TABLE[offset + 2] | buf[3]);
-        buf[3] ^= (((PAT3_MAGIC_TABLE[offset + 1] & buf[2]) << 0x1) + ((PAT3_MAGIC_TABLE[offset + 1] & buf[2]) >> 0x1F));
-        offset += 2;
-
-        pat3_encrypt_keys(buf, xor_key, &offset);
-    }
-
-    buf[0] ^= xor_key[0];
-    buf[1] ^= (xor_key[1] ^ xor_key[0]);
-    buf[2] ^= PAT3_MAGIC_TABLE[++offset];
-    buf[3] ^= PAT3_MAGIC_TABLE[++offset];
-    BE32(buf[0]);
-    BE32(buf[1]);
-    BE32(buf[2]);
-    BE32(buf[3]);
-
-    block[0] = buf[2];
-    block[1] = buf[3];
-    block[2] = buf[0];
-    block[3] = buf[1];
-}
-
-static void pat3_decrypt_keys(const uint32_t* pin, uint32_t* keys, uint32_t* off)
-{
-    keys[0] = PAT3_HASH_TABLE[0x300 + ((pin[1] >> 0x8) & 0xFF)] ^ (PAT3_HASH_TABLE[0x200 + ((pin[1] / 0x10000) & 0xFF)] ^ (PAT3_HASH_TABLE[pin[1] & 0xFF] ^ PAT3_HASH_TABLE[0x100 + ((pin[1] / 0x1000000) & 0xFF)]));
-    keys[1] = PAT3_HASH_TABLE[0x300 + (pin[0] & 0xFF)] ^ (PAT3_HASH_TABLE[0x200 + ((pin[0] >> 0x8) & 0xFF)] ^ (PAT3_HASH_TABLE[(pin[0] / 0x1000000) & 0xFF] ^ PAT3_HASH_TABLE[0x100 + ((pin[0] / 0x10000) & 0xFF)]));
-
-    keys[0] ^= PAT3_MAGIC_TABLE[--(*off)];
-    keys[1] ^= PAT3_MAGIC_TABLE[--(*off)];
-    keys[0] ^= keys[1];
-    keys[1] = (keys[1] >> 0x8) + (keys[1] << 0x18);
-}
-
-static void pat3_decryptBlock(uint32_t* block)
-{
-    uint32_t xor_key[2], buf[4];
-    uint32_t offset = 0x42;
-
-	memcpy(buf, block, sizeof(buf));
-    BE32(buf[0]);
-    BE32(buf[1]);
-    BE32(buf[2]);
-    BE32(buf[3]);
-
-    buf[1] ^= PAT3_MAGIC_TABLE[--offset];
-    buf[0] ^= PAT3_MAGIC_TABLE[--offset];
-    pat3_decrypt_keys(buf, xor_key, &offset);
-
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 5, k; j > 0; j--)
-        {
-            k = (j & 1) * 2;
-            buf[k] ^= xor_key[0];
-            buf[k+1] ^= (xor_key[1] ^ xor_key[0]);
-
-            pat3_decrypt_keys(&buf[k], xor_key, &offset);
-        }
-
-        if (i == 3)
-            continue;
-
-        buf[1] ^= ((xor_key[1] ^ xor_key[0]) ^ (((PAT3_MAGIC_TABLE[offset - 2] & (buf[0] ^ xor_key[0])) << 0x1) + ((PAT3_MAGIC_TABLE[offset - 2] & (buf[0] ^ xor_key[0])) >> 0x1F)));
-        buf[0] ^= (xor_key[0] ^ (PAT3_MAGIC_TABLE[offset - 1] | buf[1]));
-        offset -= 2;
-
-        buf[2] ^= (PAT3_MAGIC_TABLE[--offset] | buf[3]);
-        offset--;
-
-        buf[3] ^= (((PAT3_MAGIC_TABLE[offset] & buf[2]) << 0x1) + ((PAT3_MAGIC_TABLE[offset] & buf[2]) >> 0x1F));
-
-        pat3_decrypt_keys(buf, xor_key, &offset);
-    }
-
-    buf[2] ^= PAT3_MAGIC_TABLE[0];
-    buf[3] ^= PAT3_MAGIC_TABLE[1];
-    buf[0] ^= xor_key[0];
-    buf[1] ^= (xor_key[1] ^ xor_key[0]);
-    BE32(buf[0]);
-    BE32(buf[1]);
-    BE32(buf[2]);
-    BE32(buf[3]);
-
-    block[0] = buf[2];
-    block[1] = buf[3];
-    block[2] = buf[0];
-    block[3] = buf[1];
-}
-
-void patapon3_encrypt_data(uint8_t* in, int size)
-{
-    uint32_t* v_out = (uint32_t*) in;
-
-    LOG("[*] Total Encrypted Size: 0x%X (%d bytes)", size, size);
-    size /= 4;
-
-    for (int i = 0; i < size; i += 4)
-        pat3_encryptBlock(&v_out[i]);
-
-    LOG("[*] Encrypted File Successfully!");
-    return;
-}
-
-void patapon3_decrypt_data(uint8_t* in, int size)
-{
-    uint32_t* v_out = (uint32_t*) in;
-
-    LOG("[*] Total Decrypted Size: 0x%X (%d bytes)", size, size);
-    size /= 4;
-
-    for (int i = 0; i < size; i += 4)
-        pat3_decryptBlock(&v_out[i]);
-
-    LOG("[*] Decrypted File Successfully!");
     return;
 }
 

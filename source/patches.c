@@ -2247,10 +2247,23 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				LOG("Decrypt NFS Undercover data");
 				nfsu_decrypt_data((uint8_t*)data + range_start, (range_end - range_start));
 			}
-			else if (wildcard_match_icase(line, "patapon3*"))
+			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
-				LOG("Decrypt Patapon 3 data");
-				patapon3_decrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				int key_len;
+				char *key, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("camellia_ecb(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ')';
+
+				camellia_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
+				free(key);
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
@@ -2477,10 +2490,23 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				LOG("Encrypt NFS Undercover data");
 				nfsu_encrypt_data((uint8_t*)data + range_start, (range_end - range_start));
 			}
-			else if (wildcard_match_icase(line, "patapon3*"))
+			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
-				LOG("Encrypt Patapon 3 data");
-				patapon3_encrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				int key_len;
+				char *key, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("camellia_ecb(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ')';
+
+				camellia_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
+				free(key);
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{

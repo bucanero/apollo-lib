@@ -147,9 +147,9 @@ void nfsu_encrypt_data(uint8_t* data, uint32_t size);
 void sh3_decrypt_data(uint8_t* data, uint32_t size);
 void sh3_encrypt_data(uint8_t* data, uint32_t size);
 
-// Patapon 3 save data encryption
-void patapon3_decrypt_data(uint8_t* data, int size);
-void patapon3_encrypt_data(uint8_t* data, int size);
+// Camellia ECB save data encryption
+void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
+void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 
 // Dynasty Warriors 8 Xtreme Legends save data encryption
 void dw8xl_encode_data(uint8_t* data, uint32_t len);
