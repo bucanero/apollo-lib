@@ -86,7 +86,7 @@ int read_buffer(const char *file_path, uint8_t **buf, size_t *size) {
         return 0;
 }
 
-int write_buffer(const char *file_path, uint8_t *buf, size_t size)
+int write_buffer(const char *file_path, const uint8_t *buf, size_t size)
 {
         FILE *fp;
 

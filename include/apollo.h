@@ -105,7 +105,7 @@ int wildcard_match(const char *data, const char *mask);
 int wildcard_match_icase(const char *data, const char *mask);
 
 int read_buffer(const char *file_path, uint8_t **buf, size_t *size);
-int write_buffer(const char *file_path, uint8_t *buf, size_t size);
+int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 
 
 //---  Apollo patch functions ---
