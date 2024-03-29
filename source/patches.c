@@ -37,13 +37,6 @@ static list_t* var_list = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
 
-void remove_char(char * str, int len, char seek)
-{
-	for (int x = 0; x < len; x++)
-		if (str[x] == seek)
-			str[x] = '\n';
-}
-
 static long search_data(const char* data, size_t size, int start, const char* search, int len, int count)
 {
 	int k = 1;
@@ -282,16 +275,14 @@ static void swap_u64_data(uint64_t* data, int count)
 
 int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 {
-    char *data;
+	char *data, *bsd_code;
 	size_t dsize;
 	long pointer = 0;
 	long range_start = 0, range_end = 0;
 	uint8_t carry = 0, eof = 0;
 	uint32_t old_val = 0;
 	custom_crc_t custom_crc = {0,0,0,0,0,0};
-	int codelen = strlen(code->codes);
-    char *line = strtok(code->codes, "\n");
-	
+
 	LOG("Applying [%s] to '%s'...", code->name, filepath);
 	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
 	{
@@ -303,8 +294,9 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 	if (!var_list)
 		var_list = list_alloc();
 
-    while (line)
-    {
+	bsd_code = strdup(code->codes);
+	for (char *line = strtok(bsd_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
+	{
         // carry(*)
 		if (wildcard_match_icase(line, "carry(*)"))
 		{
@@ -1632,7 +1624,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					}
 
 					LOG("[%s]:read(0x%X , 0x%X)", var->name, read_s, read_l);
-					_log_dump("read()", var->data, var->len);
+					_log_dump("read()", (uint8_t*) read, var->len);
 			    }
 
 			    // set [*]:right(*,*)*
@@ -2707,30 +2699,25 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			}
 
 		}
-
-	    line = strtok(NULL, "\n");
     }
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
 
 bsd_end:
 	free(data);
-	// remove 0x00 from previous strtok(...)
-    remove_char(code->codes, codelen, '\0');
+	free(bsd_code);
 
 	return (dsize);
 }
 
 int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 {
-    char *data;
+	char *data, *gg_code;
 	size_t dsize;
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
-	int codelen = strlen(code->codes);
-    char *line = strtok(code->codes, "\n");
-	
+
 	LOG("Applying [%s] to '%s'...", code->name, filepath);
 	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
 	{
@@ -2738,8 +2725,9 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 		return 0;
 	}
 
-    while (line)
-    {
+	gg_code = strdup(code->codes);
+	for (char *line = strtok(gg_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
+	{
     	switch (line[0])
     	{
     		case '0':
@@ -3662,14 +3650,12 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     		default:
     			break;
     	}
-	    line = strtok(NULL, "\n");
     }
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
 
 	free(data);
-	// remove 0x00 from previous strtok(...)
-    remove_char(code->codes, codelen, '\0');
+	free(gg_code);
 
 	return (dsize);
 }

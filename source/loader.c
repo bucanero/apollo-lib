@@ -9,9 +9,6 @@
 #define LOG dbglogger_log
 
 
-void remove_char(char * str, int len, char seek);
-
-
 uint64_t x_to_u64(const char *hex)
 {
 	uint64_t result, t;
@@ -96,6 +93,22 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size)
         fclose(fp);
 
         return 0;
+}
+
+static void clean_eol(char * str)
+{
+	for (int x = 0, len = strlen(str); x < len; x++)
+		if (strncmp(&str[x], "\r\n", 2) == 0)
+			str[x] = ' ';
+		else if (str[x] == '\r')
+			str[x] = '\n';
+}
+
+static void remove_char(char * str, int len, char seek)
+{
+	for (int x = 0; x < len; x++)
+		if (str[x] == seek)
+			str[x] = '\n';
 }
 
 /*
@@ -214,28 +227,25 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 	entry->codes = res;
 }
 
-void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
+int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
 {
 	int code_count = 0;
 	code_entry_t * code;
 	char * file_opt = NULL;
 	char filePath[256] = "";
 	char group = 0;
-    size_t bufferLen = strlen(buffer);
+	size_t bufferLen = strlen(buffer);
 	list_node_t* node = list_tail(list_codes);
 
-	remove_char(buffer, bufferLen, '\r');
-
-	char *line = strtok(buffer, "\n");
-		
-	while (line)
+	clean_eol(buffer);
+	for (char *line = strtok(buffer, "\n"); line != NULL; line = strtok(NULL, "\n"))
 	{
 		str_rtrim(line);
 		if (wildcard_match(line, ":*"))
 		{
 			char* tmp_mask;
 
-			strcpy(filePath, line+1);
+			strncpy(filePath, line+1, sizeof(filePath)-1);
 			LOG("FILE: %s\n", filePath);
 
 			if (strrchr(filePath, '\\'))
@@ -325,8 +335,6 @@ void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 			end = str_ends_with(code->name, " ---");
 			if (end) *end = 0;
 		}
-
-		line = strtok(NULL, "\n");
 	}
 
 	while ((node = list_next(node)) != NULL)
@@ -342,5 +350,5 @@ void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 		LOG("[%d] Name: %s\nFile: %s\nCode (%d): %s\n", code_count, code->name, code->file, code->type, code->codes);
 	}
 
-	return;
+	return code_count;
 }
