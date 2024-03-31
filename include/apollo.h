@@ -114,7 +114,7 @@ void free_patch_var_list(void);
 int apply_bsd_patch_code(const char* file_path, const code_entry_t* code);
 int apply_ggenie_patch_code(const char* file_path, const code_entry_t* code);
 int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
-void load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
+int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 
 //---  Apollo encryption functions ---
