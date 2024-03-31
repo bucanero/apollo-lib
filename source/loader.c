@@ -168,9 +168,8 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 			wildcard_match_icase(line, "GROUP:*")) && (i++ == code_id))
     	{
 			LOG("Reading patch code for '%s'...", line);
-	    	line = strtok(NULL, "\n");
 
-		    while (line)
+		    for (line = strtok(NULL, "\n"); line != NULL; line = strtok(NULL, "\n"))
 		    {
 		    	if ((wildcard_match(line, "; --- * ---")) 	||
 		    		(wildcard_match(line, ":*"))			||
@@ -217,9 +216,11 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					}
 
 			    }
-		    	line = strtok(NULL, "\n");
 		    }
     	}
+		if (i > code_id || !line)
+			break;
+
     	line = strtok(NULL, "\n");
     }
 

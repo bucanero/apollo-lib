@@ -95,6 +95,8 @@ int main(int argc, char **argv)
         printf("[*] Could Not Access The File (%s)\n", argv[1]);
         return -1;
     }
+    data = realloc(data, len+1);
+    data[len] = 0;
 
     code_entry_t* code = calloc(1, sizeof(code_entry_t));
     code->name = argv[1];
