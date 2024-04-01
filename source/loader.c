@@ -190,31 +190,6 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
 						(line[0] < '0') && (line[0] > '9') && (line[0] < 'A') && (line[0] > 'F')))
 						entry->type = APOLLO_CODE_BSD;
-
-					// set the correct file for the decompress command
-					if (wildcard_match_icase(line, "DECOMPRESS *"))
-					{
-						line += strlen("DECOMPRESS ");
-						if (entry->file)
-							free(entry->file);
-
-						entry->file = strdup(line);
-					}
-
-					// set the correct file for the compress command
-					if (wildcard_match_icase(line, "COMPRESS *,*"))
-					{
-						line += strlen("COMPRESS ");
-						if (entry->file)
-							free(entry->file);
-
-						char* tmp = strchr(line, ',');
-						*tmp = 0;
-
-						entry->file = strdup(line);
-						*tmp = ',';
-					}
-
 			    }
 		    }
     	}

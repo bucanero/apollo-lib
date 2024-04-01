@@ -24,6 +24,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 #include <zlib.h>
 
 #include <dbglogger.h>
@@ -35,20 +36,23 @@
 //#define MAXZIPLEN(n) ((n)+(((n)/1000)+1)+12)
 #define MAXZIPLEN(n) ((n)+(((n)/10)+1)+12)  // for lzma
 
+typedef struct 
+{
+    uint32_t id;
+    uint32_t offset;
+    int wbits;
+    uint32_t inlen;
+    uint32_t outlen;
+} offzip_t;
 
 static uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store);
 static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store);
 
 
-int packzip_util(const char *input, const char *output, uint32_t offset, int wbits) {
+static int packzip_compress(const char *input, const char *output, uint32_t offset, uint32_t zsize, int wbits) {
     FILE    *fdi,
             *fdo;
     uint32_t len;
-
-    LOG("PackZip " VER "\n"
-        "by Luigi Auriemma\n"
-        "e-mail: aluigi@autistici.org\n"
-        "web:    aluigi.org");
 
 /*
         LOG("\n"
@@ -108,6 +112,12 @@ int packzip_util(const char *input, const char *output, uint32_t offset, int wbi
 
     LOG("- offset        0x%08x", offset);
     LOG("- windowbits    %d", wbits);
+    LOG("- zip size      0x%08x / %u", zsize, zsize);
+
+    fseek(fdo, 0, SEEK_END);
+    len = ftell(fdo);
+    if (len < zsize + offset)
+        zsize = len - offset;
 
     if(offset) {
         LOG("- seek offset");
@@ -120,8 +130,16 @@ int packzip_util(const char *input, const char *output, uint32_t offset, int wbi
 
     len = zipit(fdi, fdo, wbits, Z_DEFAULT_STRATEGY, 0);
 
-    if(fdi != stdin)  fclose(fdi);
-    if(fdo != stdout) fclose(fdo);
+    if (len && len < zsize)
+    {
+        zsize -= len;
+        LOG("- padding %u bytes", zsize);
+        while (zsize--)
+            fputc(0, fdo);
+    }
+
+    fclose(fdi);
+    fclose(fdo);
 
     if(!len) {
         LOG("- the compression failed");
@@ -132,6 +150,54 @@ int packzip_util(const char *input, const char *output, uint32_t offset, int wbi
     return(len > 0);
 }
 
+int packzip_util(const char *input, const char *output, uint32_t offset, int wbits) {
+    int i = 0;
+    offzip_t offzip;
+    char infile[256];
+    FILE* fp;
+
+    LOG("PackZip " VER "\n"
+        "by Luigi Auriemma\n"
+        "e-mail: aluigi@autistici.org\n"
+        "web:    aluigi.org");
+
+    snprintf(infile, sizeof(infile), "%s.offzip", input);
+    fp = fopen(infile, "rb");
+
+    if (!fp)
+    {
+        LOG("Error: missing offzip file (%s)", infile);
+        return 0;
+    }
+
+    while (fread(&offzip, sizeof(offzip_t), 1, fp))
+    {
+        snprintf(infile, sizeof(infile), "%s%08" PRIx32 ".dat", input, offzip.offset);
+
+        if (!offset || offset == offzip.offset)
+        {
+            LOG("Adding '%s' to '%s' at %d (0x%X)...", infile, output, offzip.offset, offzip.offset);
+
+            if (!packzip_compress(infile, output, offzip.offset, offzip.inlen, wbits ? wbits : offzip.wbits))
+            {
+                LOG("Error: unable to compress file (%s)", infile);
+                fclose(fp);
+                return 0;
+            }
+            i++;
+        }
+
+        chmod(infile, 0777);
+        remove(infile);
+    }
+    fclose(fp);
+
+    snprintf(infile, sizeof(infile), "%s.offzip", input);
+    chmod(infile, 0777);
+    remove(infile);
+
+    return (i > 0);
+}
 
 static uint32_t zipit(FILE *fdi, FILE *fdo, int wbits, int flags, int store) {
     int     ret = 0;

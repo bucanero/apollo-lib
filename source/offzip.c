@@ -62,13 +62,13 @@ static uint32_t g_offset = 0,
         g_filebuffoff   = 0,
         g_filebuffsz    = 0;
 static int g_zipwbits   = 0;
-static const char *g_basename = NULL;
+static int g_count      = 0;
 static uint8_t *g_in    = NULL,
         *g_out          = NULL,
         *g_filebuff     = NULL;
 
 
-int offzip_util(const char *file_input, const char *output_dir, const char *basename, int wbits) {
+int offzip_util(const char *file_input, const char *output_dir, int offset, int wbits, int count) {
     FILE    *fd,
             *fdo  = NULL;
     int     files;
@@ -109,9 +109,9 @@ int offzip_util(const char *file_input, const char *output_dir, const char *base
             "\n", argv[0], g_minzip);
 */
 
-    g_zipwbits = wbits;
-    g_basename = basename;
-    g_offset        = 0;
+    g_zipwbits      = wbits;
+    g_count         = count;
+    g_offset        = offset;
     g_filebuffoff   = 0;
     g_filebuffsz    = 0;
 
@@ -248,7 +248,7 @@ static int unzip_all(FILE *fd, const char* out_path) {
     zipres    = -1;
 
     while(!zip_search(fd)) {
-        snprintf(filename, sizeof(filename), "%s[%s]%08" PRIx32 ".dat", out_path, g_basename, g_offset);
+        snprintf(filename, sizeof(filename), "%s%08" PRIx32 ".dat", out_path, g_offset);
         LOG("Unzip (0x%08x) to %s", g_offset, filename);
 
         zipres = unzip(fd, &fdo, &inlen, &outlen, filename);
@@ -260,9 +260,24 @@ static int unzip_all(FILE *fd, const char* out_path) {
         }
 
         if(!zipres) {
-            LOG(" %u --> %u", inlen, outlen);
+            LOG("#%d: %u --> %u", extracted, inlen, outlen);
+
+            snprintf(filename, sizeof(filename), "%s.offzip", out_path);
+            FILE *fp = fopen(filename, extracted ? "ab" : "wb");
+            if (fp)
+            {
+                zipres = g_offset - inlen;
+                fwrite(&extracted, 1, sizeof(uint32_t), fp);
+                fwrite(&zipres, 1, sizeof(uint32_t), fp);
+                fwrite(&g_zipwbits, 1, sizeof(uint32_t), fp);
+                fwrite(&inlen, 1, sizeof(uint32_t), fp);
+                fwrite(&outlen, 1, sizeof(uint32_t), fp);
+                fclose(fp);
+            }
 
             extracted++;
+            if (g_count && extracted == g_count)
+                break;
         } else {
             LOG(" error");
         }

@@ -33,6 +33,7 @@ typedef struct
     uint8_t* data;
 } bsd_variable_t;
 
+static const char* base_id = NULL;
 static list_t* var_list = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
@@ -2214,6 +2215,73 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			LOG("Endian Swap (%d bits) data 0x%X..0x%X", mode*8, range_start, range_end);
 		}
 
+		// decompress(offset, wbits)
+		else if (wildcard_match_icase(line, "decompress(*,*)*"))
+		{
+			int offset = 0, wbits = 0, count = 0;
+			char *tmp;
+			char tmp_dir[256];
+
+			line += strlen("decompress(");
+			tmp = strchr(line, ',');
+			*tmp = 0;
+
+			skip_spaces(line);
+			if (line[0] == '#')
+			{
+				sscanf(line, "#%d", &count);
+			}
+			else if (line[0] != '*')
+			{
+				sscanf(line, "%x", &offset);
+				count = 1;
+			}
+
+			line = tmp + 1;
+			tmp = strchr(line, ')');
+			*tmp = 0;
+
+			if (line[0] != '*')
+				sscanf(line, "%d", &wbits);
+
+			LOG("Decompressing '%s' (w=%d)...", filepath, wbits);
+			snprintf(tmp_dir, sizeof(tmp_dir), "%s[%.9s]", (char*) host_callback(APOLLO_HOST_TEMP_PATH, NULL), base_id);
+
+			if (!wbits)
+			{
+				// try zlib data (default) zlib is header+deflate+crc
+				wbits = offzip_util(filepath, tmp_dir, offset, OFFZIP_WBITS_ZLIB, count);
+
+				// if zlib didn't work, try deflate (many false positives, used in Zip archives)
+				if (!wbits)
+					offzip_util(filepath, tmp_dir, offset, OFFZIP_WBITS_DEFLATE, count);
+			}
+			else offzip_util(filepath, tmp_dir, offset, wbits, count);
+		}
+		// compress(offset)
+		else if (wildcard_match_icase(line, "compress(*)*"))
+		{
+			char *tmp;
+			char tmp_dir[256];
+			uint32_t offset = 0;
+
+			line += strlen("compress(");
+			tmp = strchr(line, ')');
+			*tmp = 0;
+
+			if (line[0] != '*')
+				sscanf(line, "%x", &offset);
+
+			LOG("Compressing '%s' (offset=0x%X)...", filepath, offset);
+			snprintf(tmp_dir, sizeof(tmp_dir), "%s[%.9s]", (char*) host_callback(APOLLO_HOST_TEMP_PATH, NULL), base_id);
+
+			if (!packzip_util(tmp_dir, filepath, offset, 0))
+				LOG("ERROR: Compression failed");
+
+			// Skip to avoid overwritting the original file
+			goto bsd_end;
+		}
+
 		else if (wildcard_match_icase(line, "decrypt *"))
 		{
 			line += strlen("decrypt");
@@ -3682,6 +3750,7 @@ static void* dummy_host_callback(int id, int* size)
 
 int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
+	base_id = title_id;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
 
 	if (code->type == APOLLO_CODE_GAMEGENIE)
@@ -3693,73 +3762,6 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	if (code->type == APOLLO_CODE_BSD)
 	{
 		LOG("Bruteforce Save Data Code");
-
-		if (wildcard_match_icase(code->codes, "decompress *"))
-		{
-			const char* tmp_dir = host_callback(APOLLO_HOST_TEMP_PATH, NULL);
-
-			// decompress FILENAME
-			LOG("Decompressing '%s' (w=%d)...", fpath, OFFZIP_WBITS_ZLIB);
-
-			// try zlib data (default) zlib is header+deflate+crc
-			int ret = offzip_util(fpath, tmp_dir, title_id, OFFZIP_WBITS_ZLIB);
-
-			// if zlib didn't work, try deflate (many false positives, used in Zip archives)
-			if (!ret)
-				ret = offzip_util(fpath, tmp_dir, title_id, OFFZIP_WBITS_DEFLATE);
-
-			return ret;
-		}
-		else if (wildcard_match_icase(code->codes, "compress *,-w*"))
-		{
-			// compress FILENAME,-w bits
-			DIR *d;
-			struct dirent *dir;
-			int wbits;
-			uint32_t offset;
-			char infile[2048];
-			const char* tmp_dir = host_callback(APOLLO_HOST_TEMP_PATH, NULL);
-
-			char* tmp = strchr(code->codes, ',') + 3;
-			sscanf(tmp, "%d", &wbits);
-
-			if ((wbits < OFFZIP_WBITS_DEFLATE) || (wbits > OFFZIP_WBITS_ZLIB))
-				wbits = OFFZIP_WBITS_ZLIB;
-
-			LOG("Compressing '%s' (w=%d)...", fpath, wbits);
-
-			d = opendir(tmp_dir);
-			if (!d)
-				return 0;
-
-			while ((dir = readdir(d)) != NULL)
-			{
-				//[BLUS12345]00000000.dat
-				if (wildcard_match(dir->d_name, "[*]*.dat") && strncmp(dir->d_name + 1, title_id, 9) == 0)
-				{
-					tmp = strchr(dir->d_name, ']') + 1;
-					sscanf(tmp, "%" PRIx32 ".dat", &offset);
-					snprintf(infile, sizeof(infile), "%s%s", tmp_dir, dir->d_name);
-
-					LOG("Adding '%s' to '%s' at %d (0x%X)...", dir->d_name, code->file, offset, offset);
-					if (!packzip_util(infile, fpath, offset, wbits))
-					{
-						LOG("Error: unable to compress file (%s)", dir->d_name);
-						return 0;
-					}
-
-					if (access(infile, F_OK) == SUCCESS)
-					{
-						chmod(infile, 0777);
-						remove(infile);
-					}					
-				}
-			}
-			closedir(d);
-
-			return 1;
-		}
-
 		return apply_bsd_patch_code(fpath, code);
 	}
 

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "0.7.0"
+#define APOLLO_LIB_VERSION         "1.0.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -187,7 +187,7 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
 #define OFFZIP_WBITS_ZLIB		15
 #define OFFZIP_WBITS_DEFLATE	-15
 
-int offzip_util(const char *input, const char *output_dir, const char *basename, int wbits);
+int offzip_util(const char *input, const char *output_dir, int offset, int wbits, int count);
 int packzip_util(const char *input, const char *output, uint32_t offset, int wbits);
 
 
