@@ -2287,6 +2287,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			line += strlen("decrypt");
 			skip_spaces(line);
 
+			// Custom Encryption
 			if (wildcard_match_icase(line, "diablo3*"))
 			{
 				LOG("Decrypt Diablo 3 data");
@@ -2306,24 +2307,6 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				LOG("Decrypt NFS Undercover data");
 				nfsu_decrypt_data((uint8_t*)data + range_start, (range_end - range_start));
-			}
-			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
-			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
-				line += strlen("camellia_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				camellia_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
@@ -2440,6 +2423,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				mgs_Decrypt(start, (range_end - range_start), key, key_len);
 				free(key);
 			}
+			// Standard Encryption
+			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				int key_len;
@@ -2456,6 +2441,52 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				*tmp = ')';
 
 				aes_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
+				free(key);
+			}
+			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
+			{
+				int key_len, iv_len;
+				char *key, *iv, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("aes_cbc(");
+				tmp = strrchr(line, ',');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ',';
+
+				line = tmp + 1;
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption IV=%s", line);
+
+				iv = _decode_variable_data(line, &iv_len);
+				*tmp = ')';
+
+				aes_cbc_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+				free(key);
+				free(iv);
+			}
+			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
+			{
+				int key_len;
+				char *key, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("camellia_ecb(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ')';
+
+				camellia_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
 			else if (wildcard_match_icase(line, "des_ecb(*)*"))
@@ -2530,6 +2561,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			line += strlen("encrypt");
 			skip_spaces(line);
 
+			// Custom Encryption
 			if (wildcard_match_icase(line, "diablo3*"))
 			{
 				LOG("Encrypt Diablo 3 data");
@@ -2549,24 +2581,6 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				LOG("Encrypt NFS Undercover data");
 				nfsu_encrypt_data((uint8_t*)data + range_start, (range_end - range_start));
-			}
-			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
-			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
-				line += strlen("camellia_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				camellia_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
@@ -2683,6 +2697,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				mgs_Encrypt(start, (range_end - range_start), key, key_len);
 				free(key);
 			}
+			// Standard Encryption
+			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				int key_len;
@@ -2699,6 +2715,52 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				*tmp = ')';
 
 				aes_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
+				free(key);
+			}
+			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
+			{
+				int key_len, iv_len;
+				char *key, *iv, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("aes_cbc(");
+				tmp = strrchr(line, ',');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ',';
+
+				line = tmp + 1;
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption IV=%s", line);
+
+				iv = _decode_variable_data(line, &iv_len);
+				*tmp = ')';
+
+				aes_cbc_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+				free(key);
+				free(iv);
+			}
+			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
+			{
+				int key_len;
+				char *key, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("camellia_ecb(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ')';
+
+				camellia_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
 			else if (wildcard_match_icase(line, "des_ecb(*)*"))
