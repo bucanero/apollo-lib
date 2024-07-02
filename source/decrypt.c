@@ -92,43 +92,37 @@ void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 	return;
 }
 
-void diablo_decrypt_data(uint8_t* data, uint32_t size)
+void aes_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
-	uint32_t xor_key1 = DIABLO3_KEY1;
-	uint32_t xor_key2 = DIABLO3_KEY2;
-	uint32_t tmp;
+	aes_context ctx;
 
-	LOG("[*] Total Decrypted Size 0x%X (%d bytes)", size, size);
+	LOG("Decrypting AES CBC data (%d bytes)", len);
+	if (iv_len != AES_BLOCK_SIZE)
+		return;
 
-	for (uint32_t i = 0; i < size; i++)
-	{
-		data[i] ^= (xor_key1 & 0xFF);
-		tmp = data[i] ^ xor_key1;
-		xor_key1 = xor_key1 >> 8 | xor_key2 << 0x18;
-		xor_key2 = xor_key2 >> 8 | tmp << 0x18;
-	}
+	aes_init(&ctx);
+	aes_setkey_dec(&ctx, key, key_len * 8);
+	len &= 0xFFFFFFF0;
 
-	LOG("[*] Decrypted File Successfully!");
+	aes_crypt_cbc(&ctx, AES_DECRYPT, len, iv, data, data);
+
 	return;
 }
 
-void diablo_encrypt_data(uint8_t* data, uint32_t size)
+void aes_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
-	uint32_t xor_key1 = DIABLO3_KEY1;
-	uint32_t xor_key2 = DIABLO3_KEY2;
-	uint32_t tmp;
+	aes_context ctx;
 
-	LOG("[*] Total Encrypted Size 0x%X (%d bytes)", size, size);
+	LOG("Encrypting AES CBC data (%d bytes)", len);
+	if (iv_len != AES_BLOCK_SIZE)
+		return;
 
-	for (uint32_t i = 0; i < size; i++)
-	{
-		tmp = data[i] ^ xor_key1;
-		data[i] ^= (xor_key1 & 0xFF);
-		xor_key1 = xor_key1 >> 8 | xor_key2 << 0x18;
-		xor_key2 = xor_key2 >> 8 | tmp << 0x18;
-	}
+	aes_init(&ctx);
+	aes_setkey_enc(&ctx, key, key_len * 8);
+	len &= 0xFFFFFFF0;
 
-	LOG("[*] Encrypted File Successfully!");
+	aes_crypt_cbc(&ctx, AES_ENCRYPT, len, iv, data, data);
+
 	return;
 }
 
@@ -243,6 +237,46 @@ void des3_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t 
 	des3_set3key_enc(&ctx, key);
 	des3_crypt_cbc(&ctx, DES_ENCRYPT, len, iv, data, data);
 
+	return;
+}
+
+void diablo_decrypt_data(uint8_t* data, uint32_t size)
+{
+	uint32_t xor_key1 = DIABLO3_KEY1;
+	uint32_t xor_key2 = DIABLO3_KEY2;
+	uint32_t tmp;
+
+	LOG("[*] Total Decrypted Size 0x%X (%d bytes)", size, size);
+
+	for (uint32_t i = 0; i < size; i++)
+	{
+		data[i] ^= (xor_key1 & 0xFF);
+		tmp = data[i] ^ xor_key1;
+		xor_key1 = xor_key1 >> 8 | xor_key2 << 0x18;
+		xor_key2 = xor_key2 >> 8 | tmp << 0x18;
+	}
+
+	LOG("[*] Decrypted File Successfully!");
+	return;
+}
+
+void diablo_encrypt_data(uint8_t* data, uint32_t size)
+{
+	uint32_t xor_key1 = DIABLO3_KEY1;
+	uint32_t xor_key2 = DIABLO3_KEY2;
+	uint32_t tmp;
+
+	LOG("[*] Total Encrypted Size 0x%X (%d bytes)", size, size);
+
+	for (uint32_t i = 0; i < size; i++)
+	{
+		tmp = data[i] ^ xor_key1;
+		data[i] ^= (xor_key1 & 0xFF);
+		xor_key1 = xor_key1 >> 8 | xor_key2 << 0x18;
+		xor_key2 = xor_key2 >> 8 | tmp << 0x18;
+	}
+
+	LOG("[*] Encrypted File Successfully!");
 	return;
 }
 
@@ -988,7 +1022,7 @@ void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
     mh_buffer_translate(buff, size, dec_table);
 
     seed = *((uint32_t*) &buff[size-4]);
-	LE32(seed);
+    LE32(seed);
     LOG("[*] Encryption Seed: %08X", seed);
 
     // Decrypt the data
@@ -1016,7 +1050,7 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
 
     // Get a new seed for the XOR cipher
     seed = *((uint32_t*) &buff[size-4]);
-	LE32(seed);
+    LE32(seed);
     LOG("[*] Encryption Seed: %08X", seed);
 
     // Apply a substitution cipher to the data and encrypt it
