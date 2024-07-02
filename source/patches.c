@@ -2918,6 +2918,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 				//	X = Bytes to Add/Sub
 			{
 				int off;
+				uint64_t wv64;
 				uint32_t val, wv32;
 				uint16_t wv16;
 				uint8_t wv8;
@@ -2925,7 +2926,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 
 				sprintf(tmp6, "%.6s", line+2);
 				sscanf(tmp6, "%x", &off);
-				off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
+				off += ((t == '8' || t == '9' || t == 'A' || t == 'B' || t == 'C' || t == 'D' || t == 'E' || t == 'F') ? pointer : 0);
 
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
@@ -2964,7 +2965,12 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 
 					case '3':
 					case 'B':
-						LOG("Not Implemented! Add-Wrote 8 bytes (%08X) to 0x%X", val, off);
+						wv64 = ((uint64_t*) write)[0];
+						MEM64(wv64);
+						wv64 += val;
+						MEM64(wv64);
+						memcpy(write, &wv64, 8);
+						LOG("Add-Write 8 bytes (%08X) to 0x%X", val, off);
 						break;
 
 					case '4':
@@ -2997,7 +3003,12 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 
 					case '7':
 					case 'F':
-						LOG("Not Implemented! Sub-Write 8 bytes (%08X) to 0x%X", val, off);
+						wv64 = ((uint64_t*) write)[0];
+						MEM64(wv64);
+						wv64 -= val;
+						MEM64(wv64);
+						memcpy(write, &wv64, 8);
+						LOG("Sub-Write 8 bytes (%08X) to 0x%X", val, off);
 						break;
 				}
     		}
