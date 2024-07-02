@@ -131,6 +131,10 @@ void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 
+// AES CBC save data encryption
+void aes_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+void aes_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+
 // DES ECB save data encryption
 void des_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void des_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
