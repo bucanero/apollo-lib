@@ -323,7 +323,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			// set [myvariable2]:"hello"
 			// ;sets the text "hello" into the variable [myvariable2]
 			//
-			// set [anyname1]:read(0x100, (10)) 
+			// set [anyname1]:read(0x100, (10))
 			// ;read(offset, length) is a function that reads n bytes from current file
 			// ;0x100 is the offset in hex
 			// ;(10) is the length in decimal
@@ -331,15 +331,15 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			// set *:param = "lastbyte*"
 			// set *:param = "eof*"
-			// set *:param = "xor:*", "not *", "md5*", "crc*", "eachecksum", "adler16", "adler32", "sha1*", "sha256", 
-			// set *:param = "sha384", "sha512", "hmac*", "md4*", "md2*", "read(*,*)*", "xor(*,*,*)*", "add(*,*)", 
-			// set *:param = "wadd(*,*)", "[dq]wadd(*,*)", "sub(*,*)", "wsub(*,*)", "[dq]wsub(*,*)", "repeat(*,*)*", 
+			// set *:param = "xor:*", "not *", "md5*", "crc*", "eachecksum", "adler16", "adler32", "sha1*", "sha256",
+			// set *:param = "sha384", "sha512", "hmac*", "md4*", "md2*", "read(*,*)*", "xor(*,*,*)*", "add(*,*)",
+			// set *:param = "wadd(*,*)", "[dq]wadd(*,*)", "sub(*,*)", "wsub(*,*)", "[dq]wsub(*,*)", "repeat(*,*)*",
 			// set *:param = "mid(*,*)", "left(*,*)", "right(*,*)"
 			// UNUSED: "userid*", "titleid*", "psid*", "account*", "profile*",
 			// UNUSED: crc16, adler16, md4, sha384, sha512, left, not
 			//
-			// "set range:*,*", "set crc_*:*", "set md5:*", "set md2:*", "set sha1:*", "set crc32:*", "set crc32big:*", 
-			// "set crc32little:*", "set crc16:*", "set adler16:*", "set adler32:*",  
+			// "set range:*,*", "set crc_*:*", "set md5:*", "set md2:*", "set sha1:*", "set crc32:*", "set crc32big:*",
+			// "set crc32little:*", "set crc16:*", "set adler16:*", "set adler32:*",
 			// "set ""*"":*", "set pointer:*"
 			// UNUSED: "set psid:*", "set userid:*", "set titleid:*", "set *account*:*", "set *profile*:*",
 			// UNUSED: crc16, adler16, md4, sha384, sha512,
@@ -639,7 +639,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 						custom_crc.refOut = 1;
 
 						hash = crc32_hash(start, len, &custom_crc);
-						LOG("len %d CRC32 HASH = %08X", len, hash);    			    
+						LOG("len %d CRC32 HASH = %08X", len, hash);
     			    }
 
                     var->len = BSD_VAR_INT32;
@@ -1580,7 +1580,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			    else if (wildcard_match_icase(line, "read(*,*)*"))
 			    {
 					// ;read(offset, length) is a function that reads n bytes from current file
-					// set [anyname1]:read(0x100, (10)) 
+					// set [anyname1]:read(0x100, (10))
 					// ;0x100 is the offset in hex
 					// ;(10) is the length in decimal
 					// ;the example 4 reads 10 bytes starting from offset 0x100 and store them in the variable [anyname1]
@@ -2270,7 +2270,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			*tmp = 0;
 
 			if (line[0] != '*')
-				sscanf(line, "%x", &offset);
+				sscanf(line, "%" PRIx32, &offset);
 
 			LOG("Compressing '%s' (offset=0x%X)...", filepath, offset);
 			snprintf(tmp_dir, sizeof(tmp_dir), "%s[%.9s]", (char*) host_callback(APOLLO_HOST_TEMP_PATH, NULL), base_id);
@@ -3028,25 +3028,36 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     			//	0 / 8 = 8bit
     			//	1 / 9 = 16bit
     			//	2 / A = 32bit
+    			//	-------------------------
+    			//	4NNN Changes to CCCC
+    			//	4 = 1 Byte  (Only Writes 000000XX)		C = Offset from Pointer; 1 Byte  (Only Writes 000000XX)
+    			//	5 = 2 Bytes (Only Writes 0000XXXX)		D = Offset from Pointer; 2 Bytes (Only Writes 0000XXXX)
+    			//	6 = 4 Bytes (Only Writes XXXXXXXX)		E = Offset from Pointer; 4 Bytes (Only Writes XXXXXXXX)
     		{
     			int i, off, n, incoff;
     			uint32_t val, incval, wv32;
     			char t = line[1];
     			char* write;
-				uint8_t wv8;
-				uint16_t wv16;
+    			uint8_t wv8;
+    			uint16_t wv16;
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
-    			off += ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
+    			off += ((t == '8' || t == '9' || t == 'A' || t == 'C' || t == 'D' || t == 'E') ? pointer : 0);
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
 
-			    line = strtok(NULL, "\n");
+    			line = strtok(NULL, "\n");
 
-    			sprintf(tmp3, "%.3s", line+1);
-    			sscanf(tmp3, "%x", &n);
+				if (t == '4' || t == '5' || t == '6' || t == 'C' || t == 'D' || t == 'E')
+				{
+					sprintf(tmp4, "%.4s", line);
+					sscanf(tmp4, "%x", &n);
+				} else {
+					sprintf(tmp3, "%.3s", line+1);
+					sscanf(tmp3, "%x", &n);
+				}
 
     			sprintf(tmp4, "%.4s", line+4);
     			sscanf(tmp4, "%x", &incoff);
@@ -3064,6 +3075,8 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 					{
 						case '0':
 						case '8':
+						case '4':
+						case 'C':
 							wv8 = val;
 							memcpy(write, &wv8, 1);
 							LOG("M-Wrote 1 byte (%02X) to 0x%lX", val, write - data);
@@ -3071,6 +3084,8 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 
 						case '1':
 						case '9':
+						case '5':
+						case 'D':
 							wv16 = val;
 							MEM16(wv16);
 							memcpy(write, &wv16, 2);
@@ -3079,6 +3094,8 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 
 						case '2':
 						case 'A':
+						case '6':
+						case 'E':
 							wv32 = val;
 							MEM32(wv32);
 							memcpy(write, &wv32, 4);
