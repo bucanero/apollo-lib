@@ -41,7 +41,7 @@ The library is cross-platform and is required to build:
 - Commands: `set`, `write`, `search`, `insert`, `delete`, `copy`, `decrypt`, `encrypt`, `endian_swap`, `compress`, `decompress`
 - Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md2`, `md4`, `md5`, `md5_xor`, `sha1`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`, `force_crc32`, `murmur3_32`, `jhash`, `jenkins_oaat`, `lookup3_little2`
 - Custom hashes: `eachecksum`, `ffx_checksum`, `ff13_checksum`, `deadrising_checksum`, `kh25_checksum`, `khcom_checksum`, `mgs2_checksum`, `sw4_checksum`, `toz_checksum`, `tiara2_checksum`, `castlevania_checksum`, `rockstar_checksum`
-- Encryption: `aes_ecb`, `des_ecb`, `des3_cbc`, `blowfish_ecb`, `camellia_ecb`
+- Encryption: `aes_ecb`, `aes_cbc`, `des_ecb`, `des3_cbc`, `blowfish_ecb`, `camellia_ecb`
 - Custom encryption: `diablo3`, `dw8xl`, `silent_hill3`, `nfs_undercover`, `ffxiii`, `borderlands3`, `mgs_pw`, `mgs_base64`, `mgs`, `mgs5_tpp`, `monster_hunter`, `rgg_studio`
 
 ## Apollo `savepatch` archive
@@ -50,7 +50,7 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 
 ## CLI Tools
 
-These command-line tools are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
+[Apollo command-line tools](https://github.com/bucanero/apollo-lib/releases/latest) are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
 
 ### parser
 
@@ -93,7 +93,7 @@ This library requires:
 
 ## License
 
-[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2023 [Damian Parrino](https://twitter.com/dparrino)
+[Apollo Save Tool](https://github.com/bucanero/apollo-lib/) library - Copyright (C) 2020-2024 [Damian Parrino](https://twitter.com/dparrino)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the [GNU General Public License][app_license] as published by
