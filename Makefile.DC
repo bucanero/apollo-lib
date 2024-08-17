@@ -1,0 +1,12 @@
+TARGET = dc-libapollo.a
+OBJS = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
+			source/patches.o source/wildcard.o
+KOS_CFLAGS += -Iinclude -I${KOS_PORTS}/include/zlib -D_GNU_SOURCE
+
+include ${KOS_PORTS}/scripts/lib.mk
+
+install: $(TARGET)
+	@echo Copying...
+	@cp -frv include/apollo.h $(KOS_PORTS)/include
+	@cp -frv $(TARGET) $(KOS_PORTS)/lib/libapollo.a
+	@echo lib installed!
