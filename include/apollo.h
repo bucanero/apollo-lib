@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "1.1.0"
+#define APOLLO_LIB_VERSION         "1.1.2"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
