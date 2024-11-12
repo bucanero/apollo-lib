@@ -2856,7 +2856,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 	}
 
 	gg_code = strdup(code->codes);
-	for (char *line = strtok(gg_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
+	for (char *line = strtok(gg_code, "\n"); line != NULL;)
 	{
     	switch (line[0])
     	{
@@ -3805,10 +3805,11 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 			}
 				break;
 
-    		default:
-    			break;
-    	}
-    }
+			default:
+				break;
+		}
+		line = strtok(NULL, "\n");
+	}
 
 	write_buffer(filepath, (uint8_t*) data, dsize);
 
