@@ -40,18 +40,18 @@ void dbglogger_log(const char* fmt, ...)
 
 int is_active_code(const char* a, int id)
 {
-    int val;
+    int val, end;
     char* arg = strdup(a);
 
-     for (char* tmp = strtok(arg, ","); tmp; tmp = strtok(NULL, ","))
-     {
-        sscanf(tmp, "%d", &val);
-        if (val == id)
+    for (char* tmp = strtok(arg, ","); tmp; tmp = strtok(NULL, ","))
+    {
+        if (((sscanf(tmp, "%d-%d", &val, &end) == 2) && (id >= val && id <= end)) ||
+            ((sscanf(tmp, "%d", &val) == 1) && (val == id)))
         {
             free(arg);
             return 1;
         }
-     }
+    }
 
     free(arg);
     return 0;
@@ -110,14 +110,14 @@ int main(int argc, char **argv)
     list_node_t *node = list_head(list_codes);
 
     snprintf(title, sizeof(title), "%p", data);
-    printf("[i] Applying codes [%s] to %s...\n\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
+    printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         if (is_active_code(argv[2], len))
         {
             log++;
-            printf("[+] Applying code #%ld...\n", len);
+            printf("\n===============[ Applying code #%ld ]===============\n", len);
             if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, &cli_host_callback))
                 printf("- OK\n");
             else
