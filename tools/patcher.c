@@ -19,7 +19,10 @@ static int log = 0;
 
 void print_usage(const char* argv0)
 {
-    printf("USAGE: %s file.savepatch 1,2,7,10,18 [save-file.bin]\n\n", argv0);
+    printf("USAGE: %s file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf("  file.savepatch: The cheat patch file to apply\n");
+    printf("  1,2,7-10,18:    The list of codes to apply\n");
+    printf("  data-file.bin:  The target file to patch\n\n");
     return;
 }
 
