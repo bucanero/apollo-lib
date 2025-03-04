@@ -43,13 +43,17 @@ typedef struct list_s
 	size_t count;
 } list_t;
 
+typedef struct option_value
+{
+    char * name;
+    char * value;
+} option_value_t;
+
 typedef struct option_entry
 {
     char * line;
-    char * * name;
-    char * * value;
+    list_t * opts;
     int id;
-    int size;
     int sel;
 } option_entry_t;
 
