@@ -221,6 +221,7 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 		if ((end = strchr(tag, '}')) == NULL)
 			break;
 
+		entry->options[i].sel = -1;
 		entry->options[i].id = djb2_hash((uint8_t*) tag, (end - tag) + 1);
 		tag++;
 
@@ -443,11 +444,11 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 	// clean up options list
 	for (node = list_head(opt_list); node != NULL; node = list_next(node))
 	{
+		option_value_t* val;
 		option_entry_t* opt = list_get(node);
 		// clean up value list
-		for (list_node_t* node2 = list_head(opt->opts); node2 != NULL; node2 = list_next(node2))
+		for (list_node_t* node2 = list_head(opt->opts); (val = list_get(node2)); node2 = list_next(node2))
 		{
-			option_value_t* val = list_get(node2);
 			free(val->name);
 			free(val->value);
 			free(val);

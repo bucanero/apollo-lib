@@ -103,8 +103,6 @@ static void get_user_options(code_entry_t* entry)
             strncpy(strstr(entry->codes, entry->options[i].line), val->value, strlen(entry->options[i].line));
         }
     }
-
-    printf("%s\n", entry->codes);
 }
 
 int main(int argc, char **argv)
