@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "1.1.2"
+#define APOLLO_LIB_VERSION         "1.3.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -237,6 +237,13 @@ uint64_t crc64_hash(const uint8_t *data, uint32_t len, custom_crc_t* cfg);
  * RETURN VALUE: 32 bit result of CRC calculation
  */
 uint32_t MC02_hash(const uint8_t *data, uint32_t len);
+
+/**
+ * This function makes a djb2 hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 32 bit result of CRC calculation
+ */
+uint32_t djb2_hash(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes a SDBM hash calculation on Length data bytes
