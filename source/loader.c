@@ -203,8 +203,7 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 	option_value_t* val;
 	int i = 0;
 
-	if ((entry->options_count == 0) ||
-		(entry->options_count == 1 && entry->options != NULL))
+	if (!entry->options_count || (entry->options_count == 1 && entry->options != NULL))
 		return;
 
 	opt = calloc(entry->options_count, sizeof(option_entry_t));
