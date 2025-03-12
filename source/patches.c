@@ -1307,6 +1307,21 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("len %d SDBM HASH = %08X", len, hash);
 				}
 
+				// set [*]:djb2*
+				else if (wildcard_match_icase(line, "djb2*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
+
+					hash = djb2_hash((uint8_t*)data + range_start, len);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d DJB2 HASH = %08X", len, hash);
+				}
+
 				// set [*]:fnv1*
 				else if (wildcard_match_icase(line, "fnv1*"))
 				{
