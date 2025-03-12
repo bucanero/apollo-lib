@@ -203,7 +203,7 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 	option_value_t* val;
 	int i = 0;
 
-	if (!entry->options_count || (entry->options_count == 1 && entry->options != NULL))
+	if (entry->options_count == 1 && entry->options != NULL)
 		return;
 
 	opt = calloc(entry->options_count, sizeof(option_entry_t));
@@ -286,11 +286,9 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
 						(line[0] < '0') && (line[0] > '9') && (line[0] < 'A') && (line[0] > 'F')))
 						entry->type = APOLLO_CODE_BSD;
-					else
-					{
-						if (wildcard_match(line, "*{*}*"))
-							entry->options_count++;
-					}
+
+					if (wildcard_match(line, "*{*}*"))
+						entry->options_count++;
 			    }
 		    }
     	}
@@ -434,7 +432,7 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 
 		if(!code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
-		else
+		else if (code->options_count)
 			get_code_options(code, opt_list);
 
 		LOG("[%d] Name: %s\nFile: %s\nCode (%d): %s\n", code_count, code->name, code->file, code->type, code->codes);
