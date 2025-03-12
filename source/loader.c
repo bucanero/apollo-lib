@@ -155,7 +155,7 @@ static int str_rtrim(char * buffer)
 
 static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 {
-	option_value_t *optval;
+	option_value_t *optval = NULL;
 	option_entry_t *options = (option_entry_t *)malloc(sizeof(option_entry_t));
 	int x = 0, len = strlen(line);
 
