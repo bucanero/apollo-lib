@@ -274,6 +274,25 @@ static void swap_u64_data(uint64_t* data, int count)
 		data[i] = ES64(data[i]);
 }
 
+static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
+{
+	if (!entry->options_count)
+		return;
+
+	for (int i = 0; i < entry->options_count; i++)
+	{
+		if (!entry->options[i].line)
+			continue;
+
+		option_value_t *val = list_get_item(entry->options[i].opts, entry->options[i].sel);
+		if (val)
+		{
+			LOG("Set tag value: %s=%s", entry->options[i].line, val->value);
+			strncpy(strstr(txtcode, entry->options[i].line), val->value, strlen(entry->options[i].line));
+		}
+	}
+}
+
 int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 {
 	char *data, *bsd_code;
@@ -296,6 +315,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 		var_list = list_alloc();
 
 	bsd_code = strdup(code->codes);
+	apply_tag_opts(bsd_code, code);
 	for (char *line = strtok(bsd_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
 	{
         // carry(*)
@@ -2871,6 +2891,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 	}
 
 	gg_code = strdup(code->codes);
+	apply_tag_opts(gg_code, code);
 	for (char *line = strtok(gg_code, "\n"); line != NULL;)
 	{
     	switch (line[0])

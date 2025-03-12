@@ -100,7 +100,6 @@ static void get_user_options(code_entry_t* entry)
         {
             printf("  Selected: %s\n", val->name);
             printf("  Value   : %s\n\n", val->value);
-            strncpy(strstr(entry->codes, entry->options[i].line), val->value, strlen(entry->options[i].line));
         }
     }
 }
