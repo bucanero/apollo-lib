@@ -79,6 +79,31 @@ static void* cli_host_callback(int id, int* size)
 	return "";
 }
 
+static void get_user_options(code_entry_t* entry)
+{
+    option_value_t* val;
+
+    printf("\n[%s] Options:\n", entry->name);
+    for (int j, i=0; i<entry->options_count; i++)
+    {
+        j = 0;
+        printf("  Tag: %s\n", entry->options[i].line);
+        for (list_node_t* node = list_head(entry->options[i].opts); (val = list_get(node)); node = list_next(node))
+        {
+            printf("%4d.  %s\n", j++, val->name);
+        }
+        printf("\n Select option: ");
+        scanf("%d", &entry->options[i].sel);
+
+        val = list_get_item(entry->options[i].opts, entry->options[i].sel);
+        if (val)
+        {
+            printf("  Selected: %s\n", val->name);
+            printf("  Value   : %s\n\n", val->value);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     size_t len;
@@ -120,6 +145,9 @@ int main(int argc, char **argv)
         if (is_active_code(argv[2], len))
         {
             log++;
+            if (code->options_count)
+                get_user_options(code);
+
             printf("\n===============[ Applying code #%ld ]===============\n", len);
             if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, &cli_host_callback))
                 printf("- OK\n");

@@ -299,6 +299,17 @@ uint32_t MC02_hash(const uint8_t *pb, uint32_t cb)
 	return ~seedValue;
 }
 
+// http://www.cse.yorku.ca/~oz/hash.html#djb2
+uint32_t djb2_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t hash = 5381;
+
+    while (len--)
+        hash = ((hash << 5) + hash) + *data++; /* hash * 33 + c */
+
+    return hash;
+}
+
 // http://www.cse.yorku.ca/~oz/hash.html#sdbm
 uint32_t sdbm_hash(const uint8_t* data, uint32_t len, uint32_t init)
 {

@@ -153,6 +153,101 @@ static int str_rtrim(char * buffer)
 	return (max - i);
 }
 
+static option_entry_t * parseOptionFromLine(char *line, const char *tag)
+{
+	option_value_t *optval = NULL;
+	option_entry_t *options = (option_entry_t *)malloc(sizeof(option_entry_t));
+	int x = 0, len = strlen(line);
+
+	options->id = djb2_hash((uint8_t*)tag, strlen(tag));
+	options->line = strdup(tag);
+	options->opts = list_alloc();
+
+	LOG("Loading Option '%s' %08X", tag, options->id);
+
+	while (x < len)
+	{
+		if (x >= len)
+			break;
+		int oldX = x;
+		
+		while (x < len && line[x] != '=' && line[x] != ';')
+			x++;
+		
+		if (line[x] == '=')
+		{
+			line[x] = 0;
+			optval = (option_value_t *)malloc(sizeof(option_value_t));
+			optval->name = NULL;
+			optval->value = strdup(&line[oldX]);
+		}
+		else
+		{
+			line[x] = 0;
+			optval->name = strdup(&line[oldX]);
+			list_append(options->opts, optval);
+
+			LOG("%s %s='%s'", tag, optval->value, optval->name);
+		}
+
+		x++;
+	}
+	
+	return options;
+}
+
+static void get_code_options(code_entry_t* entry, list_t* opt_list)
+{
+	list_node_t* node;
+	option_entry_t* opt;
+	option_value_t* val;
+	int i = 0;
+
+	if (entry->options_count == 1 && entry->options != NULL)
+		return;
+
+	opt = calloc(entry->options_count, sizeof(option_entry_t));
+	if (entry->options)
+	{
+		i++;
+		memcpy(opt, entry->options, sizeof(option_entry_t));
+		free(entry->options);
+	}
+	entry->options = opt;
+
+	for (char *end, *tag = strchr(entry->codes, '{'); tag; tag = strchr(tag, '{'))
+	{
+		if ((end = strchr(tag, '}')) == NULL)
+			break;
+
+		entry->options[i].sel = -1;
+		entry->options[i].id = djb2_hash((uint8_t*) tag, (end - tag) + 1);
+		tag++;
+
+		// search tag and deep copy the option values
+		for (node = list_head(opt_list); (opt = list_get(node)); node = list_next(node))
+		{
+			if (opt->id == entry->options[i].id)
+			{
+				LOG("Load Option ID: %08X", entry->options[i].id);
+
+				entry->options[i].line = strdup(opt->line);
+				entry->options[i].opts = list_alloc();
+
+				for (node = list_head(opt->opts); (val = list_get(node)); node = list_next(node))
+				{
+					option_value_t* newval = (option_value_t*)malloc(sizeof(option_value_t));
+					newval->name = strdup(val->name);
+					newval->value = strdup(val->value);
+					list_append(entry->options[i].opts, newval);
+				}
+				break;
+			}
+		}
+		i++;
+	}
+}
+
 // Expects buffer without CR's (\r)
 static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 {
@@ -174,6 +269,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 		    	if ((wildcard_match(line, "; --- * ---")) 	||
 		    		(wildcard_match(line, ":*"))			||
 		    		(wildcard_match(line, "[*]"))			||
+		    		(wildcard_match(line, "{*}*{/*}"))		||
 		    		(wildcard_match_icase(line, "PATH:*"))	||
 		    		(wildcard_match_icase(line, "GROUP:*")))
 		    	{
@@ -190,6 +286,9 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
 						(line[0] < '0') && (line[0] > '9') && (line[0] < 'A') && (line[0] > 'F')))
 						entry->type = APOLLO_CODE_BSD;
+
+					if (wildcard_match(line, "*{*}*"))
+						entry->options_count++;
 			    }
 		    }
     	}
@@ -210,6 +309,7 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 	char * file_opt = NULL;
 	char filePath[256] = "";
 	char group = 0;
+	list_t* opt_list = list_alloc();
 	size_t bufferLen = strlen(buffer);
 	list_node_t* node = list_tail(list_codes);
 
@@ -235,11 +335,21 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 				file_opt = NULL;
 
 		}
-		else if (wildcard_match(line, "?=*") ||
-					wildcard_match(line, "\?\?=*") ||
-					wildcard_match(line, "\?\?\?\?=*"))
+		else if (wildcard_match(line, "{*}*{/*}"))
 		{
 			// options
+			char *tmp = strdup(line);
+			char *end = strchr(tmp, '}');
+
+			line = tmp+1;
+			*end++ = 0;
+			line = end;
+			end = strchr(line, '{');
+			*end++ = 0;
+			*end = '{';
+
+			list_append(opt_list, parseOptionFromLine(line, end));
+			free(tmp);
 		}
 		else if (wildcard_match_icase(line, "PATH:*"))
 		{
@@ -322,9 +432,29 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 
 		if(!code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
+		else if (code->options_count)
+			get_code_options(code, opt_list);
 
 		LOG("[%d] Name: %s\nFile: %s\nCode (%d): %s\n", code_count, code->name, code->file, code->type, code->codes);
 	}
+
+	// clean up options list
+	for (node = list_head(opt_list); node != NULL; node = list_next(node))
+	{
+		option_value_t* val;
+		option_entry_t* opt = list_get(node);
+		// clean up value list
+		for (list_node_t* node2 = list_head(opt->opts); (val = list_get(node2)); node2 = list_next(node2))
+		{
+			free(val->name);
+			free(val->value);
+			free(val);
+		}
+		list_free(opt->opts);
+		free(opt->line);
+		free(opt);
+	}
+	list_free(opt_list);
 
 	return code_count;
 }
