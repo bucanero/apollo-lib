@@ -14,7 +14,7 @@
 #define APOLLO_CODE_FLAG_REQUIRED  4
 #define APOLLO_CODE_FLAG_ALERT     8
 #define APOLLO_CODE_FLAG_EMPTY     16
-#define APOLLO_CODE_FLAG_ENABLED   32
+#define APOLLO_CODE_FLAG_DISABLED  32
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,20 +51,20 @@ typedef struct option_value
 
 typedef struct option_entry
 {
-    char * line;
-    list_t * opts;
     int id;
     int sel;
+    char * line;
+    list_t * opts;
 } option_entry_t;
 
 typedef struct code_entry
 {
     uint8_t type;
-    uint8_t flags;
+    uint8_t activated;
+    uint16_t flags;
+    int options_count;
     char * name;
     char * file;
-    uint8_t activated;
-    int options_count;
     char * codes;
     option_entry_t * options;
 } code_entry_t;
