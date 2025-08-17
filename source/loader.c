@@ -153,6 +153,25 @@ static int str_rtrim(char * buffer)
 	return (max - i);
 }
 
+/**
+ * Returns a zero-padded string (must be freed by the caller).
+ * Example: zero_pad_string("ABCD", 8) -> "0000ABCD"
+ */
+static char *zero_pad_string(const char *str, int total_width)
+{
+	int str_len = strlen(str);
+	int pad_len = (total_width > str_len) ? (total_width - str_len) : 0;
+
+	char *result = malloc(total_width + 1); // +1 for null terminator
+	if (!result) return NULL;
+
+	memset(result, '0', pad_len);                  // Fill leading zeros
+	strncpy(result + pad_len, str, total_width);   // Copy the original string
+	result[total_width] = 0;                       // Ensure null-termination
+
+	return result;
+}
+
 static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 {
 	option_value_t *optval = NULL;
@@ -179,7 +198,7 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 			line[x] = 0;
 			optval = (option_value_t *)malloc(sizeof(option_value_t));
 			optval->name = NULL;
-			optval->value = strdup(&line[oldX]);
+			optval->value = zero_pad_string(&line[oldX], strlen(tag));
 		}
 		else
 		{
