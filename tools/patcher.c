@@ -118,7 +118,14 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (read_buffer(argv[1], (uint8_t **) &data, &len) != 0)
+    if (strchr(argv[1], '\n') && strchr(argv[1], '[') && strchr(argv[1], ']'))
+    {
+        // Direct string codes as input
+        len = strlen(argv[1]);
+        data = malloc(len);
+        memcpy(data, argv[1], len);
+    }
+    else if (read_buffer(argv[1], (uint8_t **) &data, &len) != 0)
     {
         printf("[*] Could Not Access The File (%s)\n", argv[1]);
         return -1;
