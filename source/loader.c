@@ -165,9 +165,10 @@ static char *zero_pad_string(const char *str, int total_width)
 	char *result = malloc(total_width + 1); // +1 for null terminator
 	if (!result) return NULL;
 
-	memset(result, '0', pad_len);                  // Fill leading zeros
-	strncpy(result + pad_len, str, total_width);   // Copy the original string
-	result[total_width] = 0;                       // Ensure null-termination
+	// Fill leading zeros, copy the original string
+	memset(result, '0', pad_len);
+	strncpy(result + pad_len, str, total_width - pad_len);
+	result[total_width] = 0;
 
 	return result;
 }
