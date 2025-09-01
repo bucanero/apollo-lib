@@ -92,6 +92,27 @@ void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 	return;
 }
 
+void aes_ctr_xcrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+{
+	aes_context ctx;
+	size_t nc_off = 0;
+	uint8_t sblock[AES_BLOCK_SIZE];
+
+	key_len *= 8;
+	LOG("Xcrypting AES CTR %d data (%d bytes)", key_len, len);
+	if (iv_len != AES_BLOCK_SIZE)
+		return;
+
+	aes_init(&ctx);
+	aes_setkey_enc(&ctx, key, key_len);
+	len &= 0xFFFFFFF0;
+
+	memset(sblock, 0, AES_BLOCK_SIZE);
+	aes_crypt_ctr(&ctx, len, &nc_off, iv, sblock, data, data);
+
+	return;
+}
+
 void aes_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
 	aes_context ctx;

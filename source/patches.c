@@ -2506,6 +2506,34 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				free(key);
 				free(iv);
 			}
+			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
+			{
+				int key_len, iv_len;
+				char *key, *iv, *tmp;
+				uint8_t* start = (uint8_t*)data + range_start;
+
+				line += strlen("aes_ctr(");
+				tmp = strrchr(line, ',');
+				*tmp = 0;
+
+				LOG("Encryption Key=%s", line);
+
+				key = _decode_variable_data(line, &key_len);
+				*tmp = ',';
+
+				line = tmp + 1;
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+
+				LOG("Encryption IV=%s", line);
+
+				iv = _decode_variable_data(line, &iv_len);
+				*tmp = ')';
+
+				aes_ctr_xcrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+				free(key);
+				free(iv);
+			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
 				int key_len;
