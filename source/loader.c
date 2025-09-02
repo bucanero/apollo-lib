@@ -269,7 +269,7 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 }
 
 // Expects buffer without CR's (\r)
-static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
+static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_t* opts)
 {
 	int i=0;
     char *tmp = NULL;
@@ -308,7 +308,14 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry)
 						entry->type = APOLLO_CODE_BSD;
 
 					if (wildcard_match(line, "*{*}*"))
-						entry->options_count++;
+					{
+						list_node_t* node;
+						option_entry_t* opt;
+
+						for (node = list_head(opts); (opt = list_get(node)); node = list_next(node))
+							if (strstr(line, opt->line))
+								entry->options_count++;
+					}
 			    }
 		    }
     	}
@@ -448,7 +455,7 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 		code = list_get(node);
 		// remove 0x00 from previous strtok(...)
 		remove_char(buffer, bufferLen, '\0');
-		get_patch_code(buffer, code_count++, code);
+		get_patch_code(buffer, code_count++, code, opt_list);
 
 		if(!code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
