@@ -269,6 +269,16 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 	}
 }
 
+static int count_mod_tags(const char* line, const char* tag)
+{
+	int k;
+
+	for (k = 0; (line = strstr(line, tag)) != NULL; k++)
+		line++;
+
+	return k;
+}
+
 // Expects buffer without CR's (\r)
 static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_t* opts)
 {
@@ -314,8 +324,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 						option_entry_t* opt;
 
 						for (node = list_head(opts); (opt = list_get(node)); node = list_next(node))
-							if (strstr(line, opt->line))
-								entry->options_count++;
+							entry->options_count += count_mod_tags(line, opt->line);
 					}
 			    }
 		    }
