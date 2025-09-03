@@ -201,13 +201,14 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 			optval->name = NULL;
 			optval->value = zero_pad_string(&line[oldX], strlen(tag));
 		}
-		else
+		else if (optval)
 		{
 			line[x] = 0;
 			optval->name = strdup(&line[oldX]);
 			list_append(options->opts, optval);
 
 			LOG("%s %s='%s'", tag, optval->value, optval->name);
+			optval = NULL;
 		}
 
 		x++;
