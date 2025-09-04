@@ -41,6 +41,7 @@ enum
 	ENC_DES_ECB,
 	ENC_3DES_CBC,
 	ENC_BLOWFISH_ECB,
+	ENC_BLOWFISH_CBC,
 	ENC_CAMELLIA_ECB,
 	ENC_MGS_HD,
 	ENC_RGG_STUDIO,
@@ -50,6 +51,7 @@ enum
 	DEC_DES_ECB,
 	DEC_3DES_CBC,
 	DEC_BLOWFISH_ECB,
+	DEC_BLOWFISH_CBC,
 	DEC_CAMELLIA_ECB,
 	DEC_MGS_HD,
 	DEC_RGG_STUDIO,
@@ -2606,6 +2608,11 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				line += strlen("blowfish_ecb(");
 				_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
+			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
+			{
+				line += strlen("blowfish_cbc(");
+				_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
 
 		}
 
@@ -2757,6 +2764,11 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				line += strlen("blowfish_ecb(");
 				_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
+			{
+				line += strlen("blowfish_cbc(");
+				_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 
 		}
