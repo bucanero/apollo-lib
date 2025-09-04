@@ -131,6 +131,10 @@ void diablo_encrypt_data(uint8_t* data, uint32_t size);
 void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 
+// Blowfish CBC save data encryption
+void blowfish_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+
 // AES ECB save data encryption
 void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);

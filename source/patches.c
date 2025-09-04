@@ -415,6 +415,13 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 		aes_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
+	case ENC_BLOWFISH_CBC:
+		blowfish_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+	case DEC_BLOWFISH_CBC:
+		blowfish_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+
 	case ENC_3DES_CBC:
 		des3_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;

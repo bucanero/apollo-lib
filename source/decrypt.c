@@ -54,14 +54,51 @@ void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 	return;
 }
 
+void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+{
+	blowfish_context ctx;
+
+	key_len *= 8;
+	LOG("Decrypting Blowfish CBC %d data (%d bytes)", key_len, len);
+	if (iv_len != BLOWFISH_BLOCKSIZE)
+		return;
+
+	blowfish_init(&ctx);
+	blowfish_setkey(&ctx, key, key_len);
+	len &= 0xFFFFFFF8;
+
+	blowfish_crypt_cbc(&ctx, BLOWFISH_DECRYPT, len, iv, data, data);
+
+	return;
+}
+
+void blowfish_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+{
+	blowfish_context ctx;
+
+	key_len *= 8;
+	LOG("Encrypting Blowfish CBC %d data (%d bytes)", key_len, len);
+	if (iv_len != BLOWFISH_BLOCKSIZE)
+		return;
+
+	blowfish_init(&ctx);
+	blowfish_setkey(&ctx, key, key_len);
+	len &= 0xFFFFFFF8;
+
+	blowfish_crypt_cbc(&ctx, BLOWFISH_ENCRYPT, len, iv, data, data);
+
+	return;
+}
+
 void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
 {
 	camellia_context ctx;
 
-	LOG("Decrypting Camellia ECB data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Decrypting Camellia ECB %d data (%d bytes)", key_len, len);
 
 	camellia_init(&ctx);
-	camellia_setkey_dec(&ctx, key, key_len * 8);
+	camellia_setkey_dec(&ctx, key, key_len);
 	len = len / CAMELLIA_BLOCK_SIZE;
 
 	while (len--)
@@ -77,10 +114,11 @@ void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 {
 	camellia_context ctx;
 
-	LOG("Encrypting Camellia ECB data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Encrypting Camellia ECB %d data (%d bytes)", key_len, len);
 
 	camellia_init(&ctx);
-	camellia_setkey_enc(&ctx, key, key_len * 8);
+	camellia_setkey_enc(&ctx, key, key_len);
 	len = len / CAMELLIA_BLOCK_SIZE;
 
 	while (len--)
@@ -117,12 +155,13 @@ void aes_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t k
 {
 	aes_context ctx;
 
-	LOG("Decrypting AES CBC data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Decrypting AES CBC %d data (%d bytes)", key_len, len);
 	if (iv_len != AES_BLOCK_SIZE)
 		return;
 
 	aes_init(&ctx);
-	aes_setkey_dec(&ctx, key, key_len * 8);
+	aes_setkey_dec(&ctx, key, key_len);
 	len &= 0xFFFFFFF0;
 
 	aes_crypt_cbc(&ctx, AES_DECRYPT, len, iv, data, data);
@@ -134,12 +173,13 @@ void aes_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t k
 {
 	aes_context ctx;
 
-	LOG("Encrypting AES CBC data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Encrypting AES CBC %d data (%d bytes)", key_len, len);
 	if (iv_len != AES_BLOCK_SIZE)
 		return;
 
 	aes_init(&ctx);
-	aes_setkey_enc(&ctx, key, key_len * 8);
+	aes_setkey_enc(&ctx, key, key_len);
 	len &= 0xFFFFFFF0;
 
 	aes_crypt_cbc(&ctx, AES_ENCRYPT, len, iv, data, data);
@@ -151,10 +191,11 @@ void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 {
 	aes_context ctx;
 
-	LOG("Decrypting AES ECB data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Decrypting AES ECB %d data (%d bytes)", key_len, len);
 
 	aes_init(&ctx);
-	aes_setkey_dec(&ctx, key, key_len * 8);
+	aes_setkey_dec(&ctx, key, key_len);
 	len = len / AES_BLOCK_SIZE;
 
 	while (len--)
@@ -170,10 +211,11 @@ void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 {
 	aes_context ctx;
 
-	LOG("Encrypting AES ECB data (%d bytes)", len);
+	key_len *= 8;
+	LOG("Encrypting AES ECB %d data (%d bytes)", key_len, len);
 
 	aes_init(&ctx);
-	aes_setkey_enc(&ctx, key, key_len * 8);
+	aes_setkey_enc(&ctx, key, key_len);
 	len = len / AES_BLOCK_SIZE;
 
 	while (len--)
