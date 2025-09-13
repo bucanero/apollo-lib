@@ -326,7 +326,6 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
-
 	key = _decode_variable_data(line, &key_len);
 	*tmp = ')';
 
@@ -388,7 +387,6 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
-
 	key = _decode_variable_data(line, &key_len);
 	*tmp = ',';
 
@@ -397,7 +395,6 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	*tmp = 0;
 
 	LOG("Encryption IV=%s", line);
-
 	iv = _decode_variable_data(line, &iv_len);
 	*tmp = ')';
 
