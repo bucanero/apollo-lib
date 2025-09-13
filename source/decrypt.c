@@ -24,9 +24,8 @@ void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 
 	blowfish_init(&ctx);
 	blowfish_setkey(&ctx, key, key_len * 8);
-	len = len / BLOWFISH_BLOCKSIZE;
 
-	while (len--)
+	for (len /= BLOWFISH_BLOCKSIZE; len > 0; len--)
 	{
 		blowfish_crypt_ecb(&ctx, BLOWFISH_DECRYPT, data, data);
 		data += BLOWFISH_BLOCKSIZE;
@@ -43,9 +42,8 @@ void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 
 	blowfish_init(&ctx);
 	blowfish_setkey(&ctx, key, key_len * 8);
-	len = len / BLOWFISH_BLOCKSIZE;
 
-	while (len--)
+	for (len /= BLOWFISH_BLOCKSIZE; len > 0; len--)
 	{
 		blowfish_crypt_ecb(&ctx, BLOWFISH_ENCRYPT, data, data);
 		data += BLOWFISH_BLOCKSIZE;
@@ -99,9 +97,8 @@ void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 
 	camellia_init(&ctx);
 	camellia_setkey_dec(&ctx, key, key_len);
-	len = len / CAMELLIA_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= CAMELLIA_BLOCK_SIZE; len > 0; len--)
 	{
 		camellia_crypt_ecb(&ctx, CAMELLIA_DECRYPT, data, data);
 		data += CAMELLIA_BLOCK_SIZE;
@@ -119,9 +116,8 @@ void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t ke
 
 	camellia_init(&ctx);
 	camellia_setkey_enc(&ctx, key, key_len);
-	len = len / CAMELLIA_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= CAMELLIA_BLOCK_SIZE; len > 0; len--)
 	{
 		camellia_crypt_ecb(&ctx, CAMELLIA_ENCRYPT, data, data);
 		data += CAMELLIA_BLOCK_SIZE;
@@ -196,9 +192,8 @@ void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 
 	aes_init(&ctx);
 	aes_setkey_dec(&ctx, key, key_len);
-	len = len / AES_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= AES_BLOCK_SIZE; len > 0; len--)
 	{
 		aes_crypt_ecb(&ctx, AES_DECRYPT, data, data);
 		data += AES_BLOCK_SIZE;
@@ -216,9 +211,8 @@ void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 
 	aes_init(&ctx);
 	aes_setkey_enc(&ctx, key, key_len);
-	len = len / AES_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= AES_BLOCK_SIZE; len > 0; len--)
 	{
 		aes_crypt_ecb(&ctx, AES_ENCRYPT, data, data);
 		data += AES_BLOCK_SIZE;
@@ -238,9 +232,8 @@ void des_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 
 	des_init(&ctx);
 	des_setkey_dec(&ctx, key);
-	len = len / DES_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= DES_BLOCK_SIZE; len > 0; len--)
 	{
 		des_crypt_ecb(&ctx, data, data);
 		data += DES_BLOCK_SIZE;
@@ -260,9 +253,8 @@ void des_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 
 	des_init(&ctx);
 	des_setkey_enc(&ctx, key);
-	len = len / DES_BLOCK_SIZE;
 
-	while (len--)
+	for (len /= DES_BLOCK_SIZE; len > 0; len--)
 	{
 		des_crypt_ecb(&ctx, data, data);
 		data += DES_BLOCK_SIZE;
