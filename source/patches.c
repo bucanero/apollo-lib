@@ -57,6 +57,13 @@ enum
 	DEC_RGG_STUDIO,
 } encryption_types;
 
+enum
+{
+	BITWISE_XOR,
+	BITWISE_AND,
+	BITWISE_OR
+} bitwise_ops;
+
 static const char* base_id = NULL;
 static list_t* var_list = NULL;
 static apollo_host_cb_t host_callback = NULL;
@@ -434,6 +441,53 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	free(iv);
 }
 
+static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
+{
+	skip_spaces(line);
+
+	int i, wlen;
+	char* bw_val = _decode_variable_data(line, &wlen);
+
+	if (var->len != wlen)
+	{
+		// variable has different length
+		LOG("[%s]:Bitwise error! var length doesn't match", var->name);
+		return 0;
+	}
+#ifndef __PPU__
+	// workaround: _decode_variable_data() returns data as big endian
+	// if not PPU, we need to convert it to little endian to match the data
+	char* le_val = malloc(wlen);
+	
+	for (i=0; i < wlen; i++)
+		le_val[i] = bw_val[wlen - i - 1];
+
+	memcpy(bw_val, le_val, wlen);
+	free(le_val);
+#endif
+	for (i=0; i < wlen; i++)
+		switch (type)
+		{
+		case BITWISE_XOR:
+			bw_val[i] ^= var->data[i];
+			break;
+
+		case BITWISE_AND:
+			bw_val[i] &= var->data[i];
+			break;
+
+		case BITWISE_OR:
+			bw_val[i] |= var->data[i];
+			break;
+
+		default:
+			break;
+		}
+
+	var->data = (uint8_t*) bw_val;
+	return 1;
+}
+
 int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 {
 	char *data, *bsd_code;
@@ -700,40 +754,41 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			    line = tmp+2;
 			    *tmp = ']';
 
-    		    // set [*]:xor:*
-    			if (wildcard_match_icase(line, "xor:*"))
-    			{
-    			    line += strlen("xor:");
-        		    skip_spaces(line);
-    
-    			    int wlen;
-    			    char* xor_val = _decode_variable_data(line, &wlen);
-
-    			    if (var->len != wlen)
-    			    {
-						// variable has different length
-						LOG("[%s]:XOR: error! var length doesn't match", var->name);
+				// set [*]:xor:*
+				if (wildcard_match_icase(line, "xor:*"))
+				{
+					line += strlen("xor:");
+					if (!_bitwise_var_value(BITWISE_XOR, line, var))
+					{
 						dsize = 0;
 						goto bsd_end;
-    			    }
-#ifndef __PPU__
-					// workaround: _decode_variable_data() returns data as big endian
-					// if not PPU, we need to convert it to little endian to match the data
-					char* le_val = malloc(wlen);
-    			    
-					for (int i=0; i < wlen; i++)
-						le_val[i] = xor_val[wlen - i - 1];
+					}
+					LOG("Var [%s]:XOR = %s ^ %X", var->name, line, old_val);
+				}
 
-					memcpy(xor_val, le_val, wlen);
-					free(le_val);
-#endif
-    			    for (int i=0; i < wlen; i++)
-    			        xor_val[i] ^= var->data[i];
+				// set [*]:and:*
+				else if (wildcard_match_icase(line, "and:*"))
+				{
+					line += strlen("and:");
+					if (!_bitwise_var_value(BITWISE_AND, line, var))
+					{
+						dsize = 0;
+						goto bsd_end;
+					}
+					LOG("Var [%s]:AND = %s & %X", var->name, line, old_val);
+				}
 
-                    var->data = (uint8_t*) xor_val;
-
-    			    LOG("Var [%s]:XOR = %s ^ %X", var->name, line, old_val);
-    			}
+				// set [*]:or:*
+				else if (wildcard_match_icase(line, "or:*"))
+				{
+					line += strlen("or:");
+					if (!_bitwise_var_value(BITWISE_OR, line, var))
+					{
+						dsize = 0;
+						goto bsd_end;
+					}
+					LOG("Var [%s]:OR = %s | %X", var->name, line, old_val);
+				}
 
 				// set [*]:endian_swap*
 				else if (wildcard_match_icase(line, "endian_swap*"))
@@ -2748,6 +2803,11 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				line += strlen("aes_cbc(");
 				_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
+			{
+				line += strlen("aes_ctr(");
+				_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
