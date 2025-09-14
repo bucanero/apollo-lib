@@ -947,7 +947,7 @@ void dw8xl_encode_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Encoded Size Is 0x%X (%d bytes)", size, size);
 
-    for(uint32_t i = 0; i <= size; i++)
+    for(uint32_t i = 0; i < size; i++)
     {
         xor_key = (xor_key * DW8XL_KEY2) + 0x3039;
         data[i] ^= ((xor_key >> 16) & 0xff);
