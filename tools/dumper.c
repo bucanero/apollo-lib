@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     char patch[256];
     FILE* fp;
 
-    printf("\nApollo binary file SW dumper v%s - (c) 2023 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo binary file SW dumper v%s - (c) 2023-2025 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 1)
     {

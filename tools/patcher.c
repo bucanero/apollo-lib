@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     char *data, title[32];
     list_t* list_codes;
 
-    printf("\nApollo cheat patcher v%s - (c) 2022 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo cheat patcher v%s - (c) 2022-2025 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 2)
     {
