@@ -33,6 +33,37 @@ typedef struct
     uint8_t* data;
 } bsd_variable_t;
 
+enum
+{
+	ENC_AES_ECB,
+	ENC_AES_CBC,
+	ENC_AES_CTR,
+	ENC_DES_ECB,
+	ENC_3DES_CBC,
+	ENC_BLOWFISH_ECB,
+	ENC_BLOWFISH_CBC,
+	ENC_CAMELLIA_ECB,
+	ENC_MGS_HD,
+	ENC_RGG_STUDIO,
+	DEC_AES_ECB,
+	DEC_AES_CBC,
+	DEC_AES_CTR,
+	DEC_DES_ECB,
+	DEC_3DES_CBC,
+	DEC_BLOWFISH_ECB,
+	DEC_BLOWFISH_CBC,
+	DEC_CAMELLIA_ECB,
+	DEC_MGS_HD,
+	DEC_RGG_STUDIO,
+} encryption_types;
+
+enum
+{
+	BITWISE_XOR,
+	BITWISE_AND,
+	BITWISE_OR
+} bitwise_ops;
+
 static const char* base_id = NULL;
 static list_t* var_list = NULL;
 static apollo_host_cb_t host_callback = NULL;
@@ -291,6 +322,170 @@ static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
 			strncpy(strstr(txtcode, entry->options[i].line), val->value, strlen(entry->options[i].line));
 		}
 	}
+}
+
+static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t length)
+{
+	int key_len;
+	char *key, *tmp;
+
+	tmp = strrchr(line, ')');
+	*tmp = 0;
+
+	LOG("Encryption Key=%s", line);
+	key = _decode_variable_data(line, &key_len);
+	*tmp = ')';
+
+	switch (type)
+	{
+	case ENC_AES_ECB:
+		aes_ecb_encrypt(start, length, (uint8_t*) key, key_len);
+		break;
+	case DEC_AES_ECB:
+		aes_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		break;
+
+	case ENC_BLOWFISH_ECB:
+		blowfish_ecb_encrypt(start, length, (uint8_t*) key, key_len);
+		break;
+	case DEC_BLOWFISH_ECB:
+		blowfish_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		break;
+
+	case ENC_DES_ECB:
+		des_ecb_encrypt(start, length, (uint8_t*) key, key_len);
+		break;
+	case DEC_DES_ECB:
+		des_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		break;
+
+	case ENC_CAMELLIA_ECB:
+		camellia_ecb_encrypt(start, length, (uint8_t*) key, key_len);
+		break;
+	case DEC_CAMELLIA_ECB:
+		camellia_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		break;
+
+	case ENC_MGS_HD:
+		mgs_Encrypt(start, length, key, key_len);
+		break;
+	case DEC_MGS_HD:
+		mgs_Decrypt(start, length, key, key_len);
+		break;
+
+	case ENC_RGG_STUDIO:
+	case DEC_RGG_STUDIO:
+		rgg_xor_data(start, length, key, key_len);
+		break;
+
+	default:
+		break;
+	}
+
+	free(key);
+}
+
+static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_t length)
+{
+	int key_len, iv_len;
+	char *key, *iv, *tmp;
+
+	tmp = strrchr(line, ',');
+	*tmp = 0;
+
+	LOG("Encryption Key=%s", line);
+	key = _decode_variable_data(line, &key_len);
+	*tmp = ',';
+
+	line = tmp + 1;
+	tmp = strrchr(line, ')');
+	*tmp = 0;
+
+	LOG("Encryption IV=%s", line);
+	iv = _decode_variable_data(line, &iv_len);
+	*tmp = ')';
+
+	switch (type)
+	{
+	case ENC_AES_CTR:
+	case DEC_AES_CTR:
+		aes_ctr_xcrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+
+	case ENC_AES_CBC:
+		aes_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+	case DEC_AES_CBC:
+		aes_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+
+	case ENC_BLOWFISH_CBC:
+		blowfish_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+	case DEC_BLOWFISH_CBC:
+		blowfish_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+
+	case ENC_3DES_CBC:
+		des3_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+	case DEC_3DES_CBC:
+		des3_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		break;
+
+	default:
+		break;
+	}
+
+	free(key);
+	free(iv);
+}
+
+static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
+{
+	skip_spaces(line);
+
+	int i, wlen;
+	char* bw_val = _decode_variable_data(line, &wlen);
+
+	if (var->len != wlen)
+	{
+		// variable has different length
+		LOG("[%s]:Bitwise error! var length doesn't match", var->name);
+		return 0;
+	}
+#ifndef __PPU__
+	// workaround: _decode_variable_data() returns data as big endian
+	// if not PPU, we need to convert it to little endian to match the data
+	char* le_val = malloc(wlen);
+	
+	for (i=0; i < wlen; i++)
+		le_val[i] = bw_val[wlen - i - 1];
+
+	memcpy(bw_val, le_val, wlen);
+	free(le_val);
+#endif
+	for (i=0; i < wlen; i++)
+		switch (type)
+		{
+		case BITWISE_XOR:
+			bw_val[i] ^= var->data[i];
+			break;
+
+		case BITWISE_AND:
+			bw_val[i] &= var->data[i];
+			break;
+
+		case BITWISE_OR:
+			bw_val[i] |= var->data[i];
+			break;
+
+		default:
+			break;
+		}
+
+	var->data = (uint8_t*) bw_val;
+	return 1;
 }
 
 int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
@@ -559,40 +754,41 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			    line = tmp+2;
 			    *tmp = ']';
 
-    		    // set [*]:xor:*
-    			if (wildcard_match_icase(line, "xor:*"))
-    			{
-    			    line += strlen("xor:");
-        		    skip_spaces(line);
-    
-    			    int wlen;
-    			    char* xor_val = _decode_variable_data(line, &wlen);
-
-    			    if (var->len != wlen)
-    			    {
-						// variable has different length
-						LOG("[%s]:XOR: error! var length doesn't match", var->name);
+				// set [*]:xor:*
+				if (wildcard_match_icase(line, "xor:*"))
+				{
+					line += strlen("xor:");
+					if (!_bitwise_var_value(BITWISE_XOR, line, var))
+					{
 						dsize = 0;
 						goto bsd_end;
-    			    }
-#ifndef __PPU__
-					// workaround: _decode_variable_data() returns data as big endian
-					// if not PPU, we need to convert it to little endian to match the data
-					char* le_val = malloc(wlen);
-    			    
-					for (int i=0; i < wlen; i++)
-						le_val[i] = xor_val[wlen - i - 1];
+					}
+					LOG("Var [%s]:XOR = %s ^ %X", var->name, line, old_val);
+				}
 
-					memcpy(xor_val, le_val, wlen);
-					free(le_val);
-#endif
-    			    for (int i=0; i < wlen; i++)
-    			        xor_val[i] ^= var->data[i];
+				// set [*]:and:*
+				else if (wildcard_match_icase(line, "and:*"))
+				{
+					line += strlen("and:");
+					if (!_bitwise_var_value(BITWISE_AND, line, var))
+					{
+						dsize = 0;
+						goto bsd_end;
+					}
+					LOG("Var [%s]:AND = %s & %X", var->name, line, old_val);
+				}
 
-                    var->data = (uint8_t*) xor_val;
-
-    			    LOG("Var [%s]:XOR = %s ^ %X", var->name, line, old_val);
-    			}
+				// set [*]:or:*
+				else if (wildcard_match_icase(line, "or:*"))
+				{
+					line += strlen("or:");
+					if (!_bitwise_var_value(BITWISE_OR, line, var))
+					{
+						dsize = 0;
+						goto bsd_end;
+					}
+					LOG("Var [%s]:OR = %s | %X", var->name, line, old_val);
+				}
 
 				// set [*]:endian_swap*
 				else if (wildcard_match_icase(line, "endian_swap*"))
@@ -1121,6 +1317,18 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					blocks = deadrising_checksum((uint8_t*)data + range_start, len);
 					LOG("len %d Dead Rising checksum: %d blocks updated", len, blocks);
+				}
+
+				// set [*]:dbzxv2_checksum*
+				else if (wildcard_match_icase(line, "dbzxv2_checksum*"))
+				{
+					uint64_t hash = dbzxv2_checksum((uint8_t*)data, dsize);
+
+					var->len = BSD_VAR_INT64;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d DBZ XV2 HASH = %016" PRIX64, dsize, hash);
 				}
 
 				// set [*]:rockstar_checksum*
@@ -2370,19 +2578,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			}
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
-				int klen;
-				char *tmp, *rggkey;
-
 				line += strlen("rgg_studio(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-				LOG("RGG Key=%s", line);
-
-				rggkey = _decode_variable_data(line, &klen);
-				*tmp = ')';
-
-				rgg_xor_data((uint8_t*)data + range_start, (range_end - range_start), rggkey, klen);
-				free(rggkey);
+				_exec_encryption_key(DEC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2442,151 +2639,50 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			}
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("mgs(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("MGS HD Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				mgs_Decrypt(start, (range_end - range_start), key, key_len);
-				free(key);
+				_exec_encryption_key(DEC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("aes_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				aes_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(DEC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
-				int key_len, iv_len;
-				char *key, *iv, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("aes_cbc(");
-				tmp = strrchr(line, ',');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ',';
-
-				line = tmp + 1;
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption IV=%s", line);
-
-				iv = _decode_variable_data(line, &iv_len);
-				*tmp = ')';
-
-				aes_cbc_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-				free(key);
-				free(iv);
+				_exec_encryption_key_iv(DEC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
+			{
+				line += strlen("aes_ctr(");
+				_exec_encryption_key_iv(DEC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("camellia_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				camellia_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("des_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				des_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(DEC_DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
-				int key_len, iv_len;
-				char *key, *iv, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("des3_cbc(");
-				tmp = strrchr(line, ',');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ',';
-
-				line = tmp + 1;
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption IV=%s", line);
-
-				iv = _decode_variable_data(line, &iv_len);
-				*tmp = ')';
-
-				des3_cbc_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-				free(key);
-				free(iv);
+				_exec_encryption_key_iv(DEC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("blowfish_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				blowfish_ecb_decrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
+			{
+				line += strlen("blowfish_cbc(");
+				_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 
 		}
@@ -2644,19 +2740,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			}
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
-				int klen;
-				char *tmp, *rggkey;
-
 				line += strlen("rgg_studio(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-				LOG("RGG Key=%s", line);
-
-				rggkey = _decode_variable_data(line, &klen);
-				*tmp = ')';
-
-				rgg_xor_data((uint8_t*)data + range_start, (range_end - range_start), rggkey, klen);
-				free(rggkey);
+				_exec_encryption_key(ENC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2716,151 +2801,50 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			}
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("mgs(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("MGS HD Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				mgs_Encrypt(start, (range_end - range_start), key, key_len);
-				free(key);
+				_exec_encryption_key(ENC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("aes_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				aes_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(ENC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
-				int key_len, iv_len;
-				char *key, *iv, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("aes_cbc(");
-				tmp = strrchr(line, ',');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ',';
-
-				line = tmp + 1;
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption IV=%s", line);
-
-				iv = _decode_variable_data(line, &iv_len);
-				*tmp = ')';
-
-				aes_cbc_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-				free(key);
-				free(iv);
+				_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
+			{
+				line += strlen("aes_ctr(");
+				_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("camellia_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				camellia_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("des_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				des_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(ENC_DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
-				int key_len, iv_len;
-				char *key, *iv, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("des3_cbc(");
-				tmp = strrchr(line, ',');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ',';
-
-				line = tmp + 1;
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption IV=%s", line);
-
-				iv = _decode_variable_data(line, &iv_len);
-				*tmp = ')';
-
-				des3_cbc_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-				free(key);
-				free(iv);
+				_exec_encryption_key_iv(ENC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
-				int key_len;
-				char *key, *tmp;
-				uint8_t* start = (uint8_t*)data + range_start;
-
 				line += strlen("blowfish_ecb(");
-				tmp = strrchr(line, ')');
-				*tmp = 0;
-
-				LOG("Encryption Key=%s", line);
-
-				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
-
-				blowfish_ecb_encrypt(start, (range_end - range_start), (uint8_t*) key, key_len);
-				free(key);
+				_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+			}
+			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
+			{
+				line += strlen("blowfish_cbc(");
+				_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 
 		}

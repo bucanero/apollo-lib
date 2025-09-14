@@ -35,7 +35,7 @@ jobs:
         git clone https://github.com/bucanero/oosdk_libraries.git --depth 1
         cd oosdk_libraries/polarssl-1.3.9
         mkdir build && cd build
-        cmake ..
+        cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
         make polarssl
 
     - name: Build Apollo CLI tools

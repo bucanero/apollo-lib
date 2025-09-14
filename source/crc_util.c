@@ -593,6 +593,59 @@ int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 	return (num + num2);
 }
 
+uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
+{
+    int i;
+    const uint8_t* header = data + 0x20;
+    uint8_t out[8] = {0};
+
+    // Checksum 8 calculated over decrypted data
+    if (memcmp(&header[0x14], out, sizeof(out)) == 0)
+    {
+        out[7] = 0xFF;
+        // For checksum 8
+        for (int i = 5; i < (int)(size / 0x20); i++)
+            out[1] += data[i * 0x20];
+
+        return *(uint64_t*)out;
+    }
+
+    // reload checksum 8
+    out[1] = header[0x1A];
+
+    // Checksums 1-7 calculated over encrypted data
+    // For checksum 7
+    for (i = 0; i < 14; i++)
+        out[6] += header[0x6 + i];
+
+    // For checksum 6
+    for (i = 0; i < 8; i++)
+        out[5] += header[0x1C + (i * 4)];
+
+    // For checksum 5
+    for (i = 0; i < 8; i++)
+        out[4] += header[0x4C + (i * 4)];
+
+    /// For checksum 4
+    for (i = 0; i < 4; i++)
+        out[3] += header[0x3C + (i * 4)];
+
+    // For checksum 3
+    for (i = 0; i < 4; i++)
+        out[2] += header[0x6C + (i * 4)];
+
+    // For checksum 2
+    for (i = 5; i < (int)(size / 0x20); i++)
+        out[0] += data[i * 0x20];
+
+    // For checksum 1
+    out[7] = header[0x5];
+    for (i = 0; i < 7; i++)
+        out[7] += out[i];
+
+    return *(uint64_t*)out;
+}
+
 // https://www.burtleburtle.net/bob/hash/doobs.html
 uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t hash)
 {

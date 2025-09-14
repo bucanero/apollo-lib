@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "1.3.0"
+#define APOLLO_LIB_VERSION         "1.3.6"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
@@ -131,6 +131,10 @@ void diablo_encrypt_data(uint8_t* data, uint32_t size);
 void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 
+// Blowfish CBC save data encryption
+void blowfish_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+
 // AES ECB save data encryption
 void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
 void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
@@ -138,6 +142,9 @@ void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 // AES CBC save data encryption
 void aes_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
 void aes_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+
+// AES CTR save data encryption
+void aes_ctr_xcrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
 
 // DES ECB save data encryption
 void des_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
@@ -209,6 +216,9 @@ uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
 
 /* checksum update for Dead Rising */
 int deadrising_checksum(uint8_t* data, uint32_t size);
+
+/* checksum calculation for DBZ Xenoverse 2 */
+uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size);
 
 /**
  * This function makes a CRC16 calculation on Length data bytes
