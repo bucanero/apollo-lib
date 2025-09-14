@@ -822,6 +822,17 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("Var [%s]:%s = %08X", var->name, line, val);
 				}
 
+				else if (wildcard_match_icase(line, "eof*"))
+				{
+					uint32_t val = _parse_int_value(line, pointer, dsize);
+
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &val, var->len);
+
+					LOG("Var [%s]:%s = %08X", var->name, line, val);
+				}
+
 			    // set [*]:crc32*
 			    else if (wildcard_match_icase(line, "crc32*"))
 			    {

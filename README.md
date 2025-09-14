@@ -52,9 +52,15 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 
 [Apollo command-line tools](https://github.com/bucanero/apollo-lib/releases/latest) are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
 
+- [dumper](#dumper)
+- [parser](#parser)
+- [patcher](#patcher)
+- [patcher-bigendian](#patcher-bigendian)
+- [Apollo GUI](#apollo-gui)
+
 ### parser
 
-The `parser` command-line tool reads a `.savepatch` file, and provide a numbered list of detected cheat patches.
+The `parser` command-line tool reads a `.savepatch` file, and provides a numbered list of detected cheat patches.
 
 ```
 Apollo .savepatch parser v0.1.0 - (c) 2021 by Bucanero
@@ -76,6 +82,20 @@ USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
 
 `patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files.
 
+### dumper
+
+The `dumper` command-line tool reads a binary file and generates a `.savepatch` file with a SW code that writes the raw content of the binary data.
+
+```
+Apollo binary file SW dumper v0.1.0 - (c) 2022 by Bucanero
+
+USAGE: ./dumper file.bin
+```
+
+### Apollo GUI
+
+Windows users that prefer a graphical interface can use [Apollo GUI](https://github.com/SkillerCMP/ApolloGUI/releases/latest) by [SkillerCMP](https://github.com/SkillerCMP). The GUI uses [Apollo CLI Tools](#cli-tools) to provide a user-friendly interface to apply save patches and scripts.
+
 ## Credits
 
 * [Bucanero](http://www.bucanero.com.ar/): [Project developer](https://github.com/bucanero)
@@ -84,6 +104,7 @@ USAGE: ./patcher file.savepatch <1,2,7,..,18> target.file
 
 * [aldostools](https://aldostools.org/): [Bruteforce Save Data](https://bruteforcesavedata.forumms.net/)
 * [aluigi](http://aluigi.org): [offzip/packzip](http://aluigi.altervista.org/mytoolz.htm)
+* [SkillerCMP](https://github.com/SkillerCMP): [Apollo GUI](https://github.com/SkillerCMP/ApolloGUI)
 
 ## Dependencies
 
