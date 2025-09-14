@@ -28,9 +28,26 @@ void dbglogger_log(const char* fmt, ...)
     printf("%s\n", buffer);
 }
 
+const char* group_flags(int flag)
+{
+    if (flag & APOLLO_CODE_FLAG_PARENT)   return "# ";
+    if (flag & APOLLO_CODE_FLAG_CHILD)    return "+--- ";
+
+    return "";
+}
+const char* info_flags(int flag)
+{
+    if (flag & APOLLO_CODE_FLAG_ALERT)    return "[I] ";
+    if (flag & APOLLO_CODE_FLAG_EMPTY)    return "[E] ";
+    if (flag & APOLLO_CODE_FLAG_REQUIRED) return "[R] ";
+    if (flag & APOLLO_CODE_FLAG_DISABLED) return "[D] ";
+
+    return "";
+}
+
 int main(int argc, char **argv)
 {
-    size_t len;
+    size_t len, item = 0;
     char *data;
     list_t* list_codes;
 
@@ -82,9 +99,21 @@ int main(int argc, char **argv)
         free(data);
     }
 
+    if (argc == 2 && sscanf(argv[2], "%ld", &item) == 1)
+        printf("Selected Code #%ld\n", item);
+
     for (len = 1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
-        printf("%4ld. %s%s\n", len, code->name, code->flags & APOLLO_CODE_FLAG_EMPTY ? " (Empty)":"");
+        if (item && item != len)
+            continue;
+
+        if (item)
+        {
+            printf("\n:%s\n\n[%s]\n%s\n", code->file, code->name, code->codes);
+            return 0;
+        }
+
+        printf("%4ld. %s%s%s\n", len, group_flags(code->flags), info_flags(code->flags), code->name);
 
         if (log) fprintf(fp, "### %ld. %s\n", len, code->name);
         if (log && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
