@@ -52,10 +52,10 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 
 [Apollo command-line tools](https://github.com/bucanero/apollo-lib/releases/latest) are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
 
+- [dumper](#dumper)
 - [parser](#parser)
 - [patcher](#patcher)
 - [patcher-bigendian](#patcher-bigendian)
-- [dumper](#dumper)
 - [Apollo GUI](#apollo-gui)
 
 ### parser
