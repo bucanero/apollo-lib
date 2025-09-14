@@ -37,9 +37,8 @@ const char* group_flags(int flag)
 }
 const char* info_flags(int flag)
 {
-    if (flag & APOLLO_CODE_FLAG_ALERT)    return "[I] ";
+    if (flag & APOLLO_CODE_FLAG_ALERT)    return "[!] ";
     if (flag & APOLLO_CODE_FLAG_EMPTY)    return "[E] ";
-    if (flag & APOLLO_CODE_FLAG_REQUIRED) return "[R] ";
     if (flag & APOLLO_CODE_FLAG_DISABLED) return "[D] ";
 
     return "";
