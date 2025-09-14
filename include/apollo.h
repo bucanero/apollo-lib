@@ -217,6 +217,9 @@ uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
 /* checksum update for Dead Rising */
 int deadrising_checksum(uint8_t* data, uint32_t size);
 
+/* checksum calculation for DBZ Xenoverse 2 */
+uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size);
+
 /**
  * This function makes a CRC16 calculation on Length data bytes
  *

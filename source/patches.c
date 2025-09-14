@@ -1319,6 +1319,18 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					LOG("len %d Dead Rising checksum: %d blocks updated", len, blocks);
 				}
 
+				// set [*]:dbzxv2_checksum*
+				else if (wildcard_match_icase(line, "dbzxv2_checksum*"))
+				{
+					uint64_t hash = dbzxv2_checksum((uint8_t*)data, dsize);
+
+					var->len = BSD_VAR_INT64;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
+
+					LOG("len %d DBZ XV2 HASH = %016" PRIX64, dsize, hash);
+				}
+
 				// set [*]:rockstar_checksum*
 				else if (wildcard_match_icase(line, "rockstar_checksum*"))
 				{
