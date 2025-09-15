@@ -9,7 +9,9 @@ static int log = 0;
 
 void print_usage(const char* argv0)
 {
-    printf("USAGE: %s filename.savepatch\n\n", argv0);
+    printf("USAGE: %s file.savepatch [code #]\n\n", argv0);
+    printf("  file.savepatch: The cheat patch file to parse\n");
+    printf("  code #:         The code patch to display (Optional)\n\n");
     return;
 }
 
