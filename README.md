@@ -56,7 +56,6 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 - [parser](#parser)
 - [patcher](#patcher)
 - [patcher-bigendian](#patcher-bigendian)
-- [Apollo GUI](#apollo-gui)
 
 ### parser
 
