@@ -626,7 +626,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
                     pointer = ptr_off;
     			}
 
-                LOG("POINTER = %ld (0x%lX)", pointer, pointer);
+                LOG("POINTER = 0x%lX (%ld)", pointer, pointer);
 			}
 
 			// set range:*,*
@@ -816,6 +816,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				{
 					uint32_t val = _parse_int_value(line, pointer, dsize);
 
+					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
 					memcpy(var->data, (uint8_t*) &val, var->len);
 
