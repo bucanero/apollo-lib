@@ -30,13 +30,13 @@ jobs:
         #brew update
         #brew install zlib
 
-    - name: Install polarSSL
+    - name: Install mbedTLS
       run: |
-        git clone https://github.com/bucanero/oosdk_libraries.git --depth 1
-        cd oosdk_libraries/polarssl-1.3.9
+        curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xvz -C ./
+        cd mbedtls-2.16.12
         mkdir build && cd build
-        cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-        make polarssl
+        cmake ..
+        make mbedcrypto
 
     - name: Build Apollo CLI tools
       run: |
