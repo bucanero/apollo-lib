@@ -4,8 +4,8 @@ COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patc
 DEPS	=	Makefile
 
 CC	=	gcc
-CFLAGS	=	-g -O3 -W -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE
-LDFLAGS =	-lz -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
+CFLAGS	=	-g -O3 -W -I../include -I../mbedtls-2.16.12/include -I. -D_GNU_SOURCE -D_USE_MBEDTLS
+LDFLAGS =	-lz -lmbedcrypto -L../mbedtls-2.16.12/build/library
 
 ifdef BIGENDIAN
 CFLAGS	+=	-D__PS3_PC__
