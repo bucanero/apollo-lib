@@ -3,7 +3,7 @@ OBJS       = source/crc_util.o source/decrypt.o source/list.o source/loader.o so
 			 source/patches.o source/wildcard.o
 
 INCDIR = include
-CFLAGS = -O2 -Wall -D__PS4__ -D_GNU_SOURCE
+CFLAGS = -O2 -Wall -D__PS4__ -D_GNU_SOURCE -D_USE_MBEDTLS
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 
