@@ -8,6 +8,7 @@
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_BSD            2
+#define APOLLO_CODE_PYTHON         3
 
 #define APOLLO_CODE_FLAG_PARENT    1
 #define APOLLO_CODE_FLAG_CHILD     2

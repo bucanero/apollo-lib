@@ -9,8 +9,10 @@
 #include "apollo.h"
 #include "types.h"
 #include "crc_util.h"
+#include "upy.h"
 
 #define SUCCESS                 0
+#define PY_HEAP_SIZE            (32 * 1024)
 #define skip_spaces(str)        while (*str == ' ') str++;
 
 typedef enum
@@ -2019,8 +2021,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					_log_dump("host_sysname", var->data, var->len);
 				}
 
-			    // set [*]:* (e.g. 0x00000000)
-			    else
+				// set [*]:0x???????? (e.g. 0x00000000)
+				else if (wildcard_match_icase(line, "0x*") && (strlen(line) <= 10))
 			    {
 			        uint32_t tval;
                     sscanf(line, "%" PRIx32, &tval);
@@ -2029,8 +2031,15 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
                     var->data = malloc(var->len);
                     memcpy(var->data, (uint8_t*) &tval, var->len);
 
-    			    LOG("[%s]:%s = %X", var->name, line, tval);
+    			    LOG("[%s]:%s = %08X", var->name, line, tval);
 			    }
+
+				// set [*]:*
+				else
+				{
+					var->data = (uint8_t*) _decode_variable_data(line, &var->len);
+					LOG("[%s] = %s", var->name, line);
+				}
 			        
 			}
 
@@ -3851,6 +3860,81 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 	return (dsize);
 }
 
+static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
+{
+	list_node_t *node;
+	bsd_variable_t *bv;
+	mp_obj_t bytearray;
+	qstr bsd_name;
+
+	for (node = list_head(var_list); (bv = list_get(node)); node = list_next(node))
+	{
+		bytearray = micropy_obj_new_bytearray_by_ref(upy, bv->len, bv->data);
+		bsd_name = micropy_qstr_from_str(upy, bv->name);
+		micropy_obj_dict_store(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(bsd_name), bytearray);
+	}
+}
+
+int apply_python_script_code(const char* filepath, const code_entry_t* code)
+{
+	char *data;
+	size_t dsize;
+	void* py_heap;
+
+	LOG("Applying [%s] to '%s'...", code->name, filepath);
+	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
+	{
+		LOG("Can't load file '%s'", filepath);
+		return 0;
+	}
+
+	py_heap = malloc(dsize + PY_HEAP_SIZE);
+	if (!py_heap)
+	{
+		free(data);
+		return 0;
+	}
+
+	mp_state_ctx_t *upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
+	add_bsd_vars_python(upy);
+
+	micropy_exec_str(upy, "class apollo:\n"
+		"    version = '" APOLLO_LIB_VERSION "'\n\n");
+
+	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
+	qstr qsd = micropy_qstr_from_str(upy, "savedata");
+    micropy_obj_dict_store(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(qsd), savedata_obj);
+	free(data);
+
+	if (micropy_exec_str(upy, code->codes) != SUCCESS)
+	{
+		dsize = 0;
+		LOG("Python script execution failed!");
+		goto py_end;
+	}
+
+	savedata_obj = micropy_obj_dict_get(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(qsd));
+	if (!savedata_obj || !MP_OBJ_IS_TYPE(savedata_obj, &mp_type_bytearray))
+	{
+		dsize = 0;
+		LOG("Python script did not return valid save data!");
+		goto py_end;
+	}
+
+	mp_buffer_info_t bufinfo;
+	micropy_get_buffer(upy, savedata_obj, &bufinfo, MP_BUFFER_READ);
+	write_buffer(filepath, (uint8_t*) bufinfo.buf, bufinfo.len);
+	dsize = bufinfo.len;
+
+	LOG("Output size: %ld", bufinfo.len);
+
+py_end:
+	micropy_destroy(upy);
+	free(py_heap);
+
+	return (dsize);
+}
+
 static void* dummy_host_callback(int id, int* size)
 {
 	switch (id)
@@ -3876,16 +3960,23 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	base_id = title_id;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
 
-	if (code->type == APOLLO_CODE_GAMEGENIE)
+	switch (code->type)
 	{
+	case APOLLO_CODE_GAMEGENIE:
 		LOG("Game Genie Code");
 		return apply_ggenie_patch_code(fpath, code);
-	}
+		break;
 
-	if (code->type == APOLLO_CODE_BSD)
-	{
+	case APOLLO_CODE_BSD:
 		LOG("Bruteforce Save Data Code");
 		return apply_bsd_patch_code(fpath, code);
+
+	case APOLLO_CODE_PYTHON:
+		LOG("Python Script Code");
+		return apply_python_script_code(fpath, code);
+
+	default:
+		break;
 	}
 
 	return 0;
