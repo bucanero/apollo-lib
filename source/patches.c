@@ -3,6 +3,7 @@
 #include <polarssl/sha1.h>
 #include <polarssl/sha256.h>
 #include <polarssl/sha512.h>
+#include <polarssl/ripemd160.h>
 #include <zlib.h>
 #include <dirent.h>
 
@@ -1016,32 +1017,18 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					_log_dump("MD5 HASH", var->data, var->len);
 			    }
 
-			    // set [*]:md2*
-			    else if (wildcard_match_icase(line, "md2*"))
-			    {
-    			    uint8_t* start = (uint8_t*)data + range_start;
-    			    len = range_end - range_start;
+				// set [*]:ripemd160*
+				else if (wildcard_match_icase(line, "ripemd160*"))
+				{
+					uint8_t* start = (uint8_t*)data + range_start;
+					len = range_end - range_start;
 
-                    var->len = BSD_VAR_MD5;
-                    var->data = malloc(var->len);
-                    md(md_info_from_type(POLARSSL_MD_MD2), start, len, var->data);
+					var->len = BSD_VAR_SHA1;
+					var->data = malloc(var->len);
+					ripemd160(start, len, var->data);
 
-					LOG("len %d MD2", len);
-					_log_dump("MD2 HASH", var->data, var->len);
-			    }
-
-			    // set [*]:md4*
-			    else if (wildcard_match_icase(line, "md4*"))
-			    {
-    			    uint8_t* start = (uint8_t*)data + range_start;
-    			    len = range_end - range_start;
-
-                    var->len = BSD_VAR_MD5;
-                    var->data = malloc(var->len);
-                    md(md_info_from_type(POLARSSL_MD_MD4), start, len, var->data);
-
-					LOG("len %d MD4", len);
-					_log_dump("MD4 HASH", var->data, var->len);
+					LOG("len %d RIPEMD160", len, len);
+					_log_dump("RIPEMD160 HASH", var->data, var->len);
 				}
 
 				// set [*]:sha1_xor64*
@@ -1567,7 +1554,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				// set [*]:fnv1*
 				else if (wildcard_match_icase(line, "fnv1*"))
 				{
-					uint32_t hash, init_val = 0x811c9dc5;
+					uint32_t hash, init_val = FNV1_INIT_VALUE;
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 

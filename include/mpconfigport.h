@@ -59,8 +59,9 @@
 #define MICROPY_PY_UJSON            (1)
 #define MICROPY_PY_URE              (1)
 #define MICROPY_PY_UHEAPQ           (1)
-#define MICROPY_PY_UHASHLIB         (0)
+#define MICROPY_PY_UHASHLIB         (1)
 #define MICROPY_PY_UBINASCII        (1)
+#define MICROPY_PY_UCRYPTO          (1)
 #define MICROPY_PY_MACHINE          (0)
 
 extern const struct _mp_obj_module_t mp_module_os;

@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+/* FNV-1 init arbitrary value */
+#define FNV1_INIT_VALUE                     0x811c9dc5
+
 /* The golden ration: an arbitrary value */
 #define JHASH_GOLDEN_RATIO                  0x9e3779b9
 
