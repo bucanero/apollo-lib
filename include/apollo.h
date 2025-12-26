@@ -375,6 +375,13 @@ uint32_t jhash(const uint8_t *data, uint32_t length, uint32_t initval);
  */
 uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
 
+
+uint32_t add_hash(const uint8_t* data, uint32_t len);
+uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le);
+uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le);
+uint32_t qwadd_hash(const uint8_t* data, uint32_t len);
+uint32_t wsub_hash(const uint8_t* data, uint32_t len);
+
 #ifdef __cplusplus
 }
 #endif

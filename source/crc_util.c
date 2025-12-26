@@ -758,3 +758,70 @@ uint32_t jhash(const uint8_t *k, uint32_t length, uint32_t initval)
 
     return c;
 }
+
+uint32_t add_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+
+    while (len--)
+        checksum += *data++;
+
+    return checksum;
+}
+
+uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le)
+{
+    uint32_t checksum = 0;
+    len /= 2;
+
+    while (len--)
+    {
+        checksum += is_le ? read_le_uint16(data) : read_be_uint16(data);
+        data += 2;
+    }
+
+    return checksum;
+}
+
+uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le)
+{
+    uint32_t checksum = 0;
+    len /= 4;
+
+    while (len--)
+    {
+        checksum += is_le ? read_le_uint32(data) : read_be_uint32(data);
+        data += 4;
+    }
+
+    return checksum;
+}
+
+uint32_t qwadd_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+    len /= 8;
+    data += 4; // skip lower dword
+
+    while (len--)
+    {
+        checksum += read_be_uint32(data);
+        data += 8;
+    }
+
+    return checksum;
+}
+
+uint32_t wsub_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+    len /= 2;
+
+    while (len--)
+    {
+        checksum -= read_be_uint16(data);
+        data += 2;
+    }
+
+    return checksum;
+}

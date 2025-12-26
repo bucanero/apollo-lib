@@ -429,6 +429,7 @@ QDEF(MP_QSTR_ure, (const byte*)"\x87\x63\x03" "ure")
 QDEF(MP_QSTR_uheapq, (const byte*)"\x1d\x43\x06" "uheapq")
 QDEF(MP_QSTR_uhashlib, (const byte*)"\x65\x9d\x08" "uhashlib")
 QDEF(MP_QSTR_ubinascii, (const byte*)"\xc4\x88\x09" "ubinascii")
+QDEF(MP_QSTR_ucrypto, (const byte*)"\x13\x22\x07" "ucrypto")
 QDEF(MP_QSTR_urandom, (const byte*)"\xab\xae\x07" "urandom")
 QDEF(MP_QSTR_ussl, (const byte*)"\x1c\xf2\x04" "ussl")
 QDEF(MP_QSTR_lwip, (const byte*)"\x67\x89\x04" "lwip")
@@ -717,13 +718,81 @@ QDEF(MP_QSTR_DEBUG, (const byte*)"\x34\x6d\x05" "DEBUG")
 QDEF(MP_QSTR_heappush, (const byte*)"\x87\x6b\x08" "heappush")
 QDEF(MP_QSTR_heappop, (const byte*)"\xd6\x27\x07" "heappop")
 QDEF(MP_QSTR_heapify, (const byte*)"\xaf\x2d\x07" "heapify")
-QDEF(MP_QSTR_digest, (const byte*)"\xcd\xc4\x06" "digest")
-QDEF(MP_QSTR_sha256, (const byte*)"\x2e\x01\x06" "sha256")
+QDEF(MP_QSTR_CRC_16_BITS, (const byte*)"\xdc\x3b\x0b" "CRC_16_BITS")
+QDEF(MP_QSTR_CRC_32_BITS, (const byte*)"\xda\xa4\x0b" "CRC_32_BITS")
+QDEF(MP_QSTR_CRC_64_BITS, (const byte*)"\x19\x88\x0b" "CRC_64_BITS")
+QDEF(MP_QSTR_crc, (const byte*)"\x17\x4d\x03" "crc")
+QDEF(MP_QSTR_crc16, (const byte*)"\xb0\xe8\x05" "crc16")
+QDEF(MP_QSTR_crc32, (const byte*)"\x76\xe8\x05" "crc32")
+QDEF(MP_QSTR_crc32big, (const byte*)"\x3a\x19\x08" "crc32big")
+QDEF(MP_QSTR_crc64_iso, (const byte*)"\x7f\xe9\x09" "crc64_iso")
+QDEF(MP_QSTR_crc64_ecma, (const byte*)"\xe0\x66\x0a" "crc64_ecma")
+QDEF(MP_QSTR_ripemd160, (const byte*)"\x55\x64\x09" "ripemd160")
+QDEF(MP_QSTR_md5, (const byte*)"\x19\x44\x03" "md5")
+QDEF(MP_QSTR_md5_xor, (const byte*)"\xe3\x4e\x07" "md5_xor")
 QDEF(MP_QSTR_sha1, (const byte*)"\x8e\xac\x04" "sha1")
+QDEF(MP_QSTR_sha256, (const byte*)"\x2e\x01\x06" "sha256")
+QDEF(MP_QSTR_sha384, (const byte*)"\x80\x04\x06" "sha384")
+QDEF(MP_QSTR_sha512, (const byte*)"\x69\xfd\x06" "sha512")
+QDEF(MP_QSTR_hmac_sha1, (const byte*)"\x76\x8c\x09" "hmac_sha1")
+QDEF(MP_QSTR_sha1_xor64, (const byte*)"\x76\x60\x0a" "sha1_xor64")
+QDEF(MP_QSTR_adler16, (const byte*)"\x5c\x0d\x07" "adler16")
+QDEF(MP_QSTR_adler32, (const byte*)"\x1a\x0d\x07" "adler32")
+QDEF(MP_QSTR_checksum32, (const byte*)"\xe9\xfa\x0a" "checksum32")
+QDEF(MP_QSTR_sdbm, (const byte*)"\x3d\x79\x04" "sdbm")
+QDEF(MP_QSTR_fnv1, (const byte*)"\xca\x2a\x04" "fnv1")
+QDEF(MP_QSTR_wadd, (const byte*)"\xf3\x55\x04" "wadd")
+QDEF(MP_QSTR_dwadd, (const byte*)"\xb7\x15\x05" "dwadd")
+QDEF(MP_QSTR_qwadd, (const byte*)"\x62\x3a\x05" "qwadd")
+QDEF(MP_QSTR_wadd_le, (const byte*)"\x85\x51\x07" "wadd_le")
+QDEF(MP_QSTR_dwadd_le, (const byte*)"\x41\x1a\x08" "dwadd_le")
+QDEF(MP_QSTR_wsub, (const byte*)"\x16\x1b\x04" "wsub")
+QDEF(MP_QSTR_force_crc32, (const byte*)"\x34\x81\x0b" "force_crc32")
+QDEF(MP_QSTR_murmur3_32, (const byte*)"\xa8\xab\x0a" "murmur3_32")
+QDEF(MP_QSTR_jhash, (const byte*)"\xfd\xc0\x05" "jhash")
+QDEF(MP_QSTR_jenkins_oaat, (const byte*)"\x7f\xdc\x0c" "jenkins_oaat")
+QDEF(MP_QSTR_lookup3_little2, (const byte*)"\xd5\x95\x0f" "lookup3_little2")
+QDEF(MP_QSTR_djb2, (const byte*)"\x9b\xef\x04" "djb2")
+QDEF(MP_QSTR_eachecksum, (const byte*)"\xec\xb9\x0a" "eachecksum")
+QDEF(MP_QSTR_ffx_checksum, (const byte*)"\x2f\x3e\x0c" "ffx_checksum")
+QDEF(MP_QSTR_ff13_checksum, (const byte*)"\xd5\xd0\x0d" "ff13_checksum")
+QDEF(MP_QSTR_kh25_checksum, (const byte*)"\xd3\x45\x0d" "kh25_checksum")
+QDEF(MP_QSTR_khcom_checksum, (const byte*)"\x15\xfe\x0e" "khcom_checksum")
+QDEF(MP_QSTR_mgs2_checksum, (const byte*)"\x9c\xa5\x0d" "mgs2_checksum")
+QDEF(MP_QSTR_mgspw_checksum, (const byte*)"\xc9\x29\x0e" "mgspw_checksum")
+QDEF(MP_QSTR_sw4_checksum, (const byte*)"\x47\x0a\x0c" "sw4_checksum")
+QDEF(MP_QSTR_toz_checksum, (const byte*)"\x36\x72\x0c" "toz_checksum")
+QDEF(MP_QSTR_tiara2_checksum, (const byte*)"\xca\x9c\x0f" "tiara2_checksum")
+QDEF(MP_QSTR_castlevania_checksum, (const byte*)"\x0a\x9f\x14" "castlevania_checksum")
+QDEF(MP_QSTR_rockstar_checksum, (const byte*)"\x36\x95\x11" "rockstar_checksum")
+QDEF(MP_QSTR_dbzxv2_checksum, (const byte*)"\x77\xc6\x0f" "dbzxv2_checksum")
+QDEF(MP_QSTR_deadrising_checksum, (const byte*)"\xbb\x7c\x13" "deadrising_checksum")
 QDEF(MP_QSTR_hexlify, (const byte*)"\x2a\x7f\x07" "hexlify")
 QDEF(MP_QSTR_unhexlify, (const byte*)"\xb1\xb9\x09" "unhexlify")
 QDEF(MP_QSTR_a2b_base64, (const byte*)"\x3c\x0b\x0a" "a2b_base64")
 QDEF(MP_QSTR_b2a_base64, (const byte*)"\x3c\x8f\x0a" "b2a_base64")
+QDEF(MP_QSTR_DECRYPT, (const byte*)"\x88\x0e\x07" "DECRYPT")
+QDEF(MP_QSTR_ENCRYPT, (const byte*)"\x22\xbb\x07" "ENCRYPT")
+QDEF(MP_QSTR_diablo3, (const byte*)"\xdb\x9b\x07" "diablo3")
+QDEF(MP_QSTR_dw8xl, (const byte*)"\x7a\xf9\x05" "dw8xl")
+QDEF(MP_QSTR_silent_hill3, (const byte*)"\x81\x05\x0c" "silent_hill3")
+QDEF(MP_QSTR_nfs_undercover, (const byte*)"\xa4\xd0\x0e" "nfs_undercover")
+QDEF(MP_QSTR_final_fantasy13, (const byte*)"\xe2\x78\x0f" "final_fantasy13")
+QDEF(MP_QSTR_borderlands3, (const byte*)"\x8e\x3a\x0c" "borderlands3")
+QDEF(MP_QSTR_mgs_pw, (const byte*)"\x24\x87\x06" "mgs_pw")
+QDEF(MP_QSTR_mgs_base64, (const byte*)"\xd4\x71\x0a" "mgs_base64")
+QDEF(MP_QSTR_mgs, (const byte*)"\xfc\x44\x03" "mgs")
+QDEF(MP_QSTR_mgs5_tpp, (const byte*)"\x82\xf9\x08" "mgs5_tpp")
+QDEF(MP_QSTR_monster_hunter, (const byte*)"\x76\x93\x0e" "monster_hunter")
+QDEF(MP_QSTR_rgg_studio, (const byte*)"\xf8\x01\x0a" "rgg_studio")
+QDEF(MP_QSTR_aes_ecb, (const byte*)"\x49\x8c\x07" "aes_ecb")
+QDEF(MP_QSTR_aes_cbc, (const byte*)"\xef\x94\x07" "aes_cbc")
+QDEF(MP_QSTR_aes_ctr, (const byte*)"\x28\x96\x07" "aes_ctr")
+QDEF(MP_QSTR_des_ecb, (const byte*)"\x4c\xea\x07" "des_ecb")
+QDEF(MP_QSTR_des3_cbc, (const byte*)"\x39\x03\x08" "des3_cbc")
+QDEF(MP_QSTR_blowfish_ecb, (const byte*)"\xbc\xcd\x0c" "blowfish_ecb")
+QDEF(MP_QSTR_blowfish_cbc, (const byte*)"\x1a\xd5\x0c" "blowfish_cbc")
+QDEF(MP_QSTR_camellia_ecb, (const byte*)"\x1c\x73\x0c" "camellia_ecb")
 #undef QDEF
 #endif
     },
@@ -25035,6 +25104,9 @@ STATIC const mp_rom_map_elem_t mp_builtin_module_table[] = {
 #if MICROPY_PY_UBINASCII
     { MP_ROM_QSTR(MP_QSTR_ubinascii), MP_ROM_PTR(&mp_module_ubinascii) },
 #endif
+#if MICROPY_PY_UCRYPTO
+    { MP_ROM_QSTR(MP_QSTR_ucrypto), MP_ROM_PTR(&mp_module_ucrypto) },
+#endif
 #if MICROPY_PY_URANDOM
     { MP_ROM_QSTR(MP_QSTR_urandom), MP_ROM_PTR(&mp_module_urandom) },
 #endif
@@ -32768,9 +32840,9 @@ const mp_obj_module_t mp_module_ustruct = {
 #if MICROPY_PY_SYS
 
 // This file was generated by py/makeversionhdr.py
-#define MICROPY_GIT_TAG "v1.8.1"
-#define MICROPY_GIT_HASH "<no hash>"
-#define MICROPY_BUILD_DATE "2025-12-22"
+#define MICROPY_GIT_TAG "v1.8.1-1-g6a76f34ffa-dirty"
+#define MICROPY_GIT_HASH "6a76f34ff-dirty"
+#define MICROPY_BUILD_DATE "2025-12-26"
 #define MICROPY_VERSION_MAJOR (1)
 #define MICROPY_VERSION_MINOR (8)
 #define MICROPY_VERSION_MICRO (1)
@@ -37813,184 +37885,1064 @@ const mp_obj_module_t mp_module_uheapq = {
 
 #endif //MICROPY_PY_UHEAPQ
 /*
- * This file is part of the Micro Python project, http://micropython.org/
  *
- * The MIT License (MIT)
+ * Copyright (c) 2025 Damian Parrino
  *
- * Copyright (c) 2014 Paul Sokolovsky
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+ #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 
 //#include "py/nlr.h"
 //#include "py/runtime.h"
+//#include "py/binary.h"
+
+#include "apollo.h"
+#include "crc_util.h"
+
+// external definitions
+extern uint32_t adler32(uint32_t adler, const uint8_t *buf, uint32_t len);
+extern void sha1( const unsigned char *input, size_t ilen, unsigned char output[20] );
+extern void sha256( const unsigned char *input, size_t ilen, unsigned char output[32], int is224 );
+extern void sha512( const unsigned char *input, size_t ilen, unsigned char output[64], int is384 );
+extern void md5( const unsigned char *input, size_t ilen, unsigned char output[16] );
+extern void ripemd160( const unsigned char *input, size_t ilen, unsigned char output[20] );
+extern void sha1_hmac( const unsigned char *key, size_t keylen, const unsigned char *input, size_t ilen, unsigned char output[20] );
+
+//---  Custom game checksum functions ---//
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_eachecksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_ffx_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_ff13_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_deadrising_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_kh25_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_khcom_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_mgs2_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_mgspw_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sw4_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_toz_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_tiara2_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_castlevania_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_rockstar_checksum_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_dbzxv2_checksum_obj);
+
+//---  Generic hash functions ---//
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc16_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc32_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc32big_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc64_iso_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc64_ecma_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_ripemd160_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_md5_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_md5_xor_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha1_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha256_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha384_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha512_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_hmac_sha1_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha1_xor64_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_adler16_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_adler32_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_checksum32_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sdbm_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_fnv1_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_add_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_wadd_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_dwadd_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_qwadd_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_wadd_le_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_dwadd_le_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_wsub_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_force_crc32_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_murmur3_32_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_jhash_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_jenkins_oaat_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_lookup3_little2_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_djb2_obj);
+
+
+/*
+ * append_le_uint16: append an unsigned 16 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint16(mp_state, buf, val) \
+	buf[0] = (uint8_t)val; \
+	buf[1] = (uint8_t)(val >> 8);
+
+#define micropy_write_be_uint16(mp_state, buf, val) \
+	buf[1] = (uint8_t)val; \
+	buf[0] = (uint8_t)(val >> 8);
+
+/*
+ * append_le_uint32: append an unsigned 32 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint32(mp_state, buf, val) \
+	buf[0] = (uint8_t)val; \
+	buf[1] = (uint8_t)(val >> 8); \
+	buf[2] = (uint8_t)(val >> 16); \
+	buf[3] = (uint8_t)(val >> 24);
+
+#define micropy_write_be_uint32(mp_state, buf, val) \
+	buf[3] = (uint8_t)val; \
+	buf[2] = (uint8_t)(val >> 8); \
+	buf[1] = (uint8_t)(val >> 16); \
+	buf[0] = (uint8_t)(val >> 24);
+
+/*
+ * append_le_uint64: append an unsigned 64 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint64(mp_state, buf, val) \
+    buf[0] = (uint8_t)val; \
+    buf[1] = (uint8_t)(val >> 8); \
+    buf[2] = (uint8_t)(val >> 16); \
+    buf[3] = (uint8_t)(val >> 24); \
+    buf[4] = (uint8_t)(val >> 32); \
+    buf[5] = (uint8_t)(val >> 40); \
+    buf[6] = (uint8_t)(val >> 48); \
+    buf[7] = (uint8_t)(val >> 56);
+
+#define micropy_write_be_uint64(mp_state, buf, val) \
+    buf[7] = (uint8_t)val; \
+    buf[6] = (uint8_t)(val >> 8); \
+    buf[5] = (uint8_t)(val >> 16); \
+    buf[4] = (uint8_t)(val >> 24); \
+    buf[3] = (uint8_t)(val >> 32); \
+    buf[2] = (uint8_t)(val >> 40); \
+    buf[1] = (uint8_t)(val >> 48); \
+    buf[0] = (uint8_t)(val >> 56);
+
+/*
+ * read_le_uint16: read an unsigned 16 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint16(mp_state, buf) \
+    ((uint16_t)(buf[0]) | ((uint16_t)(buf[1]) << 8))
+
+#define micropy_read_be_uint16(mp_state, buf) \
+    ((uint16_t)(buf[1]) | ((uint16_t)(buf[0]) << 8))
+
+/*
+ * read_le_uint32: read an unsigned 32 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint32(mp_state, buf) \
+    ((uint32_t)(buf[0]) | ((uint32_t)(buf[1]) << 8) | \
+    ((uint32_t)(buf[2]) << 16) | ((uint32_t)(buf[3]) << 24))
+
+#define micropy_read_be_uint32(mp_state, buf) \
+    ((uint32_t)(buf[3]) | ((uint32_t)(buf[2]) << 8) | \
+    ((uint32_t)(buf[1]) << 16) | ((uint32_t)(buf[0]) << 24))
+
+/*
+ * read_le_uint64: read an unsigned 64 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint64(mp_state, buf) \
+    ((uint64_t)(buf[0]) | ((uint64_t)(buf[1]) << 8) | \
+    ((uint64_t)(buf[2]) << 16) | ((uint64_t)(buf[3]) << 24) | \
+    ((uint64_t)(buf[4]) << 32) | ((uint64_t)(buf[5]) << 40) | \
+    ((uint64_t)(buf[6]) << 48) | ((uint64_t)(buf[7]) << 56))
+
+#define micropy_read_be_uint64(mp_state, buf) \
+    ((uint64_t)(buf[7]) | ((uint64_t)(buf[6]) << 8) | \
+    ((uint64_t)(buf[5]) << 16) | ((uint64_t)(buf[4]) << 24) | \
+    ((uint64_t)(buf[3]) << 32) | ((uint64_t)(buf[2]) << 40) | \
+    ((uint64_t)(buf[1]) << 48) | ((uint64_t)(buf[0]) << 56))
+
+
+mp_obj_t micropy_mod_uhashlib_add(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = add_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_add_obj, micropy_mod_uhashlib_add);
+
+mp_obj_t micropy_mod_uhashlib_wadd(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = wadd_hash(bufinfo.buf, bufinfo.len, 0);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_wadd_obj, micropy_mod_uhashlib_wadd);
+
+mp_obj_t micropy_mod_uhashlib_wadd_le(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = wadd_hash(bufinfo.buf, bufinfo.len, 1);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_wadd_le_obj, micropy_mod_uhashlib_wadd_le);
+
+mp_obj_t micropy_mod_uhashlib_dwadd(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = dwadd_hash(bufinfo.buf, bufinfo.len, 0);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_dwadd_obj, micropy_mod_uhashlib_dwadd);
+
+mp_obj_t micropy_mod_uhashlib_dwadd_le(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = dwadd_hash(bufinfo.buf, bufinfo.len, 1);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_dwadd_le_obj, micropy_mod_uhashlib_dwadd_le);
+
+mp_obj_t micropy_mod_uhashlib_qwadd(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = qwadd_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_qwadd_obj, micropy_mod_uhashlib_qwadd);
+
+mp_obj_t micropy_mod_uhashlib_wsub(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = wsub_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_wsub_obj, micropy_mod_uhashlib_wsub);
+
+mp_obj_t micropy_mod_uhashlib_adler16(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 2);
+    byte *out = (byte*)vstr.buf;
+
+    uint16_t crc = adler16(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint16(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_adler16_obj, micropy_mod_uhashlib_adler16);
+
+mp_obj_t micropy_mod_uhashlib_adler32(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = adler32(0L, NULL, 0);
+    if (n_args > 1) {
+        // custom initial value
+        crc = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    crc = adler32(crc, bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_adler32_obj, 1, 2, micropy_mod_uhashlib_adler32);
+
+mp_obj_t micropy_mod_uhashlib_checksum32(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = Checksum32_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_checksum32_obj, micropy_mod_uhashlib_checksum32);
+
+mp_obj_t micropy_mod_uhashlib_crc(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    int width = micropy_obj_int_get_truncated(mp_state, args[1]);
+
+    if (width != 16 && width != 32 && width != 64) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "CRC width must be 16, 32 or 64"));
+    }
+
+    vstr_t vstr;
+    byte *out;
+    custom_crc_t crc_opts = {
+        .width = width,
+        .poly = micropy_obj_int_get_truncated(mp_state, args[2]),
+        .init = micropy_obj_int_get_truncated(mp_state, args[3]),
+        .xor = micropy_obj_int_get_truncated(mp_state, args[4]),
+        .refIn = micropy_obj_int_get_truncated(mp_state, args[5]),
+        .refOut = micropy_obj_int_get_truncated(mp_state, args[6]),
+    };
+
+    switch (width)
+    {
+    case 16:
+        micropy_vstr_init_len(mp_state, &vstr, 2);
+        out = (byte*)vstr.buf;
+        uint16_t crc16 = crc16_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        micropy_write_be_uint16(mp_state, out, crc16);
+        break;
+
+    case 32:
+        micropy_vstr_init_len(mp_state, &vstr, 4);
+        out = (byte*)vstr.buf;
+        uint32_t crc32 = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        micropy_write_be_uint32(mp_state, out, crc32);
+        break;
+
+    case 64:
+        micropy_vstr_init_len(mp_state, &vstr, 8);
+        out = (byte*)vstr.buf;
+        uint64_t crc64 = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        micropy_write_be_uint64(mp_state, out, crc64);
+        break;
+        
+    default:
+        break;
+    }
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_crc_obj, 7, 7, micropy_mod_uhashlib_crc);
+
+mp_obj_t micropy_mod_uhashlib_crc16(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 2);
+    byte *out = (byte*)vstr.buf;
+
+    custom_crc_t crc_opts = {
+        .init = CRC_16_INIT_VALUE,
+        .poly = CRC_16_POLYNOMIAL,
+        .xor = CRC_16_XOR_VALUE,
+        .refIn = 0,
+        .refOut = 0,
+    };
+
+    uint16_t crc = crc16_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    micropy_write_be_uint16(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_crc16_obj, micropy_mod_uhashlib_crc16);
+
+mp_obj_t micropy_mod_uhashlib_crc32(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    custom_crc_t crc_opts = {
+        .init = CRC_32_INIT_VALUE,
+        .poly = CRC_32_POLYNOMIAL,
+        .xor = CRC_32_XOR_VALUE,
+        .refIn = 1,
+        .refOut = 1,
+    };
+
+    uint32_t crc = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_crc32_obj, micropy_mod_uhashlib_crc32);
+
+mp_obj_t micropy_mod_uhashlib_crc32big(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    custom_crc_t crc_opts = {
+        .init = CRC_32_INIT_VALUE,
+        .poly = CRC_32_POLYNOMIAL,
+        .xor = CRC_32_XOR_VALUE,
+        .refIn = 0,
+        .refOut = 0,
+    };
+
+    uint32_t crc = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_crc32big_obj, micropy_mod_uhashlib_crc32big);
+
+mp_obj_t micropy_mod_uhashlib_crc64_ecma(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 8);
+    byte *out = (byte*)vstr.buf;
+
+    custom_crc_t crc_opts = {
+        .init = CRC_64_ECMA182_INIT_VALUE,
+        .poly = CRC_64_ECMA182_POLY,
+        .xor = CRC_64_ECMA182_XOR_VALUE,
+        .refIn = 0,
+        .refOut = 0,
+    };
+
+    uint64_t crc = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    micropy_write_be_uint64(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_crc64_ecma_obj, micropy_mod_uhashlib_crc64_ecma);
+
+mp_obj_t micropy_mod_uhashlib_crc64_iso(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 8);
+    byte *out = (byte*)vstr.buf;
+
+    custom_crc_t crc_opts = {
+        .init = CRC_64_ISO_INIT_VALUE,
+        .poly = CRC_64_ISO_POLY,
+        .xor = CRC_64_ISO_XOR_VALUE,
+        .refIn = 0,
+        .refOut = 0,
+    };
+
+    uint64_t crc = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    micropy_write_be_uint64(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_crc64_iso_obj, micropy_mod_uhashlib_crc64_iso);
+
+mp_obj_t micropy_mod_uhashlib_djb2(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = djb2_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_djb2_obj, micropy_mod_uhashlib_djb2);
+
+mp_obj_t micropy_mod_uhashlib_fnv1(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t init_val = 0x811c9dc5;
+    if (n_args > 1) {
+        // custom initial value
+        init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    uint32_t crc = fnv1_hash(bufinfo.buf, bufinfo.len, init_val);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_fnv1_obj, 1, 2, micropy_mod_uhashlib_fnv1);
+
+mp_obj_t micropy_mod_uhashlib_force_crc32(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t offset, mp_obj_t newcrc) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = force_crc32(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, offset), micropy_obj_int_get_truncated(mp_state, newcrc));
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_uhashlib_force_crc32_obj, micropy_mod_uhashlib_force_crc32);
+
+mp_obj_t micropy_mod_uhashlib_hmac_sha1(struct _mp_state_ctx_t *mp_state, mp_obj_t key, mp_obj_t data) {
+    mp_buffer_info_t keyinfo, bufinfo;
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 20);
+    byte *out = (byte*)vstr.buf;
+
+    sha1_hmac(keyinfo.buf, keyinfo.len, bufinfo.buf, bufinfo.len, out);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_uhashlib_hmac_sha1_obj, micropy_mod_uhashlib_hmac_sha1);
+
+mp_obj_t micropy_mod_uhashlib_jenkins_oaat(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t init_val = 0;
+    if (n_args > 1) {
+        // custom initial value
+        init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    uint32_t crc = jenkins_oaat_hash(bufinfo.buf, bufinfo.len, init_val);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_jenkins_oaat_obj, 1, 2, micropy_mod_uhashlib_jenkins_oaat);
+
+mp_obj_t micropy_mod_uhashlib_jhash(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t init_val = 0;
+    if (n_args > 1) {
+        // custom initial value
+        init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    uint32_t crc = jhash(bufinfo.buf, bufinfo.len, init_val);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_jhash_obj, 1, 2, micropy_mod_uhashlib_jhash);
+
+mp_obj_t micropy_mod_uhashlib_lookup3_little2(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t pc_iv1, mp_obj_t pb_iv2) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 8);
+    byte *out = (byte*)vstr.buf;
+
+    uint64_t hash;
+    uint32_t iv1 = micropy_obj_int_get_truncated(mp_state, pc_iv1);
+    uint32_t iv2 = micropy_obj_int_get_truncated(mp_state, pb_iv2);
+
+    lookup3_hashlittle2(bufinfo.buf, bufinfo.len, &iv1, &iv2);
+    hash = iv2 + (((uint64_t) iv1) << 32);
+    micropy_write_be_uint64(mp_state, out, hash);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_uhashlib_lookup3_little2_obj, micropy_mod_uhashlib_lookup3_little2);
+
+mp_obj_t micropy_mod_uhashlib_ripemd160(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 20);
+    byte *out = (byte*)vstr.buf;
+
+    ripemd160(bufinfo.buf, bufinfo.len, out);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_ripemd160_obj, micropy_mod_uhashlib_ripemd160);
+
+mp_obj_t micropy_mod_uhashlib_md5(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 16);
+    byte *out = (byte*)vstr.buf;
+
+    md5(bufinfo.buf, bufinfo.len, out);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_md5_obj, micropy_mod_uhashlib_md5);
+
+mp_obj_t micropy_mod_uhashlib_md5_xor(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t hash[4];
+    md5(bufinfo.buf, bufinfo.len, (uint8_t*) hash);
+    hash[0] ^= (hash[1] ^ hash[2] ^ hash[3]);
+    micropy_write_be_uint32(mp_state, out, hash[0]);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_md5_xor_obj, micropy_mod_uhashlib_md5_xor);
+
+mp_obj_t micropy_mod_uhashlib_murmur3_32(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t init_val = 0;
+    if (n_args > 1) {
+        // custom initial value
+        init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    uint32_t crc = murmur3_32(bufinfo.buf, bufinfo.len, init_val);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_murmur3_32_obj, 1, 2, micropy_mod_uhashlib_murmur3_32);
+
+mp_obj_t micropy_mod_uhashlib_sdbm(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t init_val = 0;
+    if (n_args > 1) {
+        // custom initial value
+        init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
+    }
+
+    uint32_t crc = sdbm_hash(bufinfo.buf, bufinfo.len, init_val);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_sdbm_obj, 1, 2, micropy_mod_uhashlib_sdbm);
+
+mp_obj_t micropy_mod_uhashlib_sha1(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 20);
+    byte *out = (byte*)vstr.buf;
+
+    sha1(bufinfo.buf, bufinfo.len, out);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha1_obj, micropy_mod_uhashlib_sha1);
+
+mp_obj_t micropy_mod_uhashlib_sha256(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 32);
+    byte *out = (byte*)vstr.buf;
+
+    sha256(bufinfo.buf, bufinfo.len, out, 0);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha256_obj, micropy_mod_uhashlib_sha256);
+
+mp_obj_t micropy_mod_uhashlib_sha384(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 64);
+    byte *out = (byte*)vstr.buf;
+
+    sha512(bufinfo.buf, bufinfo.len, out, 1);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha384_obj, micropy_mod_uhashlib_sha384);
+
+mp_obj_t micropy_mod_uhashlib_sha512(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 64);
+    byte *out = (byte*)vstr.buf;
+
+    sha512(bufinfo.buf, bufinfo.len, out, 0);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha512_obj, micropy_mod_uhashlib_sha512);
+
+mp_obj_t micropy_mod_uhashlib_sha1_xor64(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 8);
+    byte *out = (byte*)vstr.buf;
+
+    uint64_t sha[3] = {0, 0, 0};
+    sha1(bufinfo.buf, bufinfo.len, (uint8_t*) sha);
+    sha[0] ^= (sha[1] ^ sha[2]);
+    micropy_write_le_uint64(mp_state, out, sha[0]);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha1_xor64_obj, micropy_mod_uhashlib_sha1_xor64);
+
+mp_obj_t micropy_mod_uhashlib_eachecksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = MC02_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_eachecksum_obj, micropy_mod_uhashlib_eachecksum);
+
+mp_obj_t micropy_mod_uhashlib_ffx_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = ffx_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_ffx_checksum_obj, micropy_mod_uhashlib_ffx_checksum);
+
+mp_obj_t micropy_mod_uhashlib_ff13_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = ff13_checksum(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_ff13_checksum_obj, micropy_mod_uhashlib_ff13_checksum);
+
+mp_obj_t micropy_mod_uhashlib_kh25_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = kh25_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_kh25_checksum_obj, micropy_mod_uhashlib_kh25_checksum);
+
+mp_obj_t micropy_mod_uhashlib_khcom_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = kh_com_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_khcom_checksum_obj, micropy_mod_uhashlib_khcom_checksum);
+
+mp_obj_t micropy_mod_uhashlib_mgs2_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = mgs2_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_mgs2_checksum_obj, micropy_mod_uhashlib_mgs2_checksum);
+
+mp_obj_t micropy_mod_uhashlib_mgspw_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = mgspw_Checksum(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_mgspw_checksum_obj, micropy_mod_uhashlib_mgspw_checksum);
+
+mp_obj_t micropy_mod_uhashlib_sw4_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 16);
+    byte *out = (byte*)vstr.buf;
+    uint32_t hash[4];
+
+    sw4_hash(bufinfo.buf, bufinfo.len, hash);
+    memcpy(out, hash, 16);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sw4_checksum_obj, micropy_mod_uhashlib_sw4_checksum);
+
+mp_obj_t micropy_mod_uhashlib_toz_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 20);
+    byte *out = (byte*)vstr.buf;
+
+    toz_hash(bufinfo.buf, bufinfo.len, out);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_toz_checksum_obj, micropy_mod_uhashlib_toz_checksum);
+
+mp_obj_t micropy_mod_uhashlib_tiara2_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = tiara2_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_tiara2_checksum_obj, micropy_mod_uhashlib_tiara2_checksum);
+
+mp_obj_t micropy_mod_uhashlib_castlevania_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = castlevania_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_castlevania_checksum_obj, micropy_mod_uhashlib_castlevania_checksum);
+
+mp_obj_t micropy_mod_uhashlib_rockstar_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "NOT IMPLEMENTED"));
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = add_hash(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_rockstar_checksum_obj, micropy_mod_uhashlib_rockstar_checksum);
+
+mp_obj_t micropy_mod_uhashlib_dbzxv2_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 8);
+    byte *out = (byte*)vstr.buf;
+
+    uint64_t crc = dbzxv2_checksum(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint64(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_dbzxv2_checksum_obj, micropy_mod_uhashlib_dbzxv2_checksum);
+
+mp_obj_t micropy_mod_uhashlib_deadrising_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    vstr_t vstr;
+    micropy_vstr_init_len(mp_state, &vstr, 4);
+    byte *out = (byte*)vstr.buf;
+
+    uint32_t crc = deadrising_checksum(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_deadrising_checksum_obj, micropy_mod_uhashlib_deadrising_checksum);
 
 #if MICROPY_PY_UHASHLIB
 
-/*********************************************************************
-* Filename:   sha256.h
-* Author:     Brad Conte (brad AT bradconte.com)
-* Copyright:
-* Disclaimer: This code is presented "as is" without any guarantees.
-* Details:    Defines the API for the corresponding SHA1 implementation.
-*********************************************************************/
-
-#ifndef SHA256_H
-#define SHA256_H
-
-/*************************** HEADER FILES ***************************/
-
-/****************************** MACROS ******************************/
-#define SHA256_BLOCK_SIZE 32            // SHA256 outputs a 32 byte digest
-
-/**************************** DATA TYPES ****************************/
-typedef unsigned char BYTE;             // 8-bit byte
-typedef unsigned int  WORD;             // 32-bit word, change to "long" for 16-bit machines
-
-typedef struct {
-	BYTE data[64];
-	WORD datalen;
-	unsigned long long bitlen;
-	WORD state[8];
-} CRYAL_SHA256_CTX;
-
-/*********************** FUNCTION DECLARATIONS **********************/
-static void sha256_init(CRYAL_SHA256_CTX *ctx);
-static void sha256_update(CRYAL_SHA256_CTX *ctx, const BYTE data[], size_t len);
-static void sha256_final(CRYAL_SHA256_CTX *ctx, BYTE hash[]);
-
-#endif   // SHA256_H
-#if MICROPY_PY_UHASHLIB_SHA1
-#include "lib/axtls/crypto/crypto.h"
-#endif
-
-typedef struct _mp_obj_hash_t {
-    mp_obj_base_t base;
-    char state[0];
-} mp_obj_hash_t;
-
-STATIC mp_obj_t micropy_hash_update(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in, mp_obj_t arg);
-
-STATIC mp_obj_t micropy_hash_make_new(struct _mp_state_ctx_t *mp_state, const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    micropy_arg_check_num(mp_state, n_args, n_kw, 0, 1, false);
-    mp_obj_hash_t *o = micropy_m_new_obj_var(mp_state, mp_obj_hash_t, char, sizeof(CRYAL_SHA256_CTX));
-    o->base.type = type;
-    sha256_init((CRYAL_SHA256_CTX*)o->state);
-    if (n_args == 1) {
-        micropy_hash_update(mp_state, MP_OBJ_FROM_PTR(o), args[0]);
-    }
-    return MP_OBJ_FROM_PTR(o);
-}
-
-#if MICROPY_PY_UHASHLIB_SHA1
-STATIC mp_obj_t micropy_sha1_update(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in, mp_obj_t arg);
-
-STATIC mp_obj_t micropy_sha1_make_new(struct _mp_state_ctx_t *mp_state, const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *args) {
-    micropy_arg_check_num(mp_state, n_args, n_kw, 0, 1, false);
-    mp_obj_hash_t *o = micropy_m_new_obj_var(mp_state, mp_obj_hash_t, char, sizeof(SHA1_CTX));
-    o->base.type = type;
-    SHA1_Init((SHA1_CTX*)o->state);
-    if (n_args == 1) {
-        micropy_sha1_update(mp_state, MP_OBJ_FROM_PTR(o), args[0]);
-    }
-    return MP_OBJ_FROM_PTR(o);
-}
-#endif
-
-STATIC mp_obj_t micropy_hash_update(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in, mp_obj_t arg) {
-    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_buffer_info_t bufinfo;
-    micropy_get_buffer_raise(mp_state, arg, &bufinfo, MP_BUFFER_READ);
-    sha256_update((CRYAL_SHA256_CTX*)self->state, bufinfo.buf, bufinfo.len);
-    return mp_const_none;
-}
-MP_DEFINE_CONST_FUN_OBJ_2(hash_update_obj, micropy_hash_update);
-
-#if MICROPY_PY_UHASHLIB_SHA1
-STATIC mp_obj_t micropy_sha1_update(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in, mp_obj_t arg) {
-    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_buffer_info_t bufinfo;
-    micropy_get_buffer_raise(mp_state, arg, &bufinfo, MP_BUFFER_READ);
-    SHA1_Update((SHA1_CTX*)self->state, bufinfo.buf, bufinfo.len);
-    return mp_const_none;
-}
-MP_DEFINE_CONST_FUN_OBJ_2(sha1_update_obj, micropy_sha1_update);
-#endif
-
-STATIC mp_obj_t micropy_hash_digest(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in) {
-    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
-    vstr_t vstr;
-    micropy_vstr_init_len(mp_state, &vstr, SHA256_BLOCK_SIZE);
-    sha256_final((CRYAL_SHA256_CTX*)self->state, (byte*)vstr.buf);
-    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
-}
-MP_DEFINE_CONST_FUN_OBJ_1(hash_digest_obj, micropy_hash_digest);
-
-#if MICROPY_PY_UHASHLIB_SHA1
-STATIC mp_obj_t micropy_sha1_digest(struct _mp_state_ctx_t *mp_state, mp_obj_t self_in) {
-    mp_obj_hash_t *self = MP_OBJ_TO_PTR(self_in);
-    vstr_t vstr;
-    micropy_vstr_init_len(mp_state, &vstr, SHA1_SIZE);
-    SHA1_Final((byte*)vstr.buf, (SHA1_CTX*)self->state);
-    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
-}
-MP_DEFINE_CONST_FUN_OBJ_1(sha1_digest_obj, micropy_sha1_digest);
-#endif
-
-STATIC const mp_rom_map_elem_t hash_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_update), MP_ROM_PTR(&hash_update_obj) },
-    { MP_ROM_QSTR(MP_QSTR_digest), MP_ROM_PTR(&hash_digest_obj) },
-};
-
-STATIC MP_DEFINE_CONST_DICT(hash_locals_dict, hash_locals_dict_table);
-
-STATIC const mp_obj_type_t sha256_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_sha256,
-    .make_new = micropy_hash_make_new,
-    .locals_dict = (void*)&hash_locals_dict,
-};
-
-#if MICROPY_PY_UHASHLIB_SHA1
-STATIC const mp_rom_map_elem_t sha1_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_update), MP_ROM_PTR(&sha1_update_obj) },
-    { MP_ROM_QSTR(MP_QSTR_digest), MP_ROM_PTR(&sha1_digest_obj) },
-};
-STATIC MP_DEFINE_CONST_DICT(sha1_locals_dict, sha1_locals_dict_table);
-
-STATIC const mp_obj_type_t sha1_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_sha1,
-    .make_new = sha1_make_new,
-    .locals_dict = (void*)&sha1_locals_dict,
-};
-#endif
-
 STATIC const mp_rom_map_elem_t mp_module_hashlib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_uhashlib) },
-    { MP_ROM_QSTR(MP_QSTR_sha256), MP_ROM_PTR(&sha256_type) },
-    #if MICROPY_PY_UHASHLIB_SHA1
-    { MP_ROM_QSTR(MP_QSTR_sha1), MP_ROM_PTR(&sha1_type) },
-    #endif
+    { MP_ROM_QSTR(MP_QSTR_CRC_16_BITS), MP_OBJ_NEW_SMALL_INT(16) },
+    { MP_ROM_QSTR(MP_QSTR_CRC_32_BITS), MP_OBJ_NEW_SMALL_INT(32) },
+    { MP_ROM_QSTR(MP_QSTR_CRC_64_BITS), MP_OBJ_NEW_SMALL_INT(64) },
+    { MP_ROM_QSTR(MP_QSTR_crc), MP_ROM_PTR(&mod_uhashlib_crc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_crc16), MP_ROM_PTR(&mod_uhashlib_crc16_obj) },
+    { MP_ROM_QSTR(MP_QSTR_crc32), MP_ROM_PTR(&mod_uhashlib_crc32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_crc32big), MP_ROM_PTR(&mod_uhashlib_crc32big_obj) },
+    { MP_ROM_QSTR(MP_QSTR_crc64_iso), MP_ROM_PTR(&mod_uhashlib_crc64_iso_obj) },
+    { MP_ROM_QSTR(MP_QSTR_crc64_ecma), MP_ROM_PTR(&mod_uhashlib_crc64_ecma_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ripemd160), MP_ROM_PTR(&mod_uhashlib_ripemd160_obj) },
+    { MP_ROM_QSTR(MP_QSTR_md5), MP_ROM_PTR(&mod_uhashlib_md5_obj) },
+    { MP_ROM_QSTR(MP_QSTR_md5_xor), MP_ROM_PTR(&mod_uhashlib_md5_xor_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha1), MP_ROM_PTR(&mod_uhashlib_sha1_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha256), MP_ROM_PTR(&mod_uhashlib_sha256_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha384), MP_ROM_PTR(&mod_uhashlib_sha384_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha512), MP_ROM_PTR(&mod_uhashlib_sha512_obj) },
+    { MP_ROM_QSTR(MP_QSTR_hmac_sha1), MP_ROM_PTR(&mod_uhashlib_hmac_sha1_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha1_xor64), MP_ROM_PTR(&mod_uhashlib_sha1_xor64_obj) },
+    { MP_ROM_QSTR(MP_QSTR_adler16), MP_ROM_PTR(&mod_uhashlib_adler16_obj) },
+    { MP_ROM_QSTR(MP_QSTR_adler32), MP_ROM_PTR(&mod_uhashlib_adler32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_checksum32), MP_ROM_PTR(&mod_uhashlib_checksum32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sdbm), MP_ROM_PTR(&mod_uhashlib_sdbm_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fnv1), MP_ROM_PTR(&mod_uhashlib_fnv1_obj) },
+    { MP_ROM_QSTR(MP_QSTR_add), MP_ROM_PTR(&mod_uhashlib_add_obj) },
+    { MP_ROM_QSTR(MP_QSTR_wadd), MP_ROM_PTR(&mod_uhashlib_wadd_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dwadd), MP_ROM_PTR(&mod_uhashlib_dwadd_obj) },
+    { MP_ROM_QSTR(MP_QSTR_qwadd), MP_ROM_PTR(&mod_uhashlib_qwadd_obj) },
+    { MP_ROM_QSTR(MP_QSTR_wadd_le), MP_ROM_PTR(&mod_uhashlib_wadd_le_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dwadd_le), MP_ROM_PTR(&mod_uhashlib_dwadd_le_obj) },
+    { MP_ROM_QSTR(MP_QSTR_wsub), MP_ROM_PTR(&mod_uhashlib_wsub_obj) },
+    { MP_ROM_QSTR(MP_QSTR_force_crc32), MP_ROM_PTR(&mod_uhashlib_force_crc32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_murmur3_32), MP_ROM_PTR(&mod_uhashlib_murmur3_32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_jhash), MP_ROM_PTR(&mod_uhashlib_jhash_obj) },
+    { MP_ROM_QSTR(MP_QSTR_jenkins_oaat), MP_ROM_PTR(&mod_uhashlib_jenkins_oaat_obj) },
+    { MP_ROM_QSTR(MP_QSTR_lookup3_little2), MP_ROM_PTR(&mod_uhashlib_lookup3_little2_obj) },
+    { MP_ROM_QSTR(MP_QSTR_djb2), MP_ROM_PTR(&mod_uhashlib_djb2_obj) },
+    { MP_ROM_QSTR(MP_QSTR_djb2), MP_ROM_PTR(&mod_uhashlib_djb2_obj) },
+    { MP_ROM_QSTR(MP_QSTR_eachecksum), MP_ROM_PTR(&mod_uhashlib_eachecksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ffx_checksum), MP_ROM_PTR(&mod_uhashlib_ffx_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ff13_checksum), MP_ROM_PTR(&mod_uhashlib_ff13_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_kh25_checksum), MP_ROM_PTR(&mod_uhashlib_kh25_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_khcom_checksum), MP_ROM_PTR(&mod_uhashlib_khcom_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgs2_checksum), MP_ROM_PTR(&mod_uhashlib_mgs2_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgspw_checksum), MP_ROM_PTR(&mod_uhashlib_mgspw_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sw4_checksum), MP_ROM_PTR(&mod_uhashlib_sw4_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_toz_checksum), MP_ROM_PTR(&mod_uhashlib_toz_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_tiara2_checksum), MP_ROM_PTR(&mod_uhashlib_tiara2_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_castlevania_checksum), MP_ROM_PTR(&mod_uhashlib_castlevania_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_rockstar_checksum), MP_ROM_PTR(&mod_uhashlib_rockstar_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dbzxv2_checksum), MP_ROM_PTR(&mod_uhashlib_dbzxv2_checksum_obj) },
+    { MP_ROM_QSTR(MP_QSTR_deadrising_checksum), MP_ROM_PTR(&mod_uhashlib_deadrising_checksum_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(mp_module_hashlib_globals, mp_module_hashlib_globals_table);
@@ -38001,163 +38953,7 @@ const mp_obj_module_t mp_module_uhashlib = {
     .globals = (mp_obj_dict_t*)&mp_module_hashlib_globals,
 };
 
-/*********************************************************************
-* Filename:   sha256.c
-* Author:     Brad Conte (brad AT bradconte.com)
-* Copyright:
-* Disclaimer: This code is presented "as is" without any guarantees.
-* Details:    Implementation of the SHA-256 hashing algorithm.
-              SHA-256 is one of the three algorithms in the SHA2
-              specification. The others, SHA-384 and SHA-512, are not
-              offered in this implementation.
-              Algorithm specification can be found here:
-               * http://csrc.nist.gov/publications/fips/fips180-2/fips180-2withchangenotice.pdf
-              This implementation uses little endian byte order.
-*********************************************************************/
-
-/*************************** HEADER FILES ***************************/
-
-/****************************** MACROS ******************************/
-#define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))
-#define ROTRIGHT(a,b) (((a) >> (b)) | ((a) << (32-(b))))
-
-#define CH(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
-#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
-#define EP0(x) (ROTRIGHT(x,2) ^ ROTRIGHT(x,13) ^ ROTRIGHT(x,22))
-#define EP1(x) (ROTRIGHT(x,6) ^ ROTRIGHT(x,11) ^ ROTRIGHT(x,25))
-#define SIG0(x) (ROTRIGHT(x,7) ^ ROTRIGHT(x,18) ^ ((x) >> 3))
-#define SIG1(x) (ROTRIGHT(x,17) ^ ROTRIGHT(x,19) ^ ((x) >> 10))
-
-/**************************** VARIABLES *****************************/
-static const WORD k[64] = {
-	0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-	0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-	0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-	0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-	0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-	0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-	0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-};
-
-/*********************** FUNCTION DEFINITIONS ***********************/
-static void sha256_transform(CRYAL_SHA256_CTX *ctx, const BYTE data[])
-{
-	WORD a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
-
-	for (i = 0, j = 0; i < 16; ++i, j += 4)
-		m[i] = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | (data[j + 3]);
-	for ( ; i < 64; ++i)
-		m[i] = SIG1(m[i - 2]) + m[i - 7] + SIG0(m[i - 15]) + m[i - 16];
-
-	a = ctx->state[0];
-	b = ctx->state[1];
-	c = ctx->state[2];
-	d = ctx->state[3];
-	e = ctx->state[4];
-	f = ctx->state[5];
-	g = ctx->state[6];
-	h = ctx->state[7];
-
-	for (i = 0; i < 64; ++i) {
-		t1 = h + EP1(e) + CH(e,f,g) + k[i] + m[i];
-		t2 = EP0(a) + MAJ(a,b,c);
-		h = g;
-		g = f;
-		f = e;
-		e = d + t1;
-		d = c;
-		c = b;
-		b = a;
-		a = t1 + t2;
-	}
-
-	ctx->state[0] += a;
-	ctx->state[1] += b;
-	ctx->state[2] += c;
-	ctx->state[3] += d;
-	ctx->state[4] += e;
-	ctx->state[5] += f;
-	ctx->state[6] += g;
-	ctx->state[7] += h;
-}
-
-void sha256_init(CRYAL_SHA256_CTX *ctx)
-{
-	ctx->datalen = 0;
-	ctx->bitlen = 0;
-	ctx->state[0] = 0x6a09e667;
-	ctx->state[1] = 0xbb67ae85;
-	ctx->state[2] = 0x3c6ef372;
-	ctx->state[3] = 0xa54ff53a;
-	ctx->state[4] = 0x510e527f;
-	ctx->state[5] = 0x9b05688c;
-	ctx->state[6] = 0x1f83d9ab;
-	ctx->state[7] = 0x5be0cd19;
-}
-
-void sha256_update(CRYAL_SHA256_CTX *ctx, const BYTE data[], size_t len)
-{
-	WORD i;
-
-	for (i = 0; i < len; ++i) {
-		ctx->data[ctx->datalen] = data[i];
-		ctx->datalen++;
-		if (ctx->datalen == 64) {
-			sha256_transform(ctx, ctx->data);
-			ctx->bitlen += 512;
-			ctx->datalen = 0;
-		}
-	}
-}
-
-void sha256_final(CRYAL_SHA256_CTX *ctx, BYTE hash[])
-{
-	WORD i;
-
-	i = ctx->datalen;
-
-	// Pad whatever data is left in the buffer.
-	if (ctx->datalen < 56) {
-		ctx->data[i++] = 0x80;
-		while (i < 56)
-			ctx->data[i++] = 0x00;
-	}
-	else {
-		ctx->data[i++] = 0x80;
-		while (i < 64)
-			ctx->data[i++] = 0x00;
-		sha256_transform(ctx, ctx->data);
-		memset(ctx->data, 0, 56);
-	}
-
-	// Append to the padding the total message's length in bits and transform.
-	ctx->bitlen += ctx->datalen * 8;
-	ctx->data[63] = ctx->bitlen;
-	ctx->data[62] = ctx->bitlen >> 8;
-	ctx->data[61] = ctx->bitlen >> 16;
-	ctx->data[60] = ctx->bitlen >> 24;
-	ctx->data[59] = ctx->bitlen >> 32;
-	ctx->data[58] = ctx->bitlen >> 40;
-	ctx->data[57] = ctx->bitlen >> 48;
-	ctx->data[56] = ctx->bitlen >> 56;
-	sha256_transform(ctx, ctx->data);
-
-	// Since this implementation uses little endian byte ordering and SHA uses big endian,
-	// reverse all the bytes when copying the final state to the output hash.
-	for (i = 0; i < 4; ++i) {
-		hash[i]      = (ctx->state[0] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 4]  = (ctx->state[1] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 8]  = (ctx->state[2] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 12] = (ctx->state[3] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 16] = (ctx->state[4] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 20] = (ctx->state[5] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 24] = (ctx->state[6] >> (24 - i * 8)) & 0x000000ff;
-		hash[i + 28] = (ctx->state[7] >> (24 - i * 8)) & 0x000000ff;
-	}
-}
-
-#endif //MICROPY_PY_UHASHLIB
+#endif //MICROPY_PY_UHASHLIB 
 /*
  * This file is part of the Micro Python project, http://micropython.org/
  *
@@ -38382,6 +39178,494 @@ const mp_obj_module_t mp_module_ubinascii = {
 };
 
 #endif //MICROPY_PY_UBINASCII
+/*
+ *
+ * Copyright (c) 2025 Damian Parrino
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <stdio.h>
+#include <assert.h>
+#include <string.h>
+
+//#include "py/nlr.h"
+//#include "py/runtime.h"
+//#include "py/binary.h"
+
+#include "apollo.h"
+#include "crc_util.h"
+
+// external definitions
+extern uint32_t adler32(uint32_t adler, const uint8_t *buf, uint32_t len);
+extern void sha1( const unsigned char *input, size_t ilen, unsigned char output[20] );
+extern void md5( const unsigned char *input, size_t ilen, unsigned char output[16] );
+
+
+//---  Custom crypto functions ---//
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_diablo3_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_dw8xl_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_silent_hill3_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_nfs_undercover_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_final_fantasy13_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_borderlands3_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_mgs_pw_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_mgs_base64_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_mgs_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_mgs5_tpp_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_monster_hunter_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_rgg_studio_obj);
+
+//---  Generic crypto functions ---//
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_ecb_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_cbc_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_ctr_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_des_ecb_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_des3_cbc_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_blowfish_ecb_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_blowfish_cbc_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_camellia_ecb_obj);
+
+
+/*
+ * append_le_uint16: append an unsigned 16 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint16(mp_state, buf, val) \
+	buf[0] = (uint8_t)val; \
+	buf[1] = (uint8_t)(val >> 8);
+
+#define micropy_write_be_uint16(mp_state, buf, val) \
+	buf[1] = (uint8_t)val; \
+	buf[0] = (uint8_t)(val >> 8);
+
+/*
+ * append_le_uint32: append an unsigned 32 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint32(mp_state, buf, val) \
+	buf[0] = (uint8_t)val; \
+	buf[1] = (uint8_t)(val >> 8); \
+	buf[2] = (uint8_t)(val >> 16); \
+	buf[3] = (uint8_t)(val >> 24);
+
+#define micropy_write_be_uint32(mp_state, buf, val) \
+	buf[3] = (uint8_t)val; \
+	buf[2] = (uint8_t)(val >> 8); \
+	buf[1] = (uint8_t)(val >> 16); \
+	buf[0] = (uint8_t)(val >> 24);
+
+/*
+ * append_le_uint64: append an unsigned 64 bits Little Endian
+ * value to a buffer
+ */
+#define micropy_write_le_uint64(mp_state, buf, val) \
+    buf[0] = (uint8_t)val; \
+    buf[1] = (uint8_t)(val >> 8); \
+    buf[2] = (uint8_t)(val >> 16); \
+    buf[3] = (uint8_t)(val >> 24); \
+    buf[4] = (uint8_t)(val >> 32); \
+    buf[5] = (uint8_t)(val >> 40); \
+    buf[6] = (uint8_t)(val >> 48); \
+    buf[7] = (uint8_t)(val >> 56);
+
+#define micropy_write_be_uint64(mp_state, buf, val) \
+    buf[7] = (uint8_t)val; \
+    buf[6] = (uint8_t)(val >> 8); \
+    buf[5] = (uint8_t)(val >> 16); \
+    buf[4] = (uint8_t)(val >> 24); \
+    buf[3] = (uint8_t)(val >> 32); \
+    buf[2] = (uint8_t)(val >> 40); \
+    buf[1] = (uint8_t)(val >> 48); \
+    buf[0] = (uint8_t)(val >> 56);
+
+/*
+ * read_le_uint16: read an unsigned 16 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint16(mp_state, buf) \
+    ((uint16_t)(buf[0]) | ((uint16_t)(buf[1]) << 8))
+
+#define micropy_read_be_uint16(mp_state, buf) \
+    ((uint16_t)(buf[1]) | ((uint16_t)(buf[0]) << 8))
+
+/*
+ * read_le_uint32: read an unsigned 32 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint32(mp_state, buf) \
+    ((uint32_t)(buf[0]) | ((uint32_t)(buf[1]) << 8) | \
+    ((uint32_t)(buf[2]) << 16) | ((uint32_t)(buf[3]) << 24))
+
+#define micropy_read_be_uint32(mp_state, buf) \
+    ((uint32_t)(buf[3]) | ((uint32_t)(buf[2]) << 8) | \
+    ((uint32_t)(buf[1]) << 16) | ((uint32_t)(buf[0]) << 24))
+
+/*
+ * read_le_uint64: read an unsigned 64 bits Little Endian
+ * value from a buffer
+ */
+#define micropy_read_le_uint64(mp_state, buf) \
+    ((uint64_t)(buf[0]) | ((uint64_t)(buf[1]) << 8) | \
+    ((uint64_t)(buf[2]) << 16) | ((uint64_t)(buf[3]) << 24) | \
+    ((uint64_t)(buf[4]) << 32) | ((uint64_t)(buf[5]) << 40) | \
+    ((uint64_t)(buf[6]) << 48) | ((uint64_t)(buf[7]) << 56))
+
+#define micropy_read_be_uint64(mp_state, buf) \
+    ((uint64_t)(buf[7]) | ((uint64_t)(buf[6]) << 8) | \
+    ((uint64_t)(buf[5]) << 16) | ((uint64_t)(buf[4]) << 24) | \
+    ((uint64_t)(buf[3]) << 32) | ((uint64_t)(buf[2]) << 40) | \
+    ((uint64_t)(buf[1]) << 48) | ((uint64_t)(buf[0]) << 56))
+
+
+mp_obj_t micropy_mod_ucrypto_dw8xl(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    dw8xl_encode_data(bufinfo.buf, bufinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_ucrypto_dw8xl_obj, micropy_mod_ucrypto_dw8xl);
+
+mp_obj_t micropy_mod_ucrypto_diablo3(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        diablo_encrypt_data(bufinfo.buf, bufinfo.len);
+    else
+        // decryption mode
+        diablo_decrypt_data(bufinfo.buf, bufinfo.len);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_diablo3_obj, micropy_mod_ucrypto_diablo3);
+
+mp_obj_t micropy_mod_ucrypto_silent_hill3(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        sh3_encrypt_data(bufinfo.buf, bufinfo.len);
+    else
+        // decryption mode
+        sh3_decrypt_data(bufinfo.buf, bufinfo.len);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_silent_hill3_obj, micropy_mod_ucrypto_silent_hill3);
+
+mp_obj_t micropy_mod_ucrypto_nfs_undercover(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        nfsu_encrypt_data(bufinfo.buf, bufinfo.len);
+    else
+        // decryption mode
+        nfsu_decrypt_data(bufinfo.buf, bufinfo.len);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_nfs_undercover_obj, micropy_mod_ucrypto_nfs_undercover);
+
+mp_obj_t micropy_mod_ucrypto_final_fantasy13(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, args[1], &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, args[0]))
+        // encryption mode
+        ff13_encrypt_data(micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        ff13_decrypt_data(micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return args[0];
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_final_fantasy13_obj, 4, 4, micropy_mod_ucrypto_final_fantasy13);
+
+mp_obj_t micropy_mod_ucrypto_borderlands3(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t type) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        borderlands3_Encrypt(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
+    else
+        // decryption mode
+        borderlands3_Decrypt(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_borderlands3_obj, micropy_mod_ucrypto_borderlands3);
+
+mp_obj_t micropy_mod_ucrypto_mgs_pw(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        mgspw_Encrypt(bufinfo.buf, bufinfo.len);
+    else
+        // decryption mode
+        mgspw_Decrypt(bufinfo.buf, bufinfo.len);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs_pw_obj, micropy_mod_ucrypto_mgs_pw);
+
+mp_obj_t micropy_mod_ucrypto_mgs_base64(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        mgs_EncodeBase64(bufinfo.buf, bufinfo.len);
+    else
+        // decryption mode
+        mgs_DecodeBase64(bufinfo.buf, bufinfo.len);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs_base64_obj, micropy_mod_ucrypto_mgs_base64);
+
+mp_obj_t micropy_mod_ucrypto_mgs5_tpp(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    mgs5tpp_encode_data(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, key));
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs5_tpp_obj, micropy_mod_ucrypto_mgs5_tpp);
+
+mp_obj_t micropy_mod_ucrypto_rgg_studio(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    rgg_xor_data(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_rgg_studio_obj, micropy_mod_ucrypto_rgg_studio);
+
+mp_obj_t micropy_mod_ucrypto_mgs(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        mgs_Encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        mgs_Decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_mgs_obj, micropy_mod_ucrypto_mgs);
+
+mp_obj_t micropy_mod_ucrypto_monster_hunter(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t gver) {
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+
+    int ver = micropy_obj_int_get_truncated(mp_state, gver);
+    if (ver != 2 && ver != 3) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "Game version must be 2 or 3"));
+    }
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        monsterhunter_encrypt_data(bufinfo.buf, bufinfo.len, ver);
+    else
+        // decryption mode
+        monsterhunter_decrypt_data(bufinfo.buf, bufinfo.len, ver);
+
+    return enc_mode;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_monster_hunter_obj, micropy_mod_ucrypto_monster_hunter);
+
+mp_obj_t micropy_mod_ucrypto_aes_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        aes_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        aes_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_aes_ecb_obj, micropy_mod_ucrypto_aes_ecb);
+
+mp_obj_t micropy_mod_ucrypto_aes_ctr(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t key, mp_obj_t iv) {
+    mp_buffer_info_t bufinfo, keyinfo, ivinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, iv, &ivinfo, MP_BUFFER_READ);
+
+    aes_ctr_xcrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_aes_ctr_obj, micropy_mod_ucrypto_aes_ctr);
+
+mp_obj_t micropy_mod_ucrypto_blowfish_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        blowfish_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        blowfish_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_blowfish_ecb_obj, micropy_mod_ucrypto_blowfish_ecb);
+
+mp_obj_t micropy_mod_ucrypto_camellia_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        camellia_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        camellia_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_camellia_ecb_obj, micropy_mod_ucrypto_camellia_ecb);
+
+mp_obj_t micropy_mod_ucrypto_des_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+    mp_buffer_info_t bufinfo, keyinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
+        // encryption mode
+        des_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    else
+        // decryption mode
+        des_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_des_ecb_obj, micropy_mod_ucrypto_des_ecb);
+
+mp_obj_t micropy_mod_ucrypto_aes_cbc(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo, keyinfo, ivinfo;
+    micropy_get_buffer_raise(mp_state, args[1], &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, args[0]))
+        // encryption mode
+        aes_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    else
+        // decryption mode
+        aes_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+
+    return args[0];
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_aes_cbc_obj, 4, 4, micropy_mod_ucrypto_aes_cbc);
+
+mp_obj_t micropy_mod_ucrypto_blowfish_cbc(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo, keyinfo, ivinfo;
+    micropy_get_buffer_raise(mp_state, args[1], &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, args[0]))
+        // encryption mode
+        blowfish_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    else
+        // decryption mode
+        blowfish_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+
+    return args[0];
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_blowfish_cbc_obj, 4, 4, micropy_mod_ucrypto_blowfish_cbc);
+
+mp_obj_t micropy_mod_ucrypto_des3_cbc(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    mp_buffer_info_t bufinfo, keyinfo, ivinfo;
+    micropy_get_buffer_raise(mp_state, args[1], &bufinfo, MP_BUFFER_RW);
+    micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_int_get_truncated(mp_state, args[0]))
+        // encryption mode
+        des3_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    else
+        // decryption mode
+        des3_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+
+    return args[0];
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_des3_cbc_obj, 4, 4, micropy_mod_ucrypto_des3_cbc);
+
+#if MICROPY_PY_UCRYPTO
+
+STATIC const mp_rom_map_elem_t mp_module_ucrypto_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_ucrypto) },
+    { MP_ROM_QSTR(MP_QSTR_DECRYPT), MP_OBJ_NEW_SMALL_INT(0) },
+    { MP_ROM_QSTR(MP_QSTR_ENCRYPT), MP_OBJ_NEW_SMALL_INT(1) },
+    { MP_ROM_QSTR(MP_QSTR_diablo3), MP_ROM_PTR(&mod_ucrypto_diablo3_obj) },
+    { MP_ROM_QSTR(MP_QSTR_dw8xl), MP_ROM_PTR(&mod_ucrypto_dw8xl_obj) },
+    { MP_ROM_QSTR(MP_QSTR_silent_hill3), MP_ROM_PTR(&mod_ucrypto_silent_hill3_obj) },
+    { MP_ROM_QSTR(MP_QSTR_nfs_undercover), MP_ROM_PTR(&mod_ucrypto_nfs_undercover_obj) },
+    { MP_ROM_QSTR(MP_QSTR_final_fantasy13), MP_ROM_PTR(&mod_ucrypto_final_fantasy13_obj) },
+    { MP_ROM_QSTR(MP_QSTR_borderlands3), MP_ROM_PTR(&mod_ucrypto_borderlands3_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgs_pw), MP_ROM_PTR(&mod_ucrypto_mgs_pw_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgs_base64), MP_ROM_PTR(&mod_ucrypto_mgs_base64_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgs), MP_ROM_PTR(&mod_ucrypto_mgs_obj) },
+    { MP_ROM_QSTR(MP_QSTR_mgs5_tpp), MP_ROM_PTR(&mod_ucrypto_mgs5_tpp_obj) },
+    { MP_ROM_QSTR(MP_QSTR_monster_hunter), MP_ROM_PTR(&mod_ucrypto_monster_hunter_obj) },
+    { MP_ROM_QSTR(MP_QSTR_rgg_studio), MP_ROM_PTR(&mod_ucrypto_rgg_studio_obj) },
+    { MP_ROM_QSTR(MP_QSTR_aes_ecb), MP_ROM_PTR(&mod_ucrypto_aes_ecb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_aes_cbc), MP_ROM_PTR(&mod_ucrypto_aes_cbc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_aes_ctr), MP_ROM_PTR(&mod_ucrypto_aes_ctr_obj) },
+    { MP_ROM_QSTR(MP_QSTR_des_ecb), MP_ROM_PTR(&mod_ucrypto_des_ecb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_des3_cbc), MP_ROM_PTR(&mod_ucrypto_des3_cbc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_blowfish_ecb), MP_ROM_PTR(&mod_ucrypto_blowfish_ecb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_blowfish_cbc), MP_ROM_PTR(&mod_ucrypto_blowfish_cbc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_camellia_ecb), MP_ROM_PTR(&mod_ucrypto_camellia_ecb_obj) },
+};
+
+STATIC MP_DEFINE_CONST_DICT(mp_module_ucrypto_globals, mp_module_ucrypto_globals_table);
+
+const mp_obj_module_t mp_module_ucrypto = {
+    .base = { &mp_type_module },
+    .name = MP_QSTR_ucrypto,
+    .globals = (mp_obj_dict_t*)&mp_module_ucrypto_globals,
+};
+
+#endif //MICROPY_PY_UCRYPTO
 #include <setjmp.h>
 
 void micropy_gc_collect(mp_state_ctx_t *mp) {
@@ -38394,16 +39678,9 @@ void micropy_gc_collect(mp_state_ctx_t *mp) {
     micropy_gc_collect_end(mp);
 }
 
-#ifdef __vita__
-mp_import_stat_t micropy_import_stat(struct _mp_state_ctx_t *mp_state, const char *path)
-{
-    return MP_IMPORT_STAT_NO_EXIST;
-}
-#else
 uint micropy_import_stat(mp_state_ctx_t *mp, const char *path) {
     return MP_IMPORT_STAT_NO_EXIST;
 }
-#endif
 
 void micropy_nlr_jump_fail(mp_state_ctx_t *mp, void *val) {
     micropy_printf(mp, &mp_plat_print, "FATAL: uncaught NLR %p\n", val);

@@ -7,6 +7,20 @@
 extern "C" {
 #endif
 
+#define read_be_uint16(buf) \
+    ((uint16_t)(buf[1]) | ((uint16_t)(buf[0]) << 8))
+
+#define read_be_uint32(buf) \
+    ((uint32_t)(buf[3]) | ((uint32_t)(buf[2]) << 8) | \
+    ((uint32_t)(buf[1]) << 16) | ((uint32_t)(buf[0]) << 24))
+
+#define read_le_uint16(buf) \
+    ((uint16_t)(buf[0]) | ((uint16_t)(buf[1]) << 8))
+
+#define read_le_uint32(buf) \
+    ((uint32_t)(buf[0]) | ((uint32_t)(buf[1]) << 8) | \
+    ((uint32_t)(buf[2]) << 16) | ((uint32_t)(buf[3]) << 24))
+
 /* FNV-1 init arbitrary value */
 #define FNV1_INIT_VALUE                     0x811c9dc5
 

@@ -110,8 +110,12 @@ extern const struct _mp_obj_fun_builtin_t mp_builtin_open_obj;
 
 #endif
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
+#include <malloc.h> // alloca is in malloc.h on Windows
+#else
 // We need to provide a declaration/definition of alloca()
 #include <alloca.h>
+#endif
 
 int mp_hal_stdin_rx_chr(void);
 void mp_hal_stdout_tx_str(const char *str);
