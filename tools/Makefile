@@ -5,7 +5,7 @@ DEPS	=	Makefile
 
 CC	=	gcc
 CFLAGS	=	-g -O3 -Wall -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE
-LDFLAGS =	-lz -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
+LDFLAGS =	-lz -lm -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
 
 ifdef BIGENDIAN
 CFLAGS	+=	-D__PS3_PC__
