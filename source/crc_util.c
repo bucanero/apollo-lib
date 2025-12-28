@@ -450,7 +450,10 @@ void lookup3_hashlittle2(
 int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
 {
 	if (size < SW4_OFF_JP)
+	{
+		memset(crcs, 0, 4 * sizeof(uint32_t));
 		return 0;
+	}
 
 	uint32_t num1, num2, num3, num4, num5, num6;
 	uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);

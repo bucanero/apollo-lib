@@ -100,7 +100,12 @@ void mp_unix_mark_exec(void);
 #define MP_PLAT_ALLOC_EXEC(min_size, ptr, size) mp_unix_alloc_exec(min_size, ptr, size)
 #define MP_PLAT_FREE_EXEC(ptr, size) mp_unix_free_exec(ptr, size)
 
+#ifdef APOLLO_CLI
 #define MP_PLAT_PRINT_STRN(str, len) fwrite(str, 1, len, stdout)
+#else
+void dbglogger_printf(const char* fmt, ...);
+#define MP_PLAT_PRINT_STRN(str, len) dbglogger_printf("%.*s", (int)(len), (str))
+#endif
 
 // extra built in names to add to the global namespace
 #if MICROPY_PY_IO

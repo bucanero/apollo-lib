@@ -4,7 +4,7 @@ COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patc
 DEPS	=	Makefile
 
 CC	=	gcc
-CFLAGS	=	-g -O3 -Wall -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE
+CFLAGS	=	-g -O3 -Wall -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE -DAPOLLO_CLI
 LDFLAGS =	-lz -lm -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
 
 ifdef BIGENDIAN
