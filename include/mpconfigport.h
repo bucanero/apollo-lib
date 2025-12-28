@@ -55,7 +55,7 @@
 #define MICROPY_PY_SYS_MAXSIZE      (1)
 
 #define MICROPY_PY_UCTYPES          (1)
-#define MICROPY_PY_UZLIB            (0) // tinf has callback without state
+#define MICROPY_PY_UZLIB            (1)
 #define MICROPY_PY_UJSON            (1)
 #define MICROPY_PY_URE              (1)
 #define MICROPY_PY_UHEAPQ           (1)
