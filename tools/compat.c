@@ -1,4 +1,5 @@
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
+#include <stdio.h>
 #include <windows.h>
 #include <share.h>
 #include <io.h>
