@@ -36,7 +36,7 @@
 #define INSZ            0x800   // the amount of bytes we want to decompress each time
 #define OUTSZ           0x10000 // the buffer used for decompressing the data
 #define FBUFFSZ         0x40000 // this buffer is used for reading, faster
-#define SHOWX           0x7ff   // AND to show the current scanned offset each SHOWX offsets
+#define SHOWX           0x7fff  // AND to show the current scanned offset each SHOWX offsets
 #define FCLOSE(X)       { if(X) fclose(X); X = NULL; }
 
 #define Z_INIT_ERROR    -1000
@@ -49,7 +49,7 @@
 static int buffread(FILE *fd, uint8_t *buff, int size);
 static void buffseek(FILE *fd, int off, int mode);
 static void buffinc(int increase);
-static int zip_search(FILE *fd);
+int offzip_search(FILE *fd);
 static int unzip_all(FILE *fd, const char* out_path);
 static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname);
 static int zlib_err(int err);
@@ -67,6 +67,42 @@ static uint8_t *g_in    = NULL,
         *g_out          = NULL,
         *g_filebuff     = NULL;
 
+
+int offzip_init(int wbits) {
+    g_zipwbits  = wbits;
+    g_filebuffoff = 0;
+    g_filebuffsz  = 0;
+    g_offset      = 0;
+
+    g_in        = malloc(INSZ);
+    g_out       = malloc(OUTSZ);
+    g_filebuff  = malloc(FBUFFSZ);
+    if(!g_in || !g_out || !g_filebuff) {
+        LOG("Error: unable to create buffers");
+        return (Z_INIT_ERROR);
+    }
+
+    memset(&z, 0, sizeof(z));
+    if(inflateInit2(&z, g_zipwbits) != Z_OK) {
+        free(g_in);
+        free(g_out);
+        free(g_filebuff);
+        return (Z_INIT_ERROR);
+    }
+
+    return Z_OK;
+}
+
+void offzip_free(void) {
+    inflateEnd(&z);
+    free(g_in);
+    free(g_out);
+    free(g_filebuff);
+
+    g_in        = NULL;
+    g_out       = NULL;
+    g_filebuff  = NULL;
+}
 
 int offzip_util(const char *file_input, const char *output_dir, int offset, int wbits, int count) {
     FILE    *fd,
@@ -109,11 +145,8 @@ int offzip_util(const char *file_input, const char *output_dir, int offset, int 
             "\n", argv[0], g_minzip);
 */
 
-    g_zipwbits      = wbits;
     g_count         = count;
     g_offset        = offset;
-    g_filebuffoff   = 0;
-    g_filebuffsz    = 0;
 
     LOG("- open input file:    %s", file_input);
     fd = fopen(file_input, "rb");
@@ -123,24 +156,17 @@ int offzip_util(const char *file_input, const char *output_dir, int offset, int 
         return 0;
     }
 
-    LOG("- zip data to check:  %d bytes", g_minzip);
-    LOG("- zip windowBits:     %d", g_zipwbits);
-
-    g_in       = malloc(INSZ);
-    g_out      = malloc(OUTSZ);
-    g_filebuff = malloc(FBUFFSZ);
-    if(!g_in || !g_out || !g_filebuff)
+    if(offzip_init(wbits) != Z_OK)
     {
+        fclose(fd);
         LOG("Error: unable to create buffers");
         return 0;
     }
 
+    LOG("- zip data to check:  %d bytes", g_minzip);
+    LOG("- zip windowBits:     %d", g_zipwbits);
     LOG("- seek offset:        0x%08x  (%u)", g_offset, g_offset);
     buffseek(fd, g_offset, SEEK_SET);
-
-    memset(&z, 0, sizeof(z));
-    if(inflateInit2(&z, g_zipwbits) != Z_OK) 
-        return zlib_err(Z_INIT_ERROR);
 
     LOG("+------------+-------------+-------------------------+");
     LOG("| hex_offset | blocks_dots | zip_size --> unzip_size |");
@@ -155,14 +181,10 @@ int offzip_util(const char *file_input, const char *output_dir, int offset, int 
 
     FCLOSE(fdo);
     FCLOSE(fd);
-    inflateEnd(&z);
-    free(g_in);
-    free(g_out);
-    free(g_filebuff);
+    offzip_free();
 
     return(files > 0);
 }
-
 
 static int buffread(FILE *fd, uint8_t *buff, int size) {
     int     len,
@@ -189,7 +211,6 @@ static int buffread(FILE *fd, uint8_t *buff, int size) {
     return ret;
 }
 
-
 static void buffseek(FILE *fd, int off, int mode) {
     if(fseek(fd, off, mode) < 0)
     {
@@ -201,14 +222,12 @@ static void buffseek(FILE *fd, int off, int mode) {
     g_offset      = ftell(fd);
 }
 
-
 static void buffinc(int increase) {
     g_filebuffoff += increase;
     g_offset      += increase;
 }
 
-
-static int zip_search(FILE *fd) {
+int offzip_search(FILE *fd) {
     int     len,
             zerr,
             ret;
@@ -235,7 +254,6 @@ static int zip_search(FILE *fd) {
     return ret;
 }
 
-
 static int unzip_all(FILE *fd, const char* out_path) {
     FILE    *fdo    = NULL;
     uint32_t inlen,
@@ -247,7 +265,7 @@ static int unzip_all(FILE *fd, const char* out_path) {
     extracted = 0;
     zipres    = -1;
 
-    while(!zip_search(fd)) {
+    while(!offzip_search(fd)) {
         snprintf(filename, sizeof(filename), "%s%08" PRIx32 ".dat", out_path, g_offset);
         LOG("Unzip (0x%08x) to %s", g_offset, filename);
 
@@ -287,7 +305,6 @@ static int unzip_all(FILE *fd, const char* out_path) {
     FCLOSE(fdo);
     return extracted;
 }
-
 
 static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname) {
     uint32_t oldsz = 0,
@@ -340,7 +357,6 @@ static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const 
     return ret;
 }
 
-
 static int zlib_err(int zerr) {
     switch(zerr) {
         case Z_DATA_ERROR: {
@@ -381,7 +397,6 @@ static int zlib_err(int zerr) {
     return 0;
 }
 
-
 static FILE *save_file(const char *fname) {
     FILE    *fd;
 
@@ -394,7 +409,6 @@ static FILE *save_file(const char *fname) {
     return fd;
 }
 
-
 static int myfwrite(uint8_t *buff, int size, FILE *fd) {
     if(!fd) {
         LOG("Error: myfw fd is NULL, contact me.");
@@ -406,4 +420,47 @@ static int myfwrite(uint8_t *buff, int size, FILE *fd) {
         return(0);
     }
     return 1;
+}
+
+int offzip_verify(FILE *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
+    uint32_t oldoff,
+            len;
+    int     ret     = -1,
+            zerr    = Z_OK;
+
+    oldoff = g_offset;
+    *offset = g_offset;
+    inflateReset(&z);
+
+    for(; (len = buffread(fd, g_in, INSZ)); buffinc(len)) {
+        z.next_in   = g_in;
+        z.avail_in  = len;
+        do {
+            z.next_out  = g_out;
+            z.avail_out = OUTSZ;
+            zerr = inflate(&z, Z_SYNC_FLUSH);
+
+            if(zerr != Z_OK) {      // inflate() return value MUST be handled now
+                if(zerr == Z_STREAM_END) {
+                    ret = 0;
+                } else {
+                    zlib_err(zerr);
+                }
+                break;
+            }
+            ret = 0;    // it's better to return 0 even if the z stream is incomplete... or not?
+        } while(z.avail_in);
+
+        if(zerr != Z_OK) break;     // Z_STREAM_END included, for avoiding "goto"
+    }
+
+    *inlen  = z.total_in;
+    *outlen = z.total_out;
+    if(!ret) {
+        oldoff += z.total_in;
+    } else {
+        oldoff++;
+    }
+    buffseek(fd, oldoff, SEEK_SET);
+    return ret;
 }
