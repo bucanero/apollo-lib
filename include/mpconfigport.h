@@ -19,7 +19,7 @@
 #define MICROPY_DEBUG_PRINTERS      (0)
 #define MICROPY_REPL_EVENT_DRIVEN   (0)
 #define MICROPY_HELPER_REPL         (1)
-#define MICROPY_HELPER_LEXER_UNIX   (0)
+#define MICROPY_HELPER_LEXER_UNIX   (1)
 #define MICROPY_ENABLE_SOURCE_LINE  (1)
 #define MICROPY_ENABLE_DOC_STRING   (0)
 #define MICROPY_ERROR_REPORTING     (MICROPY_ERROR_REPORTING_NORMAL)
@@ -117,6 +117,41 @@ extern const struct _mp_obj_fun_builtin_t mp_builtin_open_obj;
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
 #include <malloc.h> // alloca is in malloc.h on Windows
+
+#include <windows.h>
+#include <share.h>
+#include <io.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+/* https://github.com/Arryboom/fmemopen_windows  */
+FILE *fmemopen(void *buf, size_t len, const char *type)
+{
+	int fd;
+	FILE *fp;
+	char tp[MAX_PATH - 13];
+	char fn[MAX_PATH + 1];
+	int * pfd = &fd;
+	int retner = -1;
+	char tfname[] = "MemTF_";
+	if (!GetTempPathA(sizeof(tp), tp))
+		return NULL;
+	if (!GetTempFileNameA(tp, tfname, 0, fn))
+		return NULL;
+	retner = _sopen_s(pfd, fn, _O_CREAT | _O_SHORT_LIVED | _O_TEMPORARY | _O_RDWR | _O_BINARY | _O_NOINHERIT, _SH_DENYRW, _S_IREAD | _S_IWRITE);
+	if (retner != 0)
+		return NULL;
+	if (fd == -1)
+		return NULL;
+	fp = _fdopen(fd, "wb+");
+	if (!fp) {
+		_close(fd);
+		return NULL;
+	}
+	/*File descriptors passed into _fdopen are owned by the returned FILE * stream.If _fdopen is successful, do not call _close on the file descriptor.Calling fclose on the returned FILE * also closes the file descriptor.*/
+	fwrite(buf, len, 1, fp);
+	rewind(fp);
+	return fp;
+}
 #else
 // We need to provide a declaration/definition of alloca()
 #include <alloca.h>
