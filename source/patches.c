@@ -13,8 +13,21 @@
 #include "upy.h"
 
 #define SUCCESS                 0
-#define PY_HEAP_SIZE            (32 * 1024)
 #define skip_spaces(str)        while (*str == ' ') str++;
+
+#ifdef __vita__
+// PS Vita
+#define PY_HEAP_SIZE            (8 * 1024)*1024
+#elif __PSP__
+// PlayStation Portable
+#define PY_HEAP_SIZE            (2 * 1024)*1024
+#elif __PPC__
+// PS3
+#define PY_HEAP_SIZE            (16 * 1024)*1024
+#else
+// Default (PS4, PC, etc)
+#define PY_HEAP_SIZE            (32 * 1024)*1024
+#endif
 
 typedef enum
 {
@@ -718,11 +731,12 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			    if (!var)
 			    {
-			        var = malloc(sizeof(bsd_variable_t));
-    			    var->name = strdup(line);
-    			    var->data = NULL;
-    			    var->len = BSD_VAR_NULL;
-    			    list_append(var_list, var);
+					old_val = 0;
+					var = malloc(sizeof(bsd_variable_t));
+					var->name = strdup(line);
+					var->data = NULL;
+					var->len = BSD_VAR_NULL;
+					list_append(var_list, var);
     			}
     			else
     			{
@@ -985,23 +999,20 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			        }
 			    }
 
-			    // set [*]:md5_xor*
-			    else if (wildcard_match_icase(line, "md5_xor*"))
-			    {
-    			    uint32_t hash[4];
-    			    uint8_t* start = (uint8_t*)data + range_start;
-    			    len = range_end - range_start;
+				// set [*]:md5_xor*
+				else if (wildcard_match_icase(line, "md5_xor*"))
+				{
+					uint32_t hash;
+					len = range_end - range_start;
 
-					md5(start, len, (uint8_t*) hash);
-					hash[0] ^= (hash[1] ^ hash[2] ^ hash[3]);
-					LE32(hash[0]);
+					hash = md5_xor_hash((uint8_t*)data + range_start, len);
 
-                    var->len = BSD_VAR_INT32;
-                    var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) hash, var->len);
+					var->len = BSD_VAR_INT32;
+					var->data = malloc(var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
-    			    LOG("len %d MD5_XOR HASH = %08X", len, *(uint32_t*)hash);
-			    }
+					LOG("len %d MD5_XOR HASH = %08X", len, hash);
+				}
 
 			    // set [*]:md5*
 			    else if (wildcard_match_icase(line, "md5*"))
@@ -1020,12 +1031,11 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				// set [*]:ripemd160*
 				else if (wildcard_match_icase(line, "ripemd160*"))
 				{
-					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
 					var->len = BSD_VAR_SHA1;
 					var->data = malloc(var->len);
-					ripemd160(start, len, var->data);
+					ripemd160((uint8_t*)data + range_start, len, var->data);
 
 					LOG("len %d RIPEMD160", len, len);
 					_log_dump("RIPEMD160 HASH", var->data, var->len);
@@ -1034,19 +1044,16 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				// set [*]:sha1_xor64*
 				else if (wildcard_match_icase(line, "sha1_xor64*"))
 				{
-					uint64_t sha[3] = {0, 0, 0};
-					uint8_t* start = (uint8_t*)data + range_start;
+					uint64_t hash;
 					len = range_end - range_start;
 
-					sha1(start, len, (uint8_t*) sha);
-					sha[0] ^= (sha[1] ^ sha[2]);
-					BE64(sha[0]);
+					hash = sha1_xor64_hash((uint8_t*)data + range_start, len);
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) sha, var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
-					LOG("len %d SHA1_XOR64 HASH = %016" PRIX64, len, ((uint64_t*)var->data)[0]);
+					LOG("len %d SHA1_XOR64 HASH = %016" PRIX64, len, hash);
 				}
 
 			    // set [*]:sha1*
@@ -1583,15 +1590,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					line += strlen("qwadd(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
-					char* read = data + add_s + BSD_VAR_INT32;
-					
-					while (read < data + add_e)
-					{
-						uint32_t radd = (*(uint32_t*)read);
-						BE32(radd);
-						add += radd;
-						read += BSD_VAR_INT64;
-					}
+
+					add += qwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1610,15 +1610,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			        line += strlen("dwadd(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
-    			    char* read = data + add_s;
-    			    
-    			    while (read < data + add_e)
-    			    {
-						uint32_t radd = (*(uint32_t*)read);
-						BE32(radd);
-    			    	add += radd;
-    			    	read += BSD_VAR_INT32;
-    			    }
+
+					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
@@ -1638,15 +1631,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					line += strlen("wadd_le(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
-					char* read = data + add_s;
-					
-					while (read < data + add_e)
-					{
-						uint16_t radd = (*(uint16_t*)read);
-						LE16(radd);
-						add += radd;
-						read += BSD_VAR_INT16;
-					}
+
+					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1666,15 +1652,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					line += strlen("dwadd_le(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
-					char* read = data + add_s;
-					
-					while (read < data + add_e)
-					{
-						uint32_t radd = (*(uint32_t*)read);
-						LE32(radd);
-						add += radd;
-						read += BSD_VAR_INT32;
-					}
+
+					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1693,15 +1672,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			        line += strlen("wadd(");
 			        _parse_start_end(line, pointer, dsize, &add_s, &add_e);
-    			    char* read = data + add_s;
-    			    
-    			    while (read < data + add_e)
-    			    {
-						uint16_t radd = (*(uint16_t*)read);
-						BE16(radd);
-    			    	add += radd;
-    			    	read += BSD_VAR_INT16;
-    			    }
+
+					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
     			    
     			    while ((carry > 0) && (add > 0xFFFF))
     			    {
@@ -1725,13 +1697,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			        line += strlen("add(");
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
-    			    char* read = data + add_s;
-    			    
-    			    while (read <= data + add_e)
-    			    {
-    			    	add += (*(uint8_t*)read);
-    			    	read += BSD_VAR_INT8;
-    			    }
+
+					add += add_hash((uint8_t*)data + add_s, add_e - add_s + 1);
 
     			    while ((carry > 0) && (add > 0xFFFF))
     			    {
@@ -1758,15 +1725,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 			        line += strlen("wsub(");
 			        _parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
-    			    char* read = data + sub_s;
-    			    
-    			    while (read < data + sub_e)
-    			    {
-						uint16_t rsub = (*(uint16_t*)read);
-						BE16(rsub);
-    			    	sub -= rsub;
-    			    	read += BSD_VAR_INT16;
-    			    }
+
+					sub += wsub_hash((uint8_t*)data + sub_s, sub_e - sub_s + 1);
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);

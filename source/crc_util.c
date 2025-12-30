@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <polarssl/md5.h>
 #include <polarssl/sha1.h>
 #include "apollo.h"
 #include "crc_util.h"
+#include "types.h"
 
 #define SW4_OFF_1      0x00004
 #define SW4_OFF_2      0x000A8
@@ -760,6 +762,28 @@ uint32_t jhash(const uint8_t *k, uint32_t length, uint32_t initval)
     __jhash_mix(a,b,c);
 
     return c;
+}
+
+uint32_t md5_xor_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t hash[4];
+
+    md5(data, len, (uint8_t*) hash);
+    hash[0] ^= (hash[1] ^ hash[2] ^ hash[3]);
+    LE32(hash[0]);
+
+    return hash[0];
+}
+
+uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len)
+{
+    uint64_t sha[3] = {0, 0, 0};
+
+    sha1(data, len, (uint8_t*) sha);
+    sha[0] ^= (sha[1] ^ sha[2]);
+    BE64(sha[0]);
+
+    return sha[0];
 }
 
 uint32_t add_hash(const uint8_t* data, uint32_t len)
