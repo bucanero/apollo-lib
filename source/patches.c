@@ -732,11 +732,11 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			    if (!var)
 			    {
 					old_val = 0;
-					var = malloc(sizeof(bsd_variable_t));
-					var->name = strdup(line);
-					var->data = NULL;
-					var->len = BSD_VAR_NULL;
-					list_append(var_list, var);
+			        var = malloc(sizeof(bsd_variable_t));
+    			    var->name = strdup(line);
+    			    var->data = NULL;
+    			    var->len = BSD_VAR_NULL;
+    			    list_append(var_list, var);
     			}
     			else
     			{
