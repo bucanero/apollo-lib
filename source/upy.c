@@ -38334,29 +38334,59 @@ MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_djb2_obj);
     ret = micropy_read_be_uint64(mp_state, buf);
 
 
-mp_obj_t micropy_mod_uhashlib_add(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+mp_obj_t micropy_mod_uhashlib_add(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
     uint8_t out[4];
     mp_buffer_info_t bufinfo;
-    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
 
     uint32_t crc = add_hash(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
-    return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
-}
-MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_add_obj, micropy_mod_uhashlib_add);
+    int carry = 0;
+    if (n_args > 1) {
+        // custom carry value
+        carry = micropy_obj_int_get_truncated(mp_state, args[1]);
+        if (carry != 2)
+            micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "Invalid carry value"));
 
-mp_obj_t micropy_mod_uhashlib_wadd(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+        while (crc > 0xFFFF)
+        {
+            crc = (crc & 0x0000FFFF) + ((crc & 0xFFFF0000) >> 8*carry);
+        }
+
+        micropy_write_be_uint16(mp_state, out, crc);
+    }
+
+    return micropy_obj_new_bytearray(mp_state, sizeof(out) - carry, out);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_add_obj, 1, 2, micropy_mod_uhashlib_add);
+
+mp_obj_t micropy_mod_uhashlib_wadd(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
     uint8_t out[4];
     mp_buffer_info_t bufinfo;
-    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
 
     uint32_t crc = wadd_hash(bufinfo.buf, bufinfo.len, 0);
     micropy_write_be_uint32(mp_state, out, crc);
 
-    return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
+    int carry = 0;
+    if (n_args > 1) {
+        // custom carry value
+        carry = micropy_obj_int_get_truncated(mp_state, args[1]);
+        if (carry != 2)
+            micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "Invalid carry value"));
+
+        while (crc > 0xFFFF)
+        {
+            crc = (crc & 0x0000FFFF) + ((crc & 0xFFFF0000) >> 8*carry);
+        }
+
+        micropy_write_be_uint16(mp_state, out, crc);
+    }
+
+    return micropy_obj_new_bytearray(mp_state, sizeof(out) - carry, out);
 }
-MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_wadd_obj, micropy_mod_uhashlib_wadd);
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uhashlib_wadd_obj, 1, 2, micropy_mod_uhashlib_wadd);
 
 mp_obj_t micropy_mod_uhashlib_wadd_le(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
     uint8_t out[4];
