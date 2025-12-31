@@ -1031,7 +1031,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				{
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA256;
+					var->len = 28;
 					var->data = malloc(var->len);
 					sha256((uint8_t*)data + range_start, len, var->data, 1);
 
@@ -1088,8 +1088,8 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
     			    uint8_t* start = (uint8_t*)data + range_start;
     			    len = range_end - range_start;
 
-                    var->len = BSD_VAR_SHA512;
-                    var->data = malloc(var->len);
+					var->len = 48;
+					var->data = malloc(var->len);
 					sha512(start, len, var->data, 1);
 
 					LOG("len %d SHA384", len);

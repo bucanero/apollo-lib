@@ -731,7 +731,7 @@ QDEF(MP_QSTR_crc32, (const byte*)"\x76\xe8\x05" "crc32")
 QDEF(MP_QSTR_crc32big, (const byte*)"\x3a\x19\x08" "crc32big")
 QDEF(MP_QSTR_crc64_iso, (const byte*)"\x7f\xe9\x09" "crc64_iso")
 QDEF(MP_QSTR_crc64_ecma, (const byte*)"\xe0\x66\x0a" "crc64_ecma")
-QDEF(MP_QSTR_ripemd160, (const byte*)"\x55\x64\x09" "ripemd160")
+QDEF(MP_QSTR_sha224, (const byte*)"\xcb\x01\x06" "sha224")
 QDEF(MP_QSTR_md5, (const byte*)"\x19\x44\x03" "md5")
 QDEF(MP_QSTR_md5_xor, (const byte*)"\xe3\x4e\x07" "md5_xor")
 QDEF(MP_QSTR_sha1, (const byte*)"\x8e\xac\x04" "sha1")
@@ -38238,10 +38238,10 @@ MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc32_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc32big_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc64_iso_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_crc64_ecma_obj);
-MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_ripemd160_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_md5_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_md5_xor_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha1_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha224_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha256_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha384_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha512_obj);
@@ -38722,16 +38722,16 @@ mp_obj_t micropy_mod_uhashlib_lookup3_little2(struct _mp_state_ctx_t *mp_state, 
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mod_uhashlib_lookup3_little2_obj, micropy_mod_uhashlib_lookup3_little2);
 
-mp_obj_t micropy_mod_uhashlib_ripemd160(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
-    uint8_t out[20];
+mp_obj_t micropy_mod_uhashlib_sha224(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    uint8_t out[28];
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    ripemd160(bufinfo.buf, bufinfo.len, out);
+    sha256(bufinfo.buf, bufinfo.len, out, 1);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
 }
-MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_ripemd160_obj, micropy_mod_uhashlib_ripemd160);
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha224_obj, micropy_mod_uhashlib_sha224);
 
 mp_obj_t micropy_mod_uhashlib_md5(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
     uint8_t out[16];
@@ -38815,7 +38815,7 @@ mp_obj_t micropy_mod_uhashlib_sha256(struct _mp_state_ctx_t *mp_state, mp_obj_t 
 MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_sha256_obj, micropy_mod_uhashlib_sha256);
 
 mp_obj_t micropy_mod_uhashlib_sha384(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
-    uint8_t out[64];
+    uint8_t out[48];
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
@@ -39047,7 +39047,7 @@ STATIC const mp_rom_map_elem_t mp_module_hashlib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_crc32big), MP_ROM_PTR(&mod_uhashlib_crc32big_obj) },
     { MP_ROM_QSTR(MP_QSTR_crc64_iso), MP_ROM_PTR(&mod_uhashlib_crc64_iso_obj) },
     { MP_ROM_QSTR(MP_QSTR_crc64_ecma), MP_ROM_PTR(&mod_uhashlib_crc64_ecma_obj) },
-    { MP_ROM_QSTR(MP_QSTR_ripemd160), MP_ROM_PTR(&mod_uhashlib_ripemd160_obj) },
+    { MP_ROM_QSTR(MP_QSTR_sha224), MP_ROM_PTR(&mod_uhashlib_sha224_obj) },
     { MP_ROM_QSTR(MP_QSTR_md5), MP_ROM_PTR(&mod_uhashlib_md5_obj) },
     { MP_ROM_QSTR(MP_QSTR_md5_xor), MP_ROM_PTR(&mod_uhashlib_md5_xor_obj) },
     { MP_ROM_QSTR(MP_QSTR_sha1), MP_ROM_PTR(&mod_uhashlib_sha1_obj) },
