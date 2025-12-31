@@ -1,9 +1,7 @@
-#include <polarssl/md.h>
 #include <polarssl/md5.h>
 #include <polarssl/sha1.h>
 #include <polarssl/sha256.h>
 #include <polarssl/sha512.h>
-#include <polarssl/ripemd160.h>
 #include <zlib.h>
 #include <dirent.h>
 
@@ -1028,17 +1026,17 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					_log_dump("MD5 HASH", var->data, var->len);
 			    }
 
-				// set [*]:ripemd160*
-				else if (wildcard_match_icase(line, "ripemd160*"))
+				// set [*]:sha224*
+				else if (wildcard_match_icase(line, "sha224*"))
 				{
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA1;
+					var->len = BSD_VAR_SHA256;
 					var->data = malloc(var->len);
-					ripemd160((uint8_t*)data + range_start, len, var->data);
+					sha256((uint8_t*)data + range_start, len, var->data, 1);
 
-					LOG("len %d RIPEMD160", len, len);
-					_log_dump("RIPEMD160 HASH", var->data, var->len);
+					LOG("len %d SHA224", len);
+					_log_dump("SHA224 HASH", var->data, var->len);
 				}
 
 				// set [*]:sha1_xor64*
