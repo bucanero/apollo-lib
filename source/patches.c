@@ -3845,9 +3845,6 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 	mp_state_ctx_t *upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 	add_bsd_vars_python(upy);
 
-	micropy_exec_str(upy, "class apollo:\n"
-		"    version = '" APOLLO_LIB_VERSION "'\n\n");
-
 	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
 	qstr qsd = micropy_qstr_from_str(upy, "savedata");
     micropy_obj_dict_store(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(qsd), savedata_obj);

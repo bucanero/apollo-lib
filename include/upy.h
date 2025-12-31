@@ -1636,6 +1636,7 @@ QDEF(MP_QSTR_uheapq, (const byte*)"\x1d\x43\x06" "uheapq")
 QDEF(MP_QSTR_uhashlib, (const byte*)"\x65\x9d\x08" "uhashlib")
 QDEF(MP_QSTR_ubinascii, (const byte*)"\xc4\x88\x09" "ubinascii")
 QDEF(MP_QSTR_ucrypto, (const byte*)"\x13\x22\x07" "ucrypto")
+QDEF(MP_QSTR_apollo, (const byte*)"\xd4\x46\x06" "apollo")
 QDEF(MP_QSTR_urandom, (const byte*)"\xab\xae\x07" "urandom")
 QDEF(MP_QSTR_ussl, (const byte*)"\x1c\xf2\x04" "ussl")
 QDEF(MP_QSTR_lwip, (const byte*)"\x67\x89\x04" "lwip")
@@ -2002,6 +2003,8 @@ QDEF(MP_QSTR_des3_cbc, (const byte*)"\x39\x03\x08" "des3_cbc")
 QDEF(MP_QSTR_blowfish_ecb, (const byte*)"\xbc\xcd\x0c" "blowfish_ecb")
 QDEF(MP_QSTR_blowfish_cbc, (const byte*)"\x1a\xd5\x0c" "blowfish_cbc")
 QDEF(MP_QSTR_camellia_ecb, (const byte*)"\x1c\x73\x0c" "camellia_ecb")
+QDEF(MP_QSTR_endian_swap, (const byte*)"\x06\xc6\x0b" "endian_swap")
+QDEF(MP_QSTR_reverse_search, (const byte*)"\xf4\xac\x0e" "reverse_search")
 #undef QDEF
 #endif
     MP_QSTRnumber_of, // no underscore so it can't clash with any of the above
@@ -4212,6 +4215,7 @@ extern const mp_obj_module_t mp_module_uheapq;
 extern const mp_obj_module_t mp_module_uhashlib;
 extern const mp_obj_module_t mp_module_ubinascii;
 extern const mp_obj_module_t mp_module_ucrypto;
+extern const mp_obj_module_t mp_module_apollo;
 extern const mp_obj_module_t mp_module_urandom;
 extern const mp_obj_module_t mp_module_ussl;
 extern const mp_obj_module_t mp_module_machine;
