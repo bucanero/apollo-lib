@@ -3915,7 +3915,6 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	case APOLLO_CODE_GAMEGENIE:
 		LOG("Game Genie Code");
 		return apply_ggenie_patch_code(fpath, code);
-		break;
 
 	case APOLLO_CODE_BSD:
 		LOG("Bruteforce Save Data Code");
