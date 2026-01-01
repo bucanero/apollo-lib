@@ -87,6 +87,9 @@ int offzip_init(int wbits) {
         free(g_in);
         free(g_out);
         free(g_filebuff);
+        g_in        = NULL;
+        g_out       = NULL;
+        g_filebuff  = NULL;
         return (Z_INIT_ERROR);
     }
 
