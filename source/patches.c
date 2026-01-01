@@ -3883,9 +3883,6 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 	micropy_delete_global(upy, qsd);
 
 py_end:
-	micropy_destroy(upy);
-	free(py_heap);
-
 	return (dsize);
 }
 
