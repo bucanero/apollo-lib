@@ -15,16 +15,16 @@
 
 #ifdef __vita__
 // PS Vita
-#define PY_HEAP_SIZE            (8 * 1024)*1024
+#define PY_HEAP_SIZE            (8 * 1024 * 1024)
 #elif __PSP__
 // PlayStation Portable
-#define PY_HEAP_SIZE            (2 * 1024)*1024
+#define PY_HEAP_SIZE            (2 * 1024 * 1024)
 #elif __PPC__
 // PS3
-#define PY_HEAP_SIZE            (16 * 1024)*1024
+#define PY_HEAP_SIZE            (16 * 1024 * 1024)
 #else
 // Default (PS4, PC, etc)
-#define PY_HEAP_SIZE            (32 * 1024)*1024
+#define PY_HEAP_SIZE            (32 * 1024 * 1024)
 #endif
 
 typedef enum
