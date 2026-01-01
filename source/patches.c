@@ -80,6 +80,7 @@ enum
 
 static const char* base_id = NULL;
 static list_t* var_list = NULL;
+static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
 
@@ -263,6 +264,13 @@ void free_patch_var_list(void)
 
 	list_free(var_list);
 	var_list = NULL;
+
+	if (upy)
+	{
+		micropy_destroy(upy);
+		free(upy);
+		upy = NULL;
+	}
 }
 
 static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
@@ -3816,7 +3824,7 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 	{
 		bytearray = micropy_obj_new_bytearray_by_ref(upy, bv->len, bv->data);
 		bsd_name = micropy_qstr_from_str(upy, bv->name);
-		micropy_obj_dict_store(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(bsd_name), bytearray);
+		micropy_store_global(upy, bsd_name, bytearray);
 	}
 }
 
@@ -3845,8 +3853,7 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 
 	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
 	qstr qsd = micropy_qstr_from_str(upy, "savedata");
-    micropy_obj_dict_store(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(qsd), savedata_obj);
-	free(data);
+	micropy_store_global(upy, qsd, savedata_obj);
 
 	if (micropy_exec_str(upy, code->codes) != SUCCESS)
 	{
@@ -3855,7 +3862,7 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 		goto py_end;
 	}
 
-	savedata_obj = micropy_obj_dict_get(upy, MP_OBJ_FROM_PTR(upy->dict_globals), MP_OBJ_NEW_QSTR(qsd));
+	savedata_obj = micropy_load_global(upy, qsd);
 	if (!savedata_obj || !MP_OBJ_IS_TYPE(savedata_obj, &mp_type_bytearray))
 	{
 		dsize = 0;
@@ -3869,6 +3876,7 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 	dsize = bufinfo.len;
 
 	LOG("Output size: %ld", bufinfo.len);
+	micropy_delete_global(upy, qsd);
 
 py_end:
 	micropy_destroy(upy);
