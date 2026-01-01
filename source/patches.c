@@ -3832,7 +3832,6 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 {
 	char *data;
 	size_t dsize;
-	void* py_heap;
 
 	LOG("Applying [%s] to '%s'...", code->name, filepath);
 	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
