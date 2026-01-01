@@ -38,7 +38,7 @@
 
 typedef struct 
 {
-    uint32_t id;
+    void* data;
     uint32_t offset;
     int wbits;
     uint32_t inlen;
