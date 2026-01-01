@@ -3841,19 +3841,23 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 		return 0;
 	}
 
-	py_heap = malloc(dsize + PY_HEAP_SIZE);
-	if (!py_heap)
+	if (!upy)
 	{
-		free(data);
-		return 0;
-	}
+		void* py_heap = malloc(dsize + PY_HEAP_SIZE);
+		if (!py_heap)
+		{
+			free(data);
+			return 0;
+		}
 
-	mp_state_ctx_t *upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
-	add_bsd_vars_python(upy);
+		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
+		add_bsd_vars_python(upy);
+	}
 
 	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
 	qstr qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
+	free(data);
 
 	if (micropy_exec_str(upy, code->codes) != SUCCESS)
 	{
