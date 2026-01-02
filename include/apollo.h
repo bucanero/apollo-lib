@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define APOLLO_LIB_VERSION         "1.4.0"
 
@@ -116,8 +117,8 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 //---  Apollo patch functions ---
 
 void free_patch_var_list(void);
-int apply_bsd_patch_code(const char* file_path, const code_entry_t* code);
-int apply_ggenie_patch_code(const char* file_path, const code_entry_t* code);
+size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
+size_t apply_ggenie_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
 int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
@@ -203,8 +204,8 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
 #define OFFZIP_WBITS_ZLIB		15
 #define OFFZIP_WBITS_DEFLATE	-15
 
-int offzip_util(const char *input, const char *output_dir, int offset, int wbits, int count);
-int packzip_util(const char *input, const char *output, uint32_t offset, int wbits);
+void* offzip_util(FILE *fd, int offset, int wbits, int count);
+int packzip_util(void *input, uint32_t offset, uint8_t** output, size_t* outsize);
 
 
 //---  Apollo checksum functions ---

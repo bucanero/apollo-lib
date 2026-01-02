@@ -45,16 +45,22 @@
 
 #define g_minzip        32
 
+typedef struct 
+{
+    void* data;
+    uint32_t offset;
+    int wbits;
+    uint32_t ziplen;
+    uint32_t outlen;
+} offzip_t;
 
 static int buffread(FILE *fd, uint8_t *buff, int size);
 static void buffseek(FILE *fd, int off, int mode);
 static void buffinc(int increase);
 int offzip_search(FILE *fd);
-static int unzip_all(FILE *fd, const char* out_path);
-static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname);
+static int unzip_all(FILE *fd, offzip_t* out_list);
+static int unzip(FILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
 static int zlib_err(int err);
-static FILE *save_file(const char *fname);
-static int myfwrite(uint8_t *buff, int size, FILE *fd);
 
 
 static z_stream    z;
@@ -107,18 +113,13 @@ void offzip_free(void) {
     g_filebuff  = NULL;
 }
 
-int offzip_util(const char *file_input, const char *output_dir, int offset, int wbits, int count) {
-    FILE    *fd,
-            *fdo  = NULL;
+void* offzip_util(FILE *fd, int offset, int wbits, int count) {
+    offzip_t *ofz = NULL;
     int     files;
 
-    LOG("Offzip "VER"\n"
-        "by Luigi Auriemma\n"
-        "e-mail: aluigi@autistici.org\n"
-        "web:    aluigi.org");
+    LOG("Offzip "VER" by Luigi Auriemma / aluigi@autistici.org / aluigi.org");
 
 /*
-        LOG("\n"
             "Usage: %s [options] <input> <output/dir> <offset>\n"
             "\n"
             "Options:\n"
@@ -148,21 +149,19 @@ int offzip_util(const char *file_input, const char *output_dir, int offset, int 
             "\n", argv[0], g_minzip);
 */
 
-    g_count         = count;
-    g_offset        = offset;
-
-    LOG("- open input file:    %s", file_input);
-    fd = fopen(file_input, "rb");
-    if(!fd)
+    if(offzip_init(wbits) != Z_OK)
     {
-        LOG("Error: can't open file");
+        LOG("Error: unable to create buffers");
         return 0;
     }
 
-    if(offzip_init(wbits) != Z_OK)
-    {
-        fclose(fd);
-        LOG("Error: unable to create buffers");
+    g_count = count;
+    g_offset = offset;
+
+    ofz = calloc(count ? (count+1) : 0x40, sizeof(offzip_t));
+    if(!ofz) {
+        LOG("Error: unable to create offzip list");
+        offzip_free();
         return 0;
     }
 
@@ -175,18 +174,18 @@ int offzip_util(const char *file_input, const char *output_dir, int offset, int 
     LOG("| hex_offset | blocks_dots | zip_size --> unzip_size |");
     LOG("+------------+-------------+-------------------------+");
 
-    files = unzip_all(fd, output_dir); //ZIPDOFILE
+    files = unzip_all(fd, ofz); //ZIPDOFILE
     if(files) {
         LOG("- %u valid zip blocks found", files);
     } else {
         LOG("- no valid full zip data found");
+        free(ofz);
+        ofz = NULL;
     }
 
-    FCLOSE(fdo);
-    FCLOSE(fd);
     offzip_free();
 
-    return(files > 0);
+    return(ofz);
 }
 
 static int buffread(FILE *fd, uint8_t *buff, int size) {
@@ -257,44 +256,35 @@ int offzip_search(FILE *fd) {
     return ret;
 }
 
-static int unzip_all(FILE *fd, const char* out_path) {
-    FILE    *fdo    = NULL;
+static int unzip_all(FILE *fd, offzip_t* out_list) {
+    uint8_t  *fdo = NULL;
     uint32_t inlen,
             outlen;
     int     zipres,
             extracted;
-    char    filename[256]   = "";
 
     extracted = 0;
     zipres    = -1;
 
     while(!offzip_search(fd)) {
-        snprintf(filename, sizeof(filename), "%s%08" PRIx32 ".dat", out_path, g_offset);
-        LOG("Unzip (0x%08x) to %s", g_offset, filename);
+        LOG("Unzip (0x%08x) to %08" PRIx32 ".dat", g_offset, g_offset);
 
-        zipres = unzip(fd, &fdo, &inlen, &outlen, filename);
-        FCLOSE(fdo);
+        zipres = unzip(fd, &inlen, &outlen, &fdo);
 
-        if((zipres < 0) && filename[0]) {
-            chmod(filename, 0777);
-            remove(filename);
+        if((zipres < 0)) {
+            // error during unzip
+            free(fdo);
+            fdo = NULL;
         }
 
         if(!zipres) {
             LOG("#%d: %u --> %u", extracted, inlen, outlen);
 
-            snprintf(filename, sizeof(filename), "%s.offzip", out_path);
-            FILE *fp = fopen(filename, extracted ? "ab" : "wb");
-            if (fp)
-            {
-                zipres = g_offset - inlen;
-                fwrite(&extracted, 1, sizeof(uint32_t), fp);
-                fwrite(&zipres, 1, sizeof(uint32_t), fp);
-                fwrite(&g_zipwbits, 1, sizeof(uint32_t), fp);
-                fwrite(&inlen, 1, sizeof(uint32_t), fp);
-                fwrite(&outlen, 1, sizeof(uint32_t), fp);
-                fclose(fp);
-            }
+            out_list[extracted].data    = fdo;
+            out_list[extracted].offset  = (g_offset - inlen);
+            out_list[extracted].wbits   = g_zipwbits;
+            out_list[extracted].ziplen  = inlen;
+            out_list[extracted].outlen  = outlen;
 
             extracted++;
             if (g_count && extracted == g_count)
@@ -305,19 +295,15 @@ static int unzip_all(FILE *fd, const char* out_path) {
 
     }
 
-    FCLOSE(fdo);
     return extracted;
 }
 
-static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const char *dumpname) {
+static int unzip(FILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
     uint32_t oldsz = 0,
             oldoff,
             len;
     int     ret     = -1,
             zerr    = Z_OK;
-
-    if ((*fdo = save_file(dumpname)) == NULL)
-        return 1;
 
     oldoff = g_offset;
     inflateReset(&z);
@@ -332,7 +318,12 @@ static int unzip(FILE *fd, FILE **fdo, uint32_t *inlen, uint32_t *outlen, const 
             z.avail_out = OUTSZ;
             zerr = inflate(&z, Z_SYNC_FLUSH);
 
-            myfwrite(g_out, z.total_out - oldsz, *fdo);
+            *dump = realloc(*dump, z.total_out);
+            if(!*dump) {
+                LOG("Error: unable to realloc memory for unzip data");
+                return -1;
+            }
+            memcpy((*dump) + oldsz, g_out, z.total_out - oldsz);
             oldsz = z.total_out;
 
             if(zerr != Z_OK) {      // inflate() return value MUST be handled now
@@ -398,31 +389,6 @@ static int zlib_err(int zerr) {
         }
     }
     return 0;
-}
-
-static FILE *save_file(const char *fname) {
-    FILE    *fd;
-
-    fd = fopen(fname, "wb");
-    if(!fd)
-    {
-        LOG("Error: can't open file");
-        return NULL;
-    }
-    return fd;
-}
-
-static int myfwrite(uint8_t *buff, int size, FILE *fd) {
-    if(!fd) {
-        LOG("Error: myfw fd is NULL, contact me.");
-        return(0);
-    }
-    if(size <= 0) return 1;
-    if(fwrite(buff, 1, size, fd) != (size_t)size) {
-        LOG("Error: problems during files writing, check permissions and disk space");
-        return(0);
-    }
-    return 1;
 }
 
 int offzip_verify(FILE *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
