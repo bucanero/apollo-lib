@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <inttypes.h>
 #include <zlib.h>
+
 #include "apollo.h"
 #include <dbglogger.h>
 #define LOG dbglogger_log
@@ -133,7 +134,7 @@ int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* out
         }
     }
 
-    return (i > 0);
+    return (i);
 }
 
 static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, int wbits, int flags, int store) {

@@ -722,6 +722,7 @@ QDEF(MP_QSTR_heapify, (const byte*)"\xaf\x2d\x07" "heapify")
 QDEF(MP_QSTR_compress, (const byte*)"\xa3\x7a\x08" "compress")
 QDEF(MP_QSTR_decompress, (const byte*)"\x62\xfb\x0a" "decompress")
 QDEF(MP_QSTR_offzip, (const byte*)"\x89\x1e\x06" "offzip")
+QDEF(MP_QSTR_packzip, (const byte*)"\x3f\x80\x07" "packzip")
 QDEF(MP_QSTR_CRC_16_BITS, (const byte*)"\xdc\x3b\x0b" "CRC_16_BITS")
 QDEF(MP_QSTR_CRC_32_BITS, (const byte*)"\xda\xa4\x0b" "CRC_32_BITS")
 QDEF(MP_QSTR_CRC_64_BITS, (const byte*)"\x19\x88\x0b" "CRC_64_BITS")
@@ -38129,7 +38130,7 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
 
     while (offzip_search(bufinfo.buf) == Z_OK)
     {
-        mp_obj_t items[3];
+        mp_obj_t items[4];
         uint32_t offz = 0, inlen = 0, outlen = 0;
 
         if (offzip_verify(bufinfo.buf, &offz, &inlen, &outlen) != Z_OK) {
@@ -38140,7 +38141,8 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
         items[0] = micropy_obj_new_int_from_uint(mp_state, offz);
         items[1] = micropy_obj_new_int_from_uint(mp_state, inlen);
         items[2] = micropy_obj_new_int_from_uint(mp_state, outlen);
-        micropy_obj_list_append(mp_state, list, micropy_obj_new_tuple(mp_state, 3, items));
+        items[3] = micropy_obj_new_int(mp_state, wbits);
+        micropy_obj_list_append(mp_state, list, micropy_obj_new_tuple(mp_state, 4, items));
 
         DEBUG_printf("Found compressed block at offset 0x%08x: %d -> %d\n", offz, inlen, outlen);
     }
@@ -38151,6 +38153,39 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_uzlib_offzip_obj, 1, 2, micropy_mod_uzlib_offzip);
 
+STATIC mp_obj_t micropy_mod_uzlib_packzip(struct _mp_state_ctx_t *mp_state, mp_obj_t data, mp_obj_t oz_tuple, mp_obj_t oz_data) {
+    mp_buffer_info_t bufinfo, ozdinfo;
+    offzip_t oz_item[2];
+
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+    micropy_get_buffer_raise(mp_state, oz_data, &ozdinfo, MP_BUFFER_READ);
+
+    if (micropy_obj_get_type(mp_state, oz_tuple) != &mp_type_tuple) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "packZip error: tuple required"));
+    }
+
+    mp_uint_t len;
+    mp_obj_t *items;
+    micropy_obj_tuple_get(mp_state, oz_tuple, &len, &items);
+    if (len != 4) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "packZip error: tuple of 4 required"));
+    }
+
+    memset(oz_item, 0, sizeof(oz_item));
+    oz_item[0].data = ozdinfo.buf;
+    oz_item[0].outlen = ozdinfo.len;
+    oz_item[0].offset = micropy_obj_get_int_truncated(mp_state, items[0]);
+    oz_item[0].ziplen = micropy_obj_get_int_truncated(mp_state, items[1]);
+    oz_item[0].wbits = micropy_obj_get_int_truncated(mp_state, items[3]);
+    if (!packzip_util(oz_item, oz_item[0].offset, (uint8_t**) &bufinfo.buf, &bufinfo.len))
+    {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "packZip error: compression failed"));
+    }
+
+    return data;
+}
+MP_DEFINE_CONST_FUN_OBJ_3(mod_uzlib_packzip_obj, micropy_mod_uzlib_packzip);
+
 #if MICROPY_PY_UZLIB
 
 STATIC const mp_rom_map_elem_t mp_module_uzlib_globals_table[] = {
@@ -38158,6 +38193,7 @@ STATIC const mp_rom_map_elem_t mp_module_uzlib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_compress), MP_ROM_PTR(&mod_uzlib_compress_obj) },
     { MP_ROM_QSTR(MP_QSTR_decompress), MP_ROM_PTR(&mod_uzlib_decompress_obj) },
     { MP_ROM_QSTR(MP_QSTR_offzip), MP_ROM_PTR(&mod_uzlib_offzip_obj) },
+    { MP_ROM_QSTR(MP_QSTR_packzip), MP_ROM_PTR(&mod_uzlib_packzip_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(mp_module_uzlib_globals, mp_module_uzlib_globals_table);
