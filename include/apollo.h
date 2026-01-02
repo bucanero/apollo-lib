@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #define APOLLO_LIB_VERSION         "1.4.0"
 
@@ -204,7 +203,7 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
 #define OFFZIP_WBITS_ZLIB		15
 #define OFFZIP_WBITS_DEFLATE	-15
 
-void* offzip_util(FILE *fd, int offset, int wbits, int count);
+void* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, int count);
 int packzip_util(void *input, uint32_t offset, uint8_t** output, size_t* outsize);
 
 

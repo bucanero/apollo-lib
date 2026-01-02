@@ -37,7 +37,7 @@
 #define OUTSZ           0x10000 // the buffer used for decompressing the data
 #define FBUFFSZ         0x40000 // this buffer is used for reading, faster
 #define SHOWX           0x7fff  // AND to show the current scanned offset each SHOWX offsets
-#define FCLOSE(X)       { if(X) fclose(X); X = NULL; }
+#define MAX_RESULTS     0x40
 
 #define Z_INIT_ERROR    -1000
 #define Z_END_ERROR     -1001
@@ -54,12 +54,12 @@ typedef struct
     uint32_t outlen;
 } offzip_t;
 
-static int buffread(FILE *fd, uint8_t *buff, int size);
-static void buffseek(FILE *fd, int off, int mode);
+static int buffread(const uint8_t *fd, uint8_t *buff, int size);
+static void buffseek(const uint8_t *fd, int off, int mode);
 static void buffinc(int increase);
-int offzip_search(FILE *fd);
-static int unzip_all(FILE *fd, offzip_t* out_list);
-static int unzip(FILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
+int offzip_search(const uint8_t *fd);
+static int unzip_all(const uint8_t *fd, offzip_t* out_list);
+static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
 static int zlib_err(int err);
 
 
@@ -69,12 +69,14 @@ static uint32_t g_offset = 0,
         g_filebuffsz    = 0;
 static int g_zipwbits   = 0;
 static int g_count      = 0;
+static size_t g_size    = 0;
 static uint8_t *g_in    = NULL,
         *g_out          = NULL,
         *g_filebuff     = NULL;
 
 
-int offzip_init(int wbits) {
+int offzip_init(size_t dsz, int wbits) {
+    g_size      = dsz;
     g_zipwbits  = wbits;
     g_filebuffoff = 0;
     g_filebuffsz  = 0;
@@ -113,7 +115,7 @@ void offzip_free(void) {
     g_filebuff  = NULL;
 }
 
-void* offzip_util(FILE *fd, int offset, int wbits, int count) {
+void* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, int count) {
     offzip_t *ofz = NULL;
     int     files;
 
@@ -149,7 +151,7 @@ void* offzip_util(FILE *fd, int offset, int wbits, int count) {
             "\n", argv[0], g_minzip);
 */
 
-    if(offzip_init(wbits) != Z_OK)
+    if(offzip_init(dlen, wbits) != Z_OK)
     {
         LOG("Error: unable to create buffers");
         return 0;
@@ -158,7 +160,7 @@ void* offzip_util(FILE *fd, int offset, int wbits, int count) {
     g_count = count;
     g_offset = offset;
 
-    ofz = calloc(count ? (count+1) : 0x40, sizeof(offzip_t));
+    ofz = calloc(count ? (count+1) : (MAX_RESULTS+1), sizeof(offzip_t));
     if(!ofz) {
         LOG("Error: unable to create offzip list");
         offzip_free();
@@ -168,13 +170,13 @@ void* offzip_util(FILE *fd, int offset, int wbits, int count) {
     LOG("- zip data to check:  %d bytes", g_minzip);
     LOG("- zip windowBits:     %d", g_zipwbits);
     LOG("- seek offset:        0x%08x  (%u)", g_offset, g_offset);
-    buffseek(fd, g_offset, SEEK_SET);
+    buffseek(data, g_offset, SEEK_SET);
 
     LOG("+------------+-------------+-------------------------+");
     LOG("| hex_offset | blocks_dots | zip_size --> unzip_size |");
     LOG("+------------+-------------+-------------------------+");
 
-    files = unzip_all(fd, ofz); //ZIPDOFILE
+    files = unzip_all(data, ofz); //ZIPDOFILE
     if(files) {
         LOG("- %u valid zip blocks found", files);
     } else {
@@ -188,7 +190,18 @@ void* offzip_util(FILE *fd, int offset, int wbits, int count) {
     return(ofz);
 }
 
-static int buffread(FILE *fd, uint8_t *buff, int size) {
+static int memread(uint8_t *buff, int size, const uint8_t *fd) {
+    int ret = size;
+
+    if((size + g_offset) > g_size) {
+        ret = g_size - g_offset;
+    }
+
+    memcpy(buff, fd + g_offset, ret);
+    return ret;
+}
+
+static int buffread(const uint8_t *fd, uint8_t *buff, int size) {
     int     len,
             rest,
             ret;
@@ -199,7 +212,7 @@ static int buffread(FILE *fd, uint8_t *buff, int size) {
     if(rest < size) {
         ret = size - rest;
         memmove(g_filebuff, g_filebuff + g_filebuffoff, rest);
-        len = fread(g_filebuff + rest, 1, FBUFFSZ - rest, fd);
+        len = memread(g_filebuff + rest, FBUFFSZ - rest, fd);
         g_filebuffoff = 0;
         g_filebuffsz  = rest + len;
         if(len < ret) {
@@ -213,15 +226,15 @@ static int buffread(FILE *fd, uint8_t *buff, int size) {
     return ret;
 }
 
-static void buffseek(FILE *fd, int off, int mode) {
-    if(fseek(fd, off, mode) < 0)
+static void buffseek(const uint8_t *fd, int off, int mode) {
+    if(mode != SEEK_SET || off > g_size)
     {
         LOG("Error: buffseek");
         return;
     }
     g_filebuffoff = 0;
     g_filebuffsz  = 0;
-    g_offset      = ftell(fd);
+    g_offset      = off;
 }
 
 static void buffinc(int increase) {
@@ -229,7 +242,7 @@ static void buffinc(int increase) {
     g_offset      += increase;
 }
 
-int offzip_search(FILE *fd) {
+int offzip_search(const uint8_t *fd) {
     int     len,
             zerr,
             ret;
@@ -256,7 +269,7 @@ int offzip_search(FILE *fd) {
     return ret;
 }
 
-static int unzip_all(FILE *fd, offzip_t* out_list) {
+static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
     uint8_t  *fdo = NULL;
     uint32_t inlen,
             outlen;
@@ -266,7 +279,7 @@ static int unzip_all(FILE *fd, offzip_t* out_list) {
     extracted = 0;
     zipres    = -1;
 
-    while(!offzip_search(fd)) {
+    while(!offzip_search(fd) && (!g_count || extracted < MAX_RESULTS)) {
         LOG("Unzip (0x%08x) to %08" PRIx32 ".dat", g_offset, g_offset);
 
         zipres = unzip(fd, &inlen, &outlen, &fdo);
@@ -298,7 +311,7 @@ static int unzip_all(FILE *fd, offzip_t* out_list) {
     return extracted;
 }
 
-static int unzip(FILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
+static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
     uint32_t oldsz = 0,
             oldoff,
             len;
@@ -391,7 +404,7 @@ static int zlib_err(int zerr) {
     return 0;
 }
 
-int offzip_verify(FILE *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
+int offzip_verify(const uint8_t *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
     uint32_t oldoff,
             len;
     int     ret     = -1,

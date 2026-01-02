@@ -2453,37 +2453,39 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			if (line[0] != '*')
 				sscanf(line, "%d", &wbits);
 
-			LOG("Decompressing '%s' @%08X (w=%d)...", code->file, offset, wbits);
-			void *ozip_list;
-			FILE* fd = fmemopen(data, dsize, "rb");
+			LOG("Decompressing '%s' 0x%08X (w=%d)...", code->file, offset, wbits);
+			void *ozip_list = NULL;
 
 			if (!wbits)
 			{
 				// try zlib data (default) zlib is header+deflate+crc
-				ozip_list = offzip_util(fd, offset, OFFZIP_WBITS_ZLIB, count);
+				ozip_list = offzip_util(data, dsize, offset, OFFZIP_WBITS_ZLIB, count);
 
 				// if zlib didn't work, try deflate (many false positives, used in Zip archives)
 				if (!ozip_list)
-					ozip_list = offzip_util(fd, offset, OFFZIP_WBITS_DEFLATE, count);
+					ozip_list = offzip_util(data, dsize, offset, OFFZIP_WBITS_DEFLATE, count);
 			}
-			else ozip_list = offzip_util(fd, offset, wbits, count);
+			else ozip_list = offzip_util(data, dsize, offset, wbits, count);
 
-			if(ozip_list)
+			if(!ozip_list)
 			{
-				bsd_variable_t *var = malloc(sizeof(bsd_variable_t));
-				var->len = sizeof(void*);
-				asprintf(&var->name, "offzip_list_%08X", djb2_hash((uint8_t*)code->file, strlen(code->file)));
-				memcpy(&var->data, &ozip_list, sizeof(void*));
-				list_append(var_list, var);
+				LOG("ERROR: Decompression failed");
+				dsize = 0;
+				goto bsd_end;
 			}
 
-			fclose(fd);
+			bsd_variable_t *var = malloc(sizeof(bsd_variable_t));
+			var->len = sizeof(void*);
+			var->data = ozip_list;
+			var->name = strdup("~offzip_list");
+			list_append(var_list, var);
+
 		}
+
 		// compress(offset)
 		else if (wildcard_match_icase(line, "compress(*)*"))
 		{
 			char *tmp;
-			char ofz_name[32];
 			uint32_t offset = 0;
 
 			line += strlen("compress(");
@@ -2493,12 +2495,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			if (line[0] != '*')
 				sscanf(line, "%" PRIx32, &offset);
 
-			snprintf(ofz_name, sizeof(ofz_name), "offzip_list_%08X", djb2_hash((uint8_t*)code->file, strlen(code->file)));
-			bsd_variable_t *ozip_list = _get_bsd_variable(ofz_name);
-
+			bsd_variable_t *ozip_list = _get_bsd_variable("~offzip_list");
 			if(!ozip_list)
 			{
-				LOG("ERROR: No offzip list found for '%s'", ofz_name);
+				LOG("ERROR: No offzip list found for '%s'", code->file);
 				dsize = 0;
 				goto bsd_end;
 			}
