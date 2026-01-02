@@ -27,7 +27,7 @@
 #include <inttypes.h>
 #include <zlib.h>
 #include <dirent.h>
-
+#include "apollo.h"
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
@@ -45,19 +45,10 @@
 
 #define g_minzip        32
 
-typedef struct 
-{
-    void* data;
-    uint32_t offset;
-    int wbits;
-    uint32_t ziplen;
-    uint32_t outlen;
-} offzip_t;
 
 static int buffread(const uint8_t *fd, uint8_t *buff, int size);
 static void buffseek(const uint8_t *fd, int off, int mode);
 static void buffinc(int increase);
-int offzip_search(const uint8_t *fd);
 static int unzip_all(const uint8_t *fd, offzip_t* out_list);
 static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
 static int zlib_err(int err);
@@ -115,7 +106,7 @@ void offzip_free(void) {
     g_filebuff  = NULL;
 }
 
-void* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, int count) {
+offzip_t* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, int count) {
     offzip_t *ofz = NULL;
     int     files;
 

@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 #include <inttypes.h>
 #include <zlib.h>
-
+#include "apollo.h"
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
@@ -37,14 +37,6 @@
 #define MAXZIPLEN(n) ((n)+(((n)/10)+1)+12)  // for lzma
 #define min(a,b)   (((a)<(b))?(a):(b))
 
-typedef struct 
-{
-    void* data;
-    uint32_t offset;
-    int wbits;
-    uint32_t ziplen;
-    uint32_t outlen;
-} offzip_t;
 
 static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, int wbits, int flags, int store);
 static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store);
@@ -121,7 +113,7 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
     return(1);
 }
 
-int packzip_util(void *input, uint32_t offset, uint8_t** output, size_t* outsize) {
+int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* outsize) {
     int i = 0;
     offzip_t *offzip = input;
 

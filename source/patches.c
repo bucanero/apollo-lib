@@ -2454,7 +2454,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				sscanf(line, "%d", &wbits);
 
 			LOG("Decompressing '%s' 0x%08X (w=%d)...", code->file, offset, wbits);
-			void *ozip_list = NULL;
+			offzip_t *ozip_list = NULL;
 
 			if (!wbits)
 			{
@@ -2476,10 +2476,20 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 			bsd_variable_t *var = malloc(sizeof(bsd_variable_t));
 			var->len = sizeof(void*);
-			var->data = ozip_list;
+			var->data = (uint8_t*) ozip_list;
 			var->name = strdup("~offzip_list");
 			list_append(var_list, var);
 
+			for (; ozip_list->data; ozip_list++)
+			{
+				var = malloc(sizeof(bsd_variable_t));
+				var->len = ozip_list->outlen;
+				var->data = ozip_list->data;
+				asprintf(&var->name, "~extracted\\%08X.dat", ozip_list->offset);
+				list_append(var_list, var);
+
+				LOG("Added [%s] size = %d bytes", var->name, var->len);
+			}
 		}
 
 		// compress(offset)
@@ -2505,7 +2515,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 			LOG("Compressing '%s' (offset=0x%X)...", code->file, offset);
 
-			if (!packzip_util(ozip_list->data, offset, &data, &dsize))
+			if (!packzip_util((offzip_t*) ozip_list->data, offset, &data, &dsize))
 			{
 				LOG("ERROR: Compression failed");
 				dsize = 0;
@@ -3825,6 +3835,9 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 
 	for (node = list_head(var_list); (bv = list_get(node)); node = list_next(node))
 	{
+		if (bv->name[0] == '~')
+			continue;
+
 		bytearray = micropy_obj_new_bytearray_by_ref(upy, bv->len, bv->data);
 		bsd_name = micropy_qstr_from_str(upy, bv->name);
 		micropy_store_global(upy, bsd_name, bytearray);
