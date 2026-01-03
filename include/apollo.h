@@ -116,8 +116,9 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 //---  Apollo patch functions ---
 
 void free_patch_var_list(void);
+size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
-size_t apply_ggenie_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
+size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
 int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
 int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 

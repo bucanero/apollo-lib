@@ -2863,7 +2863,7 @@ bsd_end:
 	return (dsize);
 }
 
-size_t apply_ggenie_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code)
+size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code)
 {
 	char *gg_code;
 	long pointer = 0, end_pointer = 0;
@@ -3850,7 +3850,7 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 	}
 }
 
-size_t apply_python_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
+size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	uint8_t* ptr;
 
@@ -3929,11 +3929,26 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 {
 	uint8_t* data;
 	size_t dsize = 0;
+	bsd_variable_t *ozip_file = NULL;
+	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
 	base_id = title_id;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
 
 	LOG("Applying [%s] to '%s'...", code->name, fpath);
-	if (read_buffer(fpath, &data, &dsize) != SUCCESS)
+
+	if (is_ozip)
+	{
+		ozip_file = _get_bsd_variable(code->file);
+		if(!ozip_file)
+		{
+			LOG("ERROR: No offzip file found for '%s'", code->file);
+			return 0;
+		}
+
+		data = ozip_file->data;
+		dsize = ozip_file->len;
+	}
+	else if (read_buffer(fpath, &data, &dsize) != SUCCESS)
 	{
 		LOG("Can't load file '%s'", fpath);
 		return 0;
@@ -3943,7 +3958,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	{
 	case APOLLO_CODE_GAMEGENIE:
 		LOG("Game Genie Code");
-		dsize = apply_ggenie_patch_code(data, dsize, code);
+		dsize = apply_sw_patch_code(data, dsize, code);
 		break;
 
 	case APOLLO_CODE_BSD:
@@ -3953,11 +3968,18 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 
 	case APOLLO_CODE_PYTHON:
 		LOG("Python Script Code");
-		dsize = apply_python_script_code(&data, dsize, code);
+		dsize = apply_py_script_code(&data, dsize, code);
 		break;
 
 	default:
 		break;
+	}
+
+	if (is_ozip)
+	{
+		ozip_file->data = data;
+		ozip_file->len = dsize;
+		return dsize;
 	}
 
 	if (dsize)
