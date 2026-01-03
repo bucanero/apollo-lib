@@ -42,8 +42,6 @@
 static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, int wbits, int flags, int store);
 static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, int wbits, int flags, int store);
 
-
-static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
 /*
             "Usage: %s [options] <input> <output>\n"
             "\n"
@@ -79,6 +77,9 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
             Z_FIXED,                LZMA_FLAGS_EFS
         );
 */
+
+static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
+
     LOG("- offset        0x%08x", data_in->offset);
     LOG("- windowbits    %d", data_in->wbits);
     LOG("- zip size      0x%08x / %u", data_in->ziplen, data_in->ziplen);
@@ -114,9 +115,8 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
     return(1);
 }
 
-int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* outsize) {
+int packzip_util(offzip_t *offzip, uint32_t offset, uint8_t** output, size_t* outsize) {
     int i = 0;
-    offzip_t *offzip = input;
 
     LOG("PackZip " VER " by Luigi Auriemma / aluigi@autistici.org / aluigi.org");
 
@@ -128,7 +128,7 @@ int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* out
 
             if (!packzip_compress(&offzip[i], output, outsize))
             {
-                LOG("Error: unable to compress file (%d)", i);
+                LOG("Error: unable to compress file (#%d)", i);
                 return 0;
             }
         }
