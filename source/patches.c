@@ -2185,7 +2185,6 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			skip_spaces(line);
 
 			char* idata = _decode_variable_data(line, &ilen);
-			
 			if (!idata)
 			{
 				LOG("Error: no data to insert");
@@ -2194,6 +2193,13 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			}
 
 			uint8_t* write = malloc(dsize + ilen);
+			if (!write)
+			{
+				LOG("Error: malloc failed for insert");
+				free(idata);
+				dsize = 0;
+				goto bsd_end;
+			}
 
 			memcpy(write, data, off);
 			memcpy(write + off, idata, ilen);
