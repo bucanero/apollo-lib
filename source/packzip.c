@@ -79,6 +79,7 @@ static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, in
 */
 
 static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
+    void *ptr;
 
     LOG("- offset        0x%08x", data_in->offset);
     LOG("- windowbits    %d", data_in->wbits);
@@ -99,12 +100,13 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
 
     if (*olen < (data_in->ziplen + data_in->offset))
     {
-        *obuf = realloc(*obuf, data_in->ziplen + data_in->offset);
-        if (!*obuf) {
+        ptr = realloc(*obuf, data_in->ziplen + data_in->offset);
+        if (!ptr) {
             LOG("Error: memory allocation failed");
             free(zdata);
             return 0;
         }
+        *obuf = ptr;
         *olen = data_in->ziplen + data_in->offset;
         LOG("- resizing %u bytes", *olen);
     }

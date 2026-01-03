@@ -304,6 +304,7 @@ static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
 }
 
 static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
+    void *ptr;
     uint32_t oldsz = 0,
             oldoff,
             len;
@@ -323,11 +324,12 @@ static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t *
             z.avail_out = OUTSZ;
             zerr = inflate(&z, Z_SYNC_FLUSH);
 
-            *dump = realloc(*dump, z.total_out);
-            if(!*dump) {
+            ptr = realloc(*dump, z.total_out);
+            if(!ptr) {
                 LOG("Error: unable to realloc memory for unzip data");
                 return -1;
             }
+            *dump = ptr;
             memcpy((*dump) + oldsz, g_out, z.total_out - oldsz);
             oldsz = z.total_out;
 

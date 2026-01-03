@@ -3846,7 +3846,7 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 
 size_t apply_python_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	uint8_t* data = *src_data;
+	uint8_t* ptr;
 
 	if (!upy)
 	{
@@ -3858,7 +3858,7 @@ size_t apply_python_script_code(uint8_t** src_data, size_t dsize, const code_ent
 		add_bsd_vars_python(upy);
 	}
 
-	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
+	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
 	qstr qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
 
@@ -3881,17 +3881,17 @@ size_t apply_python_script_code(uint8_t** src_data, size_t dsize, const code_ent
 	micropy_get_buffer(upy, savedata_obj, &bufinfo, MP_BUFFER_READ);
 	dsize = bufinfo.len;
 
-	data = realloc(data, dsize);
-	if (!data)
+	ptr = realloc(*src_data, dsize);
+	if (!ptr)
 	{
 		dsize = 0;
 		LOG("Memory allocation failed!");
 		goto py_end;
 	}
+	*src_data = ptr;
 
 	LOG("Output size: %ld", bufinfo.len);
-	memcpy(data, bufinfo.buf, dsize);
-	*src_data = data;
+	memcpy(*src_data, bufinfo.buf, dsize);
 
 py_end:
 	micropy_delete_global(upy, qsd);
