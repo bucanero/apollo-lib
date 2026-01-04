@@ -1,6 +1,6 @@
 TOOLS	=	patcher parser dumper
 COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patches.o ../source/decrypt.o \
-			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o compat.o
+			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o
 DEPS	=	Makefile
 
 CC	=	gcc

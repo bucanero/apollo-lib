@@ -84,7 +84,7 @@ static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
 
-static long search_data(const char* data, size_t size, int start, const char* search, int len, int count)
+static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
 
@@ -95,7 +95,7 @@ static long search_data(const char* data, size_t size, int start, const char* se
     return -1;
 }
 
-static long reverse_search_data(const char* data, size_t size, int start, const char* search, int len, int count)
+static long reverse_search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
 
@@ -118,7 +118,7 @@ static bsd_variable_t* _get_bsd_variable(const char* vname)
 	return NULL;
 }
 
-static char* _decode_variable_data(const char* line, int *data_len)
+static void* _decode_variable_data(const char* line, int *data_len)
 {
     int i, len = 0;
     char* output = NULL;
@@ -510,22 +510,15 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 	return 1;
 }
 
-int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
+size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	char *data, *bsd_code;
-	size_t dsize;
+	char *bsd_code;
+	uint8_t *data = *src_data;
 	long pointer = 0;
 	long range_start = 0, range_end = 0;
 	uint8_t carry = 0, eof = 0;
 	uint32_t old_val = 0;
 	custom_crc_t custom_crc = {0,0,0,0,0,0};
-
-	LOG("Applying [%s] to '%s'...", code->name, filepath);
-	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
-	{
-		LOG("Can't load file '%s'", filepath);
-		return 0;
-	}
 
 	range_end = dsize;
 	if (!var_list)
@@ -1353,7 +1346,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 					len = range_end - range_start;
 
 					// Updates all CHKS values
-					chks_off = search_data(data, len, range_start, "CHKS", 5, 1);
+					chks_off = search_data(data, len, range_start, (uint8_t*) "CHKS", 5, 1);
 					while (chks_off > 0)
 					{
 						chks     = (*(uint32_t*)(data + chks_off + 4));
@@ -1370,7 +1363,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 						memcpy(data + chks_off + 0xC, &chks, sizeof(uint32_t));
 						memcpy(data + chks_off + 0x8, &chks_len, sizeof(uint32_t));
 
-						chks_off = search_data(data, len, chks_off+1, "CHKS", 5, 1);
+						chks_off = search_data(data, len, chks_off+1, (uint8_t*) "CHKS", 5, 1);
 					}
 
 					var->len = BSD_VAR_INT32;
@@ -1769,7 +1762,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
     			    xor_i = _parse_int_value(line, pointer, dsize);
 
     			    *tmp = ')';
-    			    char* read = data + xor_s;
+    			    uint8_t* read = data + xor_s;
     			    
     			    while (read < data + xor_e)
     			    {
@@ -1798,7 +1791,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 
 					line += strlen("read(");
 					_parse_start_end(line, pointer, dsize, &read_s, &read_l);
-					char* read = data + read_s;
+					uint8_t* read = data + read_s;
 
 					switch (read_l)
 					{
@@ -2137,7 +2130,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 //			for (int i=0; i < wlen; i++)
 //				LOG("%x", write_val[i]);
 
-			char* write = data + off;
+			uint8_t* write = data + off;
 			memcpy(write, write_val, wlen);
 			free(write_val);
 
@@ -2192,7 +2185,6 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			skip_spaces(line);
 
 			char* idata = _decode_variable_data(line, &ilen);
-			
 			if (!idata)
 			{
 				LOG("Error: no data to insert");
@@ -2200,7 +2192,14 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				goto bsd_end;
 			}
 
-			char* write = malloc(dsize + ilen);
+			uint8_t* write = malloc(dsize + ilen);
+			if (!write)
+			{
+				LOG("Error: malloc failed for insert");
+				free(idata);
+				dsize = 0;
+				goto bsd_end;
+			}
 
 			memcpy(write, data, off);
 			memcpy(write + off, idata, ilen);
@@ -2269,7 +2268,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
     		    skip_spaces(line);
 
 				int flen;
-			    char* find = _decode_variable_data(line, &flen);
+			    uint8_t* find = _decode_variable_data(line, &flen);
 			    
 			    if (!find)
 			    {
@@ -2307,7 +2306,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			// ; Start search from current pointer
 
 			int cnt = 1, len, off = 0;
-			char* find;
+			uint8_t* find;
 			char* tmp = NULL;
 
 			line += strlen("search");
@@ -2351,7 +2350,7 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 				goto bsd_end;
 			}
 			
-			LOG("POINTER = %ld (0x%lX)", pointer, pointer);
+			LOG("POINTER = 0x%lX (%ld)", pointer, pointer);
 			free(find);
 		}
 
@@ -2437,7 +2436,6 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 		{
 			int offset = 0, wbits = 0, count = 0;
 			char *tmp;
-			char tmp_dir[256];
 
 			line += strlen("decompress(");
 			tmp = strchr(line, ',');
@@ -2461,25 +2459,49 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			if (line[0] != '*')
 				sscanf(line, "%d", &wbits);
 
-			LOG("Decompressing '%s' (w=%d)...", filepath, wbits);
-			snprintf(tmp_dir, sizeof(tmp_dir), "%s[%.9s]", (char*) host_callback(APOLLO_HOST_TEMP_PATH, NULL), base_id);
+			LOG("Decompressing '%s' 0x%08X (w=%d)...", code->file, offset, wbits);
+			offzip_t *ozip_list = NULL;
 
 			if (!wbits)
 			{
 				// try zlib data (default) zlib is header+deflate+crc
-				wbits = offzip_util(filepath, tmp_dir, offset, OFFZIP_WBITS_ZLIB, count);
+				ozip_list = offzip_util(data, dsize, offset, OFFZIP_WBITS_ZLIB, count);
 
 				// if zlib didn't work, try deflate (many false positives, used in Zip archives)
-				if (!wbits)
-					offzip_util(filepath, tmp_dir, offset, OFFZIP_WBITS_DEFLATE, count);
+				if (!ozip_list)
+					ozip_list = offzip_util(data, dsize, offset, OFFZIP_WBITS_DEFLATE, count);
 			}
-			else offzip_util(filepath, tmp_dir, offset, wbits, count);
+			else ozip_list = offzip_util(data, dsize, offset, wbits, count);
+
+			if(!ozip_list)
+			{
+				LOG("ERROR: Decompression failed");
+				dsize = 0;
+				goto bsd_end;
+			}
+
+			bsd_variable_t *var = malloc(sizeof(bsd_variable_t));
+			var->len = sizeof(void*);
+			var->data = (uint8_t*) ozip_list;
+			var->name = strdup("~offzip_list");
+			list_append(var_list, var);
+
+			for (; ozip_list->data; ozip_list++)
+			{
+				var = malloc(sizeof(bsd_variable_t));
+				var->len = ozip_list->outlen;
+				var->data = ozip_list->data;
+				asprintf(&var->name, "~extracted\\%08X.dat", ozip_list->offset);
+				list_append(var_list, var);
+
+				LOG("Added [%s] size = %d bytes", var->name, var->len);
+			}
 		}
+
 		// compress(offset)
 		else if (wildcard_match_icase(line, "compress(*)*"))
 		{
 			char *tmp;
-			char tmp_dir[256];
 			uint32_t offset = 0;
 
 			line += strlen("compress(");
@@ -2489,14 +2511,24 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 			if (line[0] != '*')
 				sscanf(line, "%" PRIx32, &offset);
 
-			LOG("Compressing '%s' (offset=0x%X)...", filepath, offset);
-			snprintf(tmp_dir, sizeof(tmp_dir), "%s[%.9s]", (char*) host_callback(APOLLO_HOST_TEMP_PATH, NULL), base_id);
+			bsd_variable_t *ozip_list = _get_bsd_variable("~offzip_list");
+			if(!ozip_list)
+			{
+				LOG("ERROR: No offzip list found for '%s'", code->file);
+				dsize = 0;
+				goto bsd_end;
+			}
 
-			if (!packzip_util(tmp_dir, filepath, offset, 0))
+			LOG("Compressing '%s' (offset=0x%X)...", code->file, offset);
+
+			if (!packzip_util((offzip_t*) ozip_list->data, offset, &data, &dsize))
+			{
 				LOG("ERROR: Compression failed");
+				dsize = 0;
+				goto bsd_end;
+			}
 
-			// Skip to avoid overwritting the original file
-			goto bsd_end;
+			LOG("Compression successful, '%s' size = %d bytes", code->file, dsize);
 		}
 
 		else if (wildcard_match_icase(line, "decrypt *"))
@@ -2824,29 +2856,19 @@ int apply_bsd_patch_code(const char* filepath, const code_entry_t* code)
 		}
     }
 
-	write_buffer(filepath, (uint8_t*) data, dsize);
-
 bsd_end:
-	free(data);
+	*src_data = data;
 	free(bsd_code);
 
 	return (dsize);
 }
 
-int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
+size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code)
 {
-	char *data, *gg_code;
-	size_t dsize;
+	char *gg_code;
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
-
-	LOG("Applying [%s] to '%s'...", code->name, filepath);
-	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
-	{
-		LOG("Can't load file '%s'", filepath);
-		return 0;
-	}
 
 	gg_code = strdup(code->codes);
 	apply_tag_opts(gg_code, code);
@@ -2925,7 +2947,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
 
-				char* write = data + off;
+				uint8_t* write = data + off;
 
 				switch (t)
 				{
@@ -3031,7 +3053,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     			int i, off, n, incoff;
     			uint32_t val, incval, wv32;
     			char t = line[1];
-    			char* write;
+    			uint8_t* write;
     			uint8_t wv8;
     			uint16_t wv16;
 
@@ -3122,14 +3144,14 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
 
-    			char* src = data + off_src + (line[1] == '8' ? pointer : 0);
+    			uint8_t* src = data + off_src + (line[1] == '8' ? pointer : 0);
 
 			    line = strtok(NULL, "\n");
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off_dst);
     			
-    			char* dst = data + off_dst + (line[1] == '8' ? pointer : 0);
+    			uint8_t* dst = data + off_dst + (line[1] == '8' ? pointer : 0);
 
     			memcpy(dst, src, val);
 				LOG("Copied %d bytes from 0x%lX to 0x%lX", val, src - data, dst - data);
@@ -3162,7 +3184,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
 
-				char* write = data;
+				uint8_t* write = data;
 				int off = ((t == '8' || t == '9' || t == 'A') ? pointer : 0);
 
 				switch (w)
@@ -3327,7 +3349,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
 
-    			char* write = data + off;
+    			uint8_t* write = data + off;
 
 				switch (t)
 				{
@@ -3405,7 +3427,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
     		{
     			int i, cnt, len;
     			uint32_t val;
-    			char* find;
+    			uint8_t* find;
     			char t = line[1];
 
     			sprintf(tmp3, "%.2s", line+2);
@@ -3459,7 +3481,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
     		}
     			break;
 
@@ -3595,7 +3617,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				int i, cnt, len;
 				uint32_t val;
-				char* find;
+				uint8_t* find;
 				char t = line[1];
 
 				sprintf(tmp3, "%.2s", line+2);
@@ -3650,7 +3672,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
 			}
 				break;
 
@@ -3674,7 +3696,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 			{
 				int cnt, len;
 				uint32_t addr;
-				char* find;
+				uint8_t* find;
 				char t = line[1];
 
 				sprintf(tmp3, "%.2s", line+2);
@@ -3710,7 +3732,7 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
 			}
 				break;
 
@@ -3805,9 +3827,6 @@ int apply_ggenie_patch_code(const char* filepath, const code_entry_t* code)
 		line = strtok(NULL, "\n");
 	}
 
-	write_buffer(filepath, (uint8_t*) data, dsize);
-
-	free(data);
 	free(gg_code);
 
 	return (dsize);
@@ -3822,41 +3841,32 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 
 	for (node = list_head(var_list); (bv = list_get(node)); node = list_next(node))
 	{
+		if (bv->name[0] == '~')
+			continue;
+
 		bytearray = micropy_obj_new_bytearray_by_ref(upy, bv->len, bv->data);
 		bsd_name = micropy_qstr_from_str(upy, bv->name);
 		micropy_store_global(upy, bsd_name, bytearray);
 	}
 }
 
-int apply_python_script_code(const char* filepath, const code_entry_t* code)
+size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	char *data;
-	size_t dsize;
-
-	LOG("Applying [%s] to '%s'...", code->name, filepath);
-	if (read_buffer(filepath, (uint8_t**) &data, &dsize) != SUCCESS)
-	{
-		LOG("Can't load file '%s'", filepath);
-		return 0;
-	}
+	uint8_t* ptr;
 
 	if (!upy)
 	{
 		void* py_heap = malloc(dsize + PY_HEAP_SIZE);
 		if (!py_heap)
-		{
-			free(data);
 			return 0;
-		}
 
 		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 		add_bsd_vars_python(upy);
 	}
 
-	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, data);
+	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
 	qstr qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
-	free(data);
 
 	if (micropy_exec_str(upy, code->codes) != SUCCESS)
 	{
@@ -3875,13 +3885,23 @@ int apply_python_script_code(const char* filepath, const code_entry_t* code)
 
 	mp_buffer_info_t bufinfo;
 	micropy_get_buffer(upy, savedata_obj, &bufinfo, MP_BUFFER_READ);
-	write_buffer(filepath, (uint8_t*) bufinfo.buf, bufinfo.len);
 	dsize = bufinfo.len;
 
+	ptr = realloc(*src_data, dsize);
+	if (!ptr)
+	{
+		dsize = 0;
+		LOG("Memory allocation failed!");
+		goto py_end;
+	}
+	*src_data = ptr;
+
 	LOG("Output size: %ld", bufinfo.len);
-	micropy_delete_global(upy, qsd);
+	memcpy(*src_data, bufinfo.buf, dsize);
 
 py_end:
+	micropy_delete_global(upy, qsd);
+
 	return (dsize);
 }
 
@@ -3907,26 +3927,65 @@ static void* dummy_host_callback(int id, int* size)
 
 int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
+	uint8_t* data;
+	size_t dsize = 0;
+	bsd_variable_t *ozip_file = NULL;
+	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
 	base_id = title_id;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
+
+	LOG("Applying [%s] to '%s'...", code->name, fpath);
+
+	if (is_ozip)
+	{
+		ozip_file = _get_bsd_variable(code->file);
+		if(!ozip_file)
+		{
+			LOG("ERROR: No offzip file found for '%s'", code->file);
+			return 0;
+		}
+
+		data = ozip_file->data;
+		dsize = ozip_file->len;
+	}
+	else if (read_buffer(fpath, &data, &dsize) != SUCCESS)
+	{
+		LOG("Can't load file '%s'", fpath);
+		return 0;
+	}
 
 	switch (code->type)
 	{
 	case APOLLO_CODE_GAMEGENIE:
 		LOG("Game Genie Code");
-		return apply_ggenie_patch_code(fpath, code);
+		dsize = apply_sw_patch_code(data, dsize, code);
+		break;
 
 	case APOLLO_CODE_BSD:
 		LOG("Bruteforce Save Data Code");
-		return apply_bsd_patch_code(fpath, code);
+		dsize = apply_bsd_patch_code(&data, dsize, code);
+		break;
 
 	case APOLLO_CODE_PYTHON:
 		LOG("Python Script Code");
-		return apply_python_script_code(fpath, code);
+		dsize = apply_py_script_code(&data, dsize, code);
+		break;
 
 	default:
 		break;
 	}
 
-	return 0;
+	if (is_ozip)
+	{
+		ozip_file->data = data;
+		ozip_file->len = dsize;
+		return dsize;
+	}
+
+	if (dsize)
+		write_buffer(fpath, data, dsize);
+
+	free(data);
+
+	return dsize;
 }
