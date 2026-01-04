@@ -143,6 +143,8 @@ static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, in
     int     ret = 0;
     uint8_t *out_data;
 
+    if(!in_data) return(NULL);
+
     *out_size = MAXZIPLEN(in_size);
     out_data = (uint8_t *)malloc(*out_size);
 
@@ -164,6 +166,8 @@ static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, in
     }
 
     if(ret <= 0) {
+        free(out_data);
+        out_data = NULL;
         *out_size = 0;
     } else {
         *out_size = ret;
