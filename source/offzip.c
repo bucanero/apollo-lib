@@ -162,6 +162,7 @@ offzip_t* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, i
     LOG("- zip data to check:  %d bytes", g_minzip);
     LOG("- zip windowBits:     %d", g_zipwbits);
     LOG("- seek offset:        0x%08x  (%u)", g_offset, g_offset);
+    LOG("- scan count :        %d", g_count);
     buffseek(data, g_offset, SEEK_SET);
 
     LOG("+------------+-------------+-------------------------+");
@@ -265,39 +266,26 @@ static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
     uint8_t  *fdo = NULL;
     uint32_t inlen,
             outlen;
-    int     zipres,
-            extracted;
-
-    extracted = 0;
-    zipres    = -1;
+    int     extracted = 0;
 
     while(!offzip_search(fd) && ((!g_count && extracted < MAX_RESULTS) || (g_count && extracted < g_count))) {
         LOG("Unzip (0x%08x) to %08" PRIx32 ".dat", g_offset, g_offset);
 
-        zipres = unzip(fd, &inlen, &outlen, &fdo);
-
-        if((zipres < 0)) {
+        if(unzip(fd, &inlen, &outlen, &fdo) != Z_OK) {
             // error during unzip
             free(fdo);
             fdo = NULL;
+            continue;
         }
 
-        if(!zipres) {
-            LOG("#%d: %u --> %u", extracted, inlen, outlen);
+        out_list[extracted].data    = fdo;
+        out_list[extracted].offset  = (g_offset - inlen);
+        out_list[extracted].wbits   = g_zipwbits;
+        out_list[extracted].ziplen  = inlen;
+        out_list[extracted].outlen  = outlen;
 
-            out_list[extracted].data    = fdo;
-            out_list[extracted].offset  = (g_offset - inlen);
-            out_list[extracted].wbits   = g_zipwbits;
-            out_list[extracted].ziplen  = inlen;
-            out_list[extracted].outlen  = outlen;
-
-            extracted++;
-            if (g_count && extracted == g_count)
-                break;
-        } else {
-            LOG(" error");
-        }
-
+        extracted++;
+        LOG("#%d: %u --> %u", extracted, inlen, outlen);
     }
 
     return extracted;
@@ -311,6 +299,7 @@ static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t *
     int     ret     = -1,
             zerr    = Z_OK;
 
+    *dump = NULL;
     oldoff = g_offset;
     inflateReset(&z);
 
