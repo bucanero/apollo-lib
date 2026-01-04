@@ -1033,7 +1033,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					var->len = 28;
-					var->data = malloc(var->len);
+					var->data = malloc(BSD_VAR_SHA256);
 					sha256((uint8_t*)data + range_start, len, var->data, 1);
 
 					LOG("len %d SHA224", len);
@@ -1090,7 +1090,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
     			    len = range_end - range_start;
 
 					var->len = 48;
-					var->data = malloc(var->len);
+					var->data = malloc(BSD_VAR_SHA512);
 					sha512(start, len, var->data, 1);
 
 					LOG("len %d SHA384", len);
@@ -2491,7 +2491,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				var = malloc(sizeof(bsd_variable_t));
 				var->len = ozip_list->outlen;
 				var->data = ozip_list->data;
-				asprintf(&var->name, "~extracted\\%08X.dat", ozip_list->offset);
+				asprintf(&var->name, "~extracted\\%08" PRIX32 ".dat", ozip_list->offset);
 				list_append(var_list, var);
 
 				LOG("Added [%s] size = %d bytes", var->name, var->len);

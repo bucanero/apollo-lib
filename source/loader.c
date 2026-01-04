@@ -314,8 +314,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 					res = tmp;
 
 //			    	LOG("%s", line);
-					if (entry->type != APOLLO_CODE_PYTHON && (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
-						(line[0] < '0') && (line[0] > '9') && (line[0] < 'A') && (line[0] > 'F'))))
+					if (entry->type == APOLLO_CODE_GAMEGENIE && (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")))
 						entry->type = APOLLO_CODE_BSD;
 
 					if (wildcard_match(line, "*{*}*"))

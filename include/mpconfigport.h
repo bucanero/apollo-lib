@@ -51,7 +51,6 @@
 #define MICROPY_PY_STRUCT           (1)
 #define MICROPY_PY_SYS              (1)
 #define MICROPY_PY_SYS_EXIT         (0)
-#define MICROPY_PY_SYS_PLATFORM     "apollo-playstation"
 #define MICROPY_PY_SYS_MAXSIZE      (1)
 
 #define MICROPY_PY_UCTYPES          (1)
@@ -64,6 +63,23 @@
 #define MICROPY_PY_UCRYPTO          (1)
 #define MICROPY_PY_APOLLO           (1)
 #define MICROPY_PY_MACHINE          (0)
+
+#ifdef __vita__
+// PS Vita
+#define MICROPY_PY_SYS_PLATFORM     "apollo-vita"
+#elif __PSP__
+// PlayStation Portable
+#define MICROPY_PY_SYS_PLATFORM     "apollo-psp"
+#elif __PPC__
+// PS3
+#define MICROPY_PY_SYS_PLATFORM     "apollo-ps3"
+#elif __PS4__
+// PS4
+#define MICROPY_PY_SYS_PLATFORM     "apollo-ps4"
+#else
+// Default (PC, etc)
+#define MICROPY_PY_SYS_PLATFORM     "apollo-cli"
+#endif
 
 extern const struct _mp_obj_module_t mp_module_os;
 extern const struct _mp_obj_module_t mp_module_time;
