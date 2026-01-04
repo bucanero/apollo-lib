@@ -2350,7 +2350,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				goto bsd_end;
 			}
 			
-			LOG("POINTER = %ld (0x%lX)", pointer, pointer);
+			LOG("POINTER = 0x%lX (%ld)", pointer, pointer);
 			free(find);
 		}
 
@@ -2528,7 +2528,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				goto bsd_end;
 			}
 
-			LOG("Compression successful, new size = %d bytes", dsize);
+			LOG("Compression successful, '%s' size = %d bytes", code->file, dsize);
 		}
 
 		else if (wildcard_match_icase(line, "decrypt *"))
@@ -3481,7 +3481,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
     		}
     			break;
 
@@ -3672,7 +3672,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
 			}
 				break;
 
@@ -3732,7 +3732,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					continue;
 				}
 
-				LOG("Search pointer = %ld (0x%lX)", pointer, pointer);
+				LOG("Search pointer = 0x%lX (%ld)", pointer, pointer);
 			}
 				break;
 
