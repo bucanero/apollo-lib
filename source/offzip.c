@@ -271,7 +271,7 @@ static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
     extracted = 0;
     zipres    = -1;
 
-    while(!offzip_search(fd) && (!g_count || extracted < MAX_RESULTS)) {
+    while(!offzip_search(fd) && ((!g_count && extracted < MAX_RESULTS) || (g_count && extracted < g_count))) {
         LOG("Unzip (0x%08x) to %08" PRIx32 ".dat", g_offset, g_offset);
 
         zipres = unzip(fd, &inlen, &outlen, &fdo);
