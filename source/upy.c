@@ -39062,19 +39062,35 @@ mp_obj_t micropy_mod_uhashlib_castlevania_checksum(struct _mp_state_ctx_t *mp_st
 MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_castlevania_checksum_obj, micropy_mod_uhashlib_castlevania_checksum);
 
 mp_obj_t micropy_mod_uhashlib_rockstar_checksum(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    uint8_t out[4];
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "NOT IMPLEMENTED"));
+    uint32_t chks = 0, chks_len = 0;
+    uint8_t* chks_off = NULL;
+    const uint8_t* start = bufinfo.buf;
 
-    vstr_t vstr;
-    micropy_vstr_init_len(mp_state, &vstr, 4);
-    byte *out = (byte*)vstr.buf;
+    // Updates all CHKS values
+    chks_off = (uint8_t*) micropy_find_subbytes(mp_state, start, bufinfo.len - (start - (uint8_t*)bufinfo.buf), (uint8_t*)"CHKS", 5, 1);
+    while (chks_off)
+    {
+        chks = read_be_uint32 ((&chks_off[4]));
+        chks_len = read_be_uint32 ((&chks_off[8]));
 
-    uint32_t crc = add_hash(bufinfo.buf, bufinfo.len);
-    micropy_write_be_uint32(mp_state, out, crc);
+        memset(chks_off + 8, 0, 8);
+        chks = jenkins_oaat_hash((uint8_t*) (chks_off - chks_len + chks), chks_len, 0x3FAC7125);
+        DEBUG_printf(" + CHKS Size: 0x%X Offset: %p - Wrote Checksum: %08X\n", chks_len, chks_off, chks);
 
-    return micropy_obj_new_str_from_vstr(mp_state, &mp_type_bytes, &vstr);
+        micropy_write_be_uint32(mp_state, (&chks_off[0xC]), chks);
+        micropy_write_be_uint32(mp_state, (&chks_off[0x8]), chks_len);
+
+        start = chks_off + 1;
+        chks_off = (uint8_t*) micropy_find_subbytes(mp_state, start, bufinfo.len - (start - (uint8_t*)bufinfo.buf), (uint8_t*)"CHKS", 5, 1);
+    }
+
+    micropy_write_be_uint32(mp_state, out, chks);
+
+    return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_rockstar_checksum_obj, micropy_mod_uhashlib_rockstar_checksum);
 
