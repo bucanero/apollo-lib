@@ -2006,6 +2006,7 @@ QDEF(MP_QSTR_blowfish_cbc, (const byte*)"\x1a\xd5\x0c" "blowfish_cbc")
 QDEF(MP_QSTR_camellia_ecb, (const byte*)"\x1c\x73\x0c" "camellia_ecb")
 QDEF(MP_QSTR_endian_swap, (const byte*)"\x06\xc6\x0b" "endian_swap")
 QDEF(MP_QSTR_reverse_search, (const byte*)"\xf4\xac\x0e" "reverse_search")
+QDEF(MP_QSTR_apply_savewizard, (const byte*)"\x7c\x5e\x10" "apply_savewizard")
 #undef QDEF
 #endif
     MP_QSTRnumber_of, // no underscore so it can't clash with any of the above
