@@ -95,8 +95,14 @@ typedef unsigned long mp_uint_t; // must be pointer size
 #else
 // These are definitions for machines where sizeof(int) == sizeof(void*),
 // regardless for actual size.
+#if defined(__MINGW32__) || defined(__MINGW64__)
+typedef int64_t mp_int_t; // must be pointer size
+typedef uint64_t mp_uint_t; // must be pointer size
+#else
 typedef int mp_int_t; // must be pointer size
 typedef unsigned int mp_uint_t; // must be pointer size
+#endif
+
 #endif
 
 #define BYTES_PER_WORD sizeof(mp_int_t)
