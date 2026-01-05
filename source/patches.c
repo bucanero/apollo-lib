@@ -3832,7 +3832,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	return (dsize);
 }
 
-static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
+static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 {
 	list_node_t *node;
 	bsd_variable_t *bv;
@@ -3844,9 +3844,9 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy)
 		if (bv->name[0] == '~')
 			continue;
 
-		bytearray = micropy_obj_new_bytearray_by_ref(upy, bv->len, bv->data);
-		bsd_name = micropy_qstr_from_str(upy, bv->name);
-		micropy_store_global(upy, bsd_name, bytearray);
+		bytearray = micropy_obj_new_bytearray_by_ref(upy_ctx, bv->len, bv->data);
+		bsd_name = micropy_qstr_from_str(upy_ctx, bv->name);
+		micropy_store_global(upy_ctx, bsd_name, bytearray);
 	}
 }
 
