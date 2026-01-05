@@ -35,7 +35,7 @@ BUILD		:=	build-ps3
 SOURCE		:=	source
 INCLUDE		:=	include
 DATA		:=	data
-LIBS		:=	 
+LIBS		:=
 
 MACHDEP		:= -DBIGENDIAN 
 CFLAGS		+= -O2 -Wall -mcpu=cell $(MACHDEP) -fno-strict-aliasing $(INCLUDES)

@@ -7,6 +7,47 @@
 extern "C" {
 #endif
 
+/*
+ * read_le_uint16: read an unsigned 16 bits Little Endian
+ * value from a buffer
+ */
+#define read_le_uint16(buf) \
+    ((uint16_t)(buf[0]) | ((uint16_t)(buf[1]) << 8))
+
+#define read_be_uint16(buf) \
+    ((uint16_t)(buf[1]) | ((uint16_t)(buf[0]) << 8))
+
+/*
+ * read_le_uint32: read an unsigned 32 bits Little Endian
+ * value from a buffer
+ */
+#define read_le_uint32(buf) \
+    ((uint32_t)(buf[0]) | ((uint32_t)(buf[1]) << 8) | \
+    ((uint32_t)(buf[2]) << 16) | ((uint32_t)(buf[3]) << 24))
+
+#define read_be_uint32(buf) \
+    ((uint32_t)(buf[3]) | ((uint32_t)(buf[2]) << 8) | \
+    ((uint32_t)(buf[1]) << 16) | ((uint32_t)(buf[0]) << 24))
+
+/*
+ * read_le_uint64: read an unsigned 64 bits Little Endian
+ * value from a buffer
+ */
+#define read_le_uint64(buf) \
+    ((uint64_t)(buf[0]) | ((uint64_t)(buf[1]) << 8) | \
+    ((uint64_t)(buf[2]) << 16) | ((uint64_t)(buf[3]) << 24) | \
+    ((uint64_t)(buf[4]) << 32) | ((uint64_t)(buf[5]) << 40) | \
+    ((uint64_t)(buf[6]) << 48) | ((uint64_t)(buf[7]) << 56))
+
+#define read_be_uint64(buf) \
+    ((uint64_t)(buf[7]) | ((uint64_t)(buf[6]) << 8) | \
+    ((uint64_t)(buf[5]) << 16) | ((uint64_t)(buf[4]) << 24) | \
+    ((uint64_t)(buf[3]) << 32) | ((uint64_t)(buf[2]) << 40) | \
+    ((uint64_t)(buf[1]) << 48) | ((uint64_t)(buf[0]) << 56))
+
+/* FNV-1 init arbitrary value */
+#define FNV1_INIT_VALUE                     0x811c9dc5
+
 /* The golden ration: an arbitrary value */
 #define JHASH_GOLDEN_RATIO                  0x9e3779b9
 

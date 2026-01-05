@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <polarssl/md5.h>
 #include <polarssl/sha1.h>
 #include "apollo.h"
 #include "crc_util.h"
+#include "types.h"
 
 #define SW4_OFF_1      0x00004
 #define SW4_OFF_2      0x000A8
@@ -450,7 +452,10 @@ void lookup3_hashlittle2(
 int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
 {
 	if (size < SW4_OFF_JP)
+	{
+		memset(crcs, 0, 4 * sizeof(uint32_t));
 		return 0;
+	}
 
 	uint32_t num1, num2, num3, num4, num5, num6;
 	uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);
@@ -757,4 +762,93 @@ uint32_t jhash(const uint8_t *k, uint32_t length, uint32_t initval)
     __jhash_mix(a,b,c);
 
     return c;
+}
+
+uint32_t md5_xor_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t hash[4];
+
+    md5(data, len, (uint8_t*) hash);
+    hash[0] ^= (hash[1] ^ hash[2] ^ hash[3]);
+    LE32(hash[0]);
+
+    return hash[0];
+}
+
+uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len)
+{
+    uint64_t sha[3] = {0, 0, 0};
+
+    sha1(data, len, (uint8_t*) sha);
+    sha[0] ^= (sha[1] ^ sha[2]);
+    BE64(sha[0]);
+
+    return sha[0];
+}
+
+uint32_t add_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+
+    while (len--)
+        checksum += *data++;
+
+    return checksum;
+}
+
+uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le)
+{
+    uint32_t checksum = 0;
+    len /= 2;
+
+    while (len--)
+    {
+        checksum += is_le ? read_le_uint16(data) : read_be_uint16(data);
+        data += 2;
+    }
+
+    return checksum;
+}
+
+uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le)
+{
+    uint32_t checksum = 0;
+    len /= 4;
+
+    while (len--)
+    {
+        checksum += is_le ? read_le_uint32(data) : read_be_uint32(data);
+        data += 4;
+    }
+
+    return checksum;
+}
+
+uint32_t qwadd_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+    len /= 8;
+    data += 4; // skip lower dword
+
+    while (len--)
+    {
+        checksum += read_be_uint32(data);
+        data += 8;
+    }
+
+    return checksum;
+}
+
+uint32_t wsub_hash(const uint8_t* data, uint32_t len)
+{
+    uint32_t checksum = 0;
+    len /= 2;
+
+    while (len--)
+    {
+        checksum -= read_be_uint16(data);
+        data += 2;
+    }
+
+    return checksum;
 }

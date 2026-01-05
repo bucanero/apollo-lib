@@ -1,11 +1,11 @@
 TOOLS	=	patcher parser dumper
 COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patches.o ../source/decrypt.o \
-			../source/loader.o ../source/packzip.o ../source/wildcard.o
+			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o
 DEPS	=	Makefile
 
 CC	=	gcc
-CFLAGS	=	-g -O3 -W -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE
-LDFLAGS =	-lz -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
+CFLAGS	=	-g -O3 -Wall -I../include -I../oosdk_libraries/polarssl-1.3.9/include -I. -D_GNU_SOURCE -DAPOLLO_CLI
+LDFLAGS =	-lz -lm -lpolarssl -L../oosdk_libraries/polarssl-1.3.9/build/library
 
 ifdef BIGENDIAN
 CFLAGS	+=	-D__PS3_PC__

@@ -1,6 +1,6 @@
 TARGET    = vita-libapollo.a
 OBJS      = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
-			source/patches.o source/wildcard.o
+			source/patches.o source/wildcard.o source/upy.o
 
 PREFIX   = $(VITASDK)/bin/arm-vita-eabi
 CC       = $(PREFIX)-gcc
