@@ -92,6 +92,8 @@ extern const struct _mp_obj_module_t mp_module_ffi;
 #ifdef __LP64__
 
 #if defined(__MINGW32__) || defined(__MINGW64__)
+zzzzzxxxxx!!!!
+
 typedef int64_t mp_int_t; // must be pointer size
 typedef uint64_t mp_uint_t; // must be pointer size
 #else
