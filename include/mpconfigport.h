@@ -90,8 +90,15 @@ extern const struct _mp_obj_module_t mp_module_ffi;
 // type definitions for the specific machine
 
 #ifdef __LP64__
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+typedef int64_t mp_int_t; // must be pointer size
+typedef uint64_t mp_uint_t; // must be pointer size
+#else
 typedef long mp_int_t; // must be pointer size
 typedef unsigned long mp_uint_t; // must be pointer size
+#endif
+
 #else
 // These are definitions for machines where sizeof(int) == sizeof(void*),
 // regardless for actual size.
