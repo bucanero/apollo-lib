@@ -3853,6 +3853,9 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	uint8_t* ptr;
+	mp_obj_t savedata_obj;
+	mp_buffer_info_t bufinfo;
+	qstr qsd;
 
 	if (!upy)
 	{
@@ -3864,8 +3867,8 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		add_bsd_vars_python(upy);
 	}
 
-	mp_obj_t savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
-	qstr qsd = micropy_qstr_from_str(upy, "savedata");
+	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
+	qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
 
 	if (micropy_exec_str(upy, code->codes) != SUCCESS)
@@ -3876,17 +3879,14 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	}
 
 	savedata_obj = micropy_load_global(upy, qsd);
-	if (!savedata_obj || !MP_OBJ_IS_TYPE(savedata_obj, &mp_type_bytearray))
+	if (!savedata_obj || !micropy_get_buffer(upy, savedata_obj, &bufinfo, MP_BUFFER_READ))
 	{
 		dsize = 0;
 		LOG("Python script did not return valid save data!");
 		goto py_end;
 	}
 
-	mp_buffer_info_t bufinfo;
-	micropy_get_buffer(upy, savedata_obj, &bufinfo, MP_BUFFER_READ);
 	dsize = bufinfo.len;
-
 	ptr = realloc(*src_data, dsize);
 	if (!ptr)
 	{
