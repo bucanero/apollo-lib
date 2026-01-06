@@ -39966,7 +39966,7 @@ void micropy_gc_collect(mp_state_ctx_t *mp) {
     micropy_gc_collect_end(mp);
 }
 
-uint micropy_import_stat(mp_state_ctx_t *mp, const char *path) {
+mp_import_stat_t micropy_import_stat(mp_state_ctx_t *mp, const char *path) {
     return MP_IMPORT_STAT_NO_EXIST;
 }
 
