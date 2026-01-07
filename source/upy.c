@@ -430,6 +430,7 @@ QDEF(MP_QSTR_uheapq, (const byte*)"\x1d\x43\x06" "uheapq")
 QDEF(MP_QSTR_uhashlib, (const byte*)"\x65\x9d\x08" "uhashlib")
 QDEF(MP_QSTR_ubinascii, (const byte*)"\xc4\x88\x09" "ubinascii")
 QDEF(MP_QSTR_ucrypto, (const byte*)"\x13\x22\x07" "ucrypto")
+QDEF(MP_QSTR_utime, (const byte*)"\xe5\x9d\x05" "utime")
 QDEF(MP_QSTR_apollo, (const byte*)"\xd4\x46\x06" "apollo")
 QDEF(MP_QSTR_urandom, (const byte*)"\xab\xae\x07" "urandom")
 QDEF(MP_QSTR_ussl, (const byte*)"\x1c\xf2\x04" "ussl")
@@ -801,6 +802,11 @@ QDEF(MP_QSTR_camellia_ecb, (const byte*)"\x1c\x73\x0c" "camellia_ecb")
 QDEF(MP_QSTR_endian_swap, (const byte*)"\x06\xc6\x0b" "endian_swap")
 QDEF(MP_QSTR_reverse_search, (const byte*)"\xf4\xac\x0e" "reverse_search")
 QDEF(MP_QSTR_apply_savewizard, (const byte*)"\x7c\x5e\x10" "apply_savewizard")
+QDEF(MP_QSTR_localtime, (const byte*)"\x7d\x46\x09" "localtime")
+QDEF(MP_QSTR_mktime, (const byte*)"\x96\x2b\x06" "mktime")
+QDEF(MP_QSTR_time, (const byte*)"\xf0\xc1\x04" "time")
+QDEF(MP_QSTR_gmtime, (const byte*)"\x5a\x8e\x06" "gmtime")
+QDEF(MP_QSTR_strftime, (const byte*)"\x43\xf0\x08" "strftime")
 #undef QDEF
 #endif
     },
@@ -18960,7 +18966,7 @@ void micropy_obj_print_helper(struct _mp_state_ctx_t *mp_state, const mp_print_t
 }
 
 void micropy_obj_print(struct _mp_state_ctx_t *mp_state, mp_obj_t o_in, mp_print_kind_t kind) {
-#if MICROPY_PY_IO
+#if MICROPY_PY_IO_STDOUT
     micropy_obj_print_helper(mp_state, &mp_sys_stdout_print, o_in, kind);
 #else
     micropy_obj_print_helper(mp_state, &mp_plat_print, o_in, kind);
@@ -25115,6 +25121,9 @@ STATIC const mp_rom_map_elem_t mp_builtin_module_table[] = {
 #if MICROPY_PY_UCRYPTO
     { MP_ROM_QSTR(MP_QSTR_ucrypto), MP_ROM_PTR(&mp_module_ucrypto) },
 #endif
+#if MICROPY_PY_UTIME
+    { MP_ROM_QSTR(MP_QSTR_utime), MP_ROM_PTR(&mp_module_utime) },
+#endif
 #if MICROPY_PY_APOLLO
     { MP_ROM_QSTR(MP_QSTR_apollo), MP_ROM_PTR(&mp_module_apollo) },
 #endif
@@ -30946,7 +30955,7 @@ const mp_obj_module_t mp_module_array = {
 #include <math.h>
 #endif
 
-#if MICROPY_PY_IO
+#if MICROPY_PY_IO_STDOUT
 extern struct _mp_dummy_t mp_sys_stdout_obj; // type is irrelevant, just need pointer
 #endif
 
@@ -31302,7 +31311,7 @@ STATIC mp_obj_t micropy_builtin_print(struct _mp_state_ctx_t *mp_state, size_t n
     if (end_elem != NULL && end_elem->value != mp_const_none) {
         end_data = micropy_obj_str_get_data(mp_state, end_elem->value, &end_len);
     }
-    #if MICROPY_PY_IO
+    #if MICROPY_PY_IO_STDOUT
     void *stream_obj = &mp_sys_stdout_obj;
     mp_map_elem_t *file_elem = micropy_map_lookup(mp_state, kwargs, MP_OBJ_NEW_QSTR(MP_QSTR_file), MP_MAP_LOOKUP);
     if (file_elem != NULL && file_elem->value != mp_const_none) {
@@ -31313,19 +31322,19 @@ STATIC mp_obj_t micropy_builtin_print(struct _mp_state_ctx_t *mp_state, size_t n
     #endif
     for (mp_uint_t i = 0; i < n_args; i++) {
         if (i > 0) {
-            #if MICROPY_PY_IO
+            #if MICROPY_PY_IO_STDOUT
             micropy_stream_write_adaptor(mp_state, stream_obj, sep_data, sep_len);
             #else
             micropy_print_strn(mp_state, &mp_plat_print, sep_data, sep_len, 0, 0, 0);
             #endif
         }
-        #if MICROPY_PY_IO
+        #if MICROPY_PY_IO_STDOUT
         micropy_obj_print_helper(mp_state, &print, args[i], PRINT_STR);
         #else
         micropy_obj_print_helper(mp_state, &mp_plat_print, args[i], PRINT_STR);
         #endif
     }
-    #if MICROPY_PY_IO
+    #if MICROPY_PY_IO_STDOUT
     micropy_stream_write_adaptor(mp_state, stream_obj, end_data, end_len);
     #else
     micropy_print_strn(mp_state, &mp_plat_print, end_data, end_len, 0, 0, 0);
@@ -31336,7 +31345,7 @@ MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_print_obj, 0, micropy_builtin_print);
 
 STATIC mp_obj_t micropy_builtin___repl_print__(struct _mp_state_ctx_t *mp_state, mp_obj_t o) {
     if (o != mp_const_none) {
-        #if MICROPY_PY_IO
+        #if MICROPY_PY_IO_STDOUT
         micropy_obj_print_helper(mp_state, &mp_sys_stdout_print, o, PRINT_REPR);
         micropy_print_str(mp_state, &mp_sys_stdout_print, "\n");
         #else
@@ -31997,23 +32006,23 @@ STATIC NORETURN void micropy_math_error(struct _mp_state_ctx_t *mp_state) {
 }
 
 #define MATH_FUN_1(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## micropy_py_name(mp_state, mp_obj_t x_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_2(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## micropy_py_name(mp_state, mp_obj_t x_obj, mp_obj_t y_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj), micropy_obj_get_float(mp_state, y_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj, mp_obj_t y_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj), micropy_obj_get_float(mp_state, y_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_BOOL(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## micropy_py_name(mp_state, mp_obj_t x_obj) { return micropy_obj_new_bool(mp_state, micropy_c_name(mp_state, micropy_obj_get_float(mp_state, x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_bool(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_INT(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## micropy_py_name(mp_state, mp_obj_t x_obj) { mp_int_t x = MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj)); return micropy_obj_new_int(mp_state, x); } \
+    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { mp_int_t x = MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj)); return micropy_obj_new_int(mp_state, x); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_ERRCOND(py_name, c_name, error_condition) \
-    STATIC mp_obj_t mp_math_ ## micropy_py_name(mp_state, mp_obj_t x_obj) { \
+    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { \
         mp_float_t x = micropy_obj_get_float(mp_state, x_obj); \
         if (error_condition) { \
             micropy_math_error(mp_state); \
@@ -32851,9 +32860,9 @@ const mp_obj_module_t mp_module_ustruct = {
 #if MICROPY_PY_SYS
 
 // This file was generated by py/makeversionhdr.py
-#define MICROPY_GIT_TAG "v1.8.1-16-g54318d6969-dirty"
-#define MICROPY_GIT_HASH "54318d696-dirty"
-#define MICROPY_BUILD_DATE "2026-01-05"
+#define MICROPY_GIT_TAG "v1.8.1-17-g0eedba59a5-dirty"
+#define MICROPY_GIT_HASH "0eedba59a-dirty"
+#define MICROPY_BUILD_DATE "2026-01-07"
 #define MICROPY_VERSION_MAJOR (1)
 #define MICROPY_VERSION_MINOR (8)
 #define MICROPY_VERSION_MICRO (1)
@@ -32866,7 +32875,7 @@ extern struct _mp_dummy_t mp_sys_stdin_obj;
 extern struct _mp_dummy_t mp_sys_stdout_obj;
 extern struct _mp_dummy_t mp_sys_stderr_obj;
 
-#if MICROPY_PY_IO
+#if MICROPY_PY_IO_STDOUT
 const mp_print_t mp_sys_stdout_print = {&mp_sys_stdout_obj, micropy_stream_write_adaptor};
 #endif
 
@@ -32927,7 +32936,7 @@ STATIC mp_obj_t micropy_sys_exit(struct _mp_state_ctx_t *mp_state, size_t n_args
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mp_sys_exit_obj, 0, 1, micropy_sys_exit);
 
 STATIC mp_obj_t micropy_sys_print_exception(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
-    #if MICROPY_PY_IO
+    #if MICROPY_PY_IO_STDOUT
     void *stream_obj = &mp_sys_stdout_obj;
     if (n_args > 1) {
         stream_obj = MP_OBJ_TO_PTR(args[1]); // XXX may fail
@@ -39954,6 +39963,171 @@ const mp_obj_module_t mp_module_apollo = {
 };
 
 #endif //MICROPY_PY_APOLLO
+/*
+ *
+ * Copyright (c) 2026 Damian Parrino
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+//#include "py/nlr.h"
+//#include "py/obj.h"
+//#include "py/smallint.h"
+
+/// \module time - time related functions
+///
+/// The `time` module provides functions for getting the current time and date
+/// and for manipulating times and dates.
+/******************************************************************************/
+// Micro Python bindings
+
+/// \function localtime([secs])
+/// Convert a time expressed in seconds since Jan 1, 1970 into an 8-tuple which
+/// contains: (year, month, mday, hour, minute, second, weekday, yearday)
+/// If secs is not provided or None, then the current time from the system is used.
+/// year includes the century (for example 2015)
+/// month   is 1-12
+/// mday    is 1-31
+/// hour    is 0-23
+/// minute  is 0-59
+/// second  is 0-59
+/// weekday is 0-6 for Mon-Sun.
+/// yearday is 1-366
+STATIC mp_obj_t micropy_time_localtime(struct _mp_state_ctx_t *mp_state, mp_uint_t n_args, const mp_obj_t *args) {
+    time_t current_time;
+    struct tm *local_tm;
+
+    if (n_args == 0 || args[0] == mp_const_none) {
+        current_time = time (NULL);
+    } else {
+        current_time = micropy_obj_get_int(mp_state, args[0]);
+    }
+
+    local_tm = localtime (&current_time);
+
+    mp_obj_t tuple[8] = {
+            micropy_obj_new_int(mp_state, local_tm->tm_year + 1900),
+            micropy_obj_new_int(mp_state, local_tm->tm_mon + 1),
+            micropy_obj_new_int(mp_state, local_tm->tm_mday),
+            micropy_obj_new_int(mp_state, local_tm->tm_hour),
+            micropy_obj_new_int(mp_state, local_tm->tm_min),
+            micropy_obj_new_int(mp_state, local_tm->tm_sec),
+            micropy_obj_new_int(mp_state, (local_tm->tm_wday - 1) < 0 ? 6 : (local_tm->tm_wday - 1)),
+            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1)
+    };
+
+    return micropy_obj_new_tuple(mp_state, 8, tuple);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(time_localtime_obj, 0, 1, micropy_time_localtime);
+
+STATIC mp_obj_t micropy_time_mktime(struct _mp_state_ctx_t *mp_state, mp_obj_t tuple) {
+    struct tm tm_info;
+    mp_uint_t len;
+    mp_obj_t *elem;
+
+    micropy_obj_get_array(mp_state, tuple, &len, &elem);
+
+    // localtime generates a tuple of len 8. CPython uses 9, so we accept both.
+    if (len < 8 || len > 9) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg(mp_state, &mp_type_TypeError, "mktime() argument must be a tuple of length 8 or 9"));
+    }
+
+    tm_info.tm_year = micropy_obj_get_int(mp_state, elem[0]) - 1900;
+    tm_info.tm_mon  = micropy_obj_get_int(mp_state, elem[1]) - 1;
+    tm_info.tm_mday = micropy_obj_get_int(mp_state, elem[2]);
+    tm_info.tm_hour = micropy_obj_get_int(mp_state, elem[3]);
+    tm_info.tm_min  = micropy_obj_get_int(mp_state, elem[4]);
+    tm_info.tm_sec  = micropy_obj_get_int(mp_state, elem[5]);
+    tm_info.tm_isdst = -1;
+
+    return micropy_obj_new_int_from_uint(mp_state, mktime (&tm_info));
+}
+MP_DEFINE_CONST_FUN_OBJ_1(time_mktime_obj, micropy_time_mktime);
+
+STATIC mp_obj_t micropy_time_time(struct _mp_state_ctx_t *mp_state) {
+    return micropy_obj_new_int(mp_state, time (NULL));
+}
+MP_DEFINE_CONST_FUN_OBJ_0(time_time_obj, micropy_time_time);
+
+STATIC mp_obj_t micropy_time_gmtime(struct _mp_state_ctx_t *mp_state, mp_uint_t n_args, const mp_obj_t *args) {
+    time_t current_time;
+    struct tm *local_tm;
+
+    if (n_args == 0 || args[0] == mp_const_none) {
+        current_time = time (NULL);
+    } else {
+        current_time = micropy_obj_get_int(mp_state, args[0]);
+    }
+
+    local_tm = gmtime (&current_time);
+
+    mp_obj_t tuple[8] = {
+            micropy_obj_new_int(mp_state, local_tm->tm_year + 1900),
+            micropy_obj_new_int(mp_state, local_tm->tm_mon + 1),
+            micropy_obj_new_int(mp_state, local_tm->tm_mday),
+            micropy_obj_new_int(mp_state, local_tm->tm_hour),
+            micropy_obj_new_int(mp_state, local_tm->tm_min),
+            micropy_obj_new_int(mp_state, local_tm->tm_sec),
+            micropy_obj_new_int(mp_state, (local_tm->tm_wday - 1) < 0 ? 6 : (local_tm->tm_wday - 1)),
+            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1)
+    };
+
+    return micropy_obj_new_tuple(mp_state, 8, tuple);
+}
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(time_gmtime_obj, 0, 1, micropy_time_gmtime);
+
+STATIC mp_obj_t micropy_mod_time_strftime(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
+    time_t t;
+    if (n_args == 1) {
+        t = time (NULL);
+    } else {
+        // CPython requires passing struct tm, but we allow to pass time_t
+        // (and don't support struct tm so far).
+        t = micropy_obj_get_int(mp_state, args[1]);
+    }
+    struct tm *tm = localtime (&t);
+    char buf[32];
+    size_t sz = strftime (buf, sizeof(buf), micropy_obj_str_get_str(mp_state, args[0]), tm);
+    return micropy_obj_new_str(mp_state, buf, sz, false);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_time_strftime_obj, 1, 2, micropy_mod_time_strftime);
+
+#if MICROPY_PY_UTIME
+
+STATIC const mp_map_elem_t time_module_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),        MP_OBJ_NEW_QSTR(MP_QSTR_utime) },
+
+    { MP_ROM_QSTR(MP_QSTR_localtime),       (mp_obj_t)&time_localtime_obj },
+    { MP_ROM_QSTR(MP_QSTR_mktime),          (mp_obj_t)&time_mktime_obj },
+    { MP_ROM_QSTR(MP_QSTR_time),            (mp_obj_t)&time_time_obj },
+    { MP_ROM_QSTR(MP_QSTR_gmtime),          (mp_obj_t)&time_gmtime_obj },
+    { MP_ROM_QSTR(MP_QSTR_strftime),        (mp_obj_t)(&mod_time_strftime_obj) },
+};
+
+STATIC MP_DEFINE_CONST_DICT(time_module_globals, time_module_globals_table);
+
+const mp_obj_module_t mp_module_utime = {
+    .base = { &mp_type_module },
+    .name = MP_QSTR_utime,
+    .globals = (mp_obj_dict_t*)&time_module_globals,
+};
+
+#endif // MICROPY_PY_UTIME
 #include <setjmp.h>
 
 void micropy_gc_collect(mp_state_ctx_t *mp) {
@@ -39966,7 +40140,15 @@ void micropy_gc_collect(mp_state_ctx_t *mp) {
     micropy_gc_collect_end(mp);
 }
 
-mp_import_stat_t micropy_import_stat(mp_state_ctx_t *mp, const char *path) {
+uint micropy_import_stat(mp_state_ctx_t *mp, const char *path) {
+    struct stat buf;
+    if (stat(path, &buf) == 0) {
+        if (buf.st_mode & S_IFDIR)
+            return MP_IMPORT_STAT_DIR;
+
+        return MP_IMPORT_STAT_FILE;
+    }
+
     return MP_IMPORT_STAT_NO_EXIST;
 }
 
@@ -39975,12 +40157,10 @@ void micropy_nlr_jump_fail(mp_state_ctx_t *mp, void *val) {
     exit(1);
 }
 
-/*
 mp_obj_t mp_builtin_open(mp_state_ctx_t *mp, mp_uint_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
     micropy_nlr_raise(mp, micropy_obj_new_exception_msg(mp, &mp_type_OSError, "open() not implemented"));
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(mp_builtin_open_obj, 1, mp_builtin_open);
-*/
 
 mp_state_ctx_t *micropy_create(void *heap, size_t heap_size) {
     mp_state_ctx_t *mp = heap;

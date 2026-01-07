@@ -1636,6 +1636,7 @@ QDEF(MP_QSTR_uheapq, (const byte*)"\x1d\x43\x06" "uheapq")
 QDEF(MP_QSTR_uhashlib, (const byte*)"\x65\x9d\x08" "uhashlib")
 QDEF(MP_QSTR_ubinascii, (const byte*)"\xc4\x88\x09" "ubinascii")
 QDEF(MP_QSTR_ucrypto, (const byte*)"\x13\x22\x07" "ucrypto")
+QDEF(MP_QSTR_utime, (const byte*)"\xe5\x9d\x05" "utime")
 QDEF(MP_QSTR_apollo, (const byte*)"\xd4\x46\x06" "apollo")
 QDEF(MP_QSTR_urandom, (const byte*)"\xab\xae\x07" "urandom")
 QDEF(MP_QSTR_ussl, (const byte*)"\x1c\xf2\x04" "ussl")
@@ -2007,6 +2008,11 @@ QDEF(MP_QSTR_camellia_ecb, (const byte*)"\x1c\x73\x0c" "camellia_ecb")
 QDEF(MP_QSTR_endian_swap, (const byte*)"\x06\xc6\x0b" "endian_swap")
 QDEF(MP_QSTR_reverse_search, (const byte*)"\xf4\xac\x0e" "reverse_search")
 QDEF(MP_QSTR_apply_savewizard, (const byte*)"\x7c\x5e\x10" "apply_savewizard")
+QDEF(MP_QSTR_localtime, (const byte*)"\x7d\x46\x09" "localtime")
+QDEF(MP_QSTR_mktime, (const byte*)"\x96\x2b\x06" "mktime")
+QDEF(MP_QSTR_time, (const byte*)"\xf0\xc1\x04" "time")
+QDEF(MP_QSTR_gmtime, (const byte*)"\x5a\x8e\x06" "gmtime")
+QDEF(MP_QSTR_strftime, (const byte*)"\x43\xf0\x08" "strftime")
 #undef QDEF
 #endif
     MP_QSTRnumber_of, // no underscore so it can't clash with any of the above
@@ -4217,6 +4223,7 @@ extern const mp_obj_module_t mp_module_uheapq;
 extern const mp_obj_module_t mp_module_uhashlib;
 extern const mp_obj_module_t mp_module_ubinascii;
 extern const mp_obj_module_t mp_module_ucrypto;
+extern const mp_obj_module_t mp_module_utime;
 extern const mp_obj_module_t mp_module_apollo;
 extern const mp_obj_module_t mp_module_urandom;
 extern const mp_obj_module_t mp_module_ussl;
