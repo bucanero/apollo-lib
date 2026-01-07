@@ -40020,7 +40020,7 @@ STATIC mp_obj_t micropy_time_localtime(struct _mp_state_ctx_t *mp_state, mp_uint
 
     local_tm = localtime (&current_time);
 
-    mp_obj_t tuple[8] = {
+    mp_obj_t tuple[9] = {
             micropy_obj_new_int(mp_state, local_tm->tm_year + 1900),
             micropy_obj_new_int(mp_state, local_tm->tm_mon + 1),
             micropy_obj_new_int(mp_state, local_tm->tm_mday),
@@ -40028,14 +40028,16 @@ STATIC mp_obj_t micropy_time_localtime(struct _mp_state_ctx_t *mp_state, mp_uint
             micropy_obj_new_int(mp_state, local_tm->tm_min),
             micropy_obj_new_int(mp_state, local_tm->tm_sec),
             micropy_obj_new_int(mp_state, (local_tm->tm_wday - 1) < 0 ? 6 : (local_tm->tm_wday - 1)),
-            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1)
+            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1),
+            micropy_obj_new_int(mp_state, -1)
     };
 
-    return micropy_obj_new_tuple(mp_state, 8, tuple);
+    return micropy_obj_new_tuple(mp_state, 9, tuple);
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(time_localtime_obj, 0, 1, micropy_time_localtime);
 
-STATIC mp_obj_t micropy_time_mktime(struct _mp_state_ctx_t *mp_state, mp_obj_t tuple) {
+STATIC time_t micropy_time_tuple_parse(struct _mp_state_ctx_t *mp_state, mp_obj_t tuple)
+{
     struct tm tm_info;
     mp_uint_t len;
     mp_obj_t *elem;
@@ -40055,7 +40057,11 @@ STATIC mp_obj_t micropy_time_mktime(struct _mp_state_ctx_t *mp_state, mp_obj_t t
     tm_info.tm_sec  = micropy_obj_get_int(mp_state, elem[5]);
     tm_info.tm_isdst = -1;
 
-    return micropy_obj_new_int_from_uint(mp_state, mktime (&tm_info));
+    return mktime (&tm_info);
+}
+
+STATIC mp_obj_t micropy_time_mktime(struct _mp_state_ctx_t *mp_state, mp_obj_t tuple) {
+    return micropy_obj_new_int_from_uint(mp_state, micropy_time_tuple_parse(mp_state, tuple));
 }
 MP_DEFINE_CONST_FUN_OBJ_1(time_mktime_obj, micropy_time_mktime);
 
@@ -40076,7 +40082,7 @@ STATIC mp_obj_t micropy_time_gmtime(struct _mp_state_ctx_t *mp_state, mp_uint_t 
 
     local_tm = gmtime (&current_time);
 
-    mp_obj_t tuple[8] = {
+    mp_obj_t tuple[9] = {
             micropy_obj_new_int(mp_state, local_tm->tm_year + 1900),
             micropy_obj_new_int(mp_state, local_tm->tm_mon + 1),
             micropy_obj_new_int(mp_state, local_tm->tm_mday),
@@ -40084,10 +40090,11 @@ STATIC mp_obj_t micropy_time_gmtime(struct _mp_state_ctx_t *mp_state, mp_uint_t 
             micropy_obj_new_int(mp_state, local_tm->tm_min),
             micropy_obj_new_int(mp_state, local_tm->tm_sec),
             micropy_obj_new_int(mp_state, (local_tm->tm_wday - 1) < 0 ? 6 : (local_tm->tm_wday - 1)),
-            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1)
+            micropy_obj_new_int(mp_state, local_tm->tm_yday + 1),
+            micropy_obj_new_int(mp_state, -1)
     };
 
-    return micropy_obj_new_tuple(mp_state, 8, tuple);
+    return micropy_obj_new_tuple(mp_state, 9, tuple);
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(time_gmtime_obj, 0, 1, micropy_time_gmtime);
 
@@ -40095,13 +40102,14 @@ STATIC mp_obj_t micropy_mod_time_strftime(struct _mp_state_ctx_t *mp_state, size
     time_t t;
     if (n_args == 1) {
         t = time (NULL);
+    } else if (micropy_obj_get_type(mp_state, args[1]) == &mp_type_tuple) {
+        t = micropy_time_tuple_parse(mp_state, args[1]);
     } else {
         // CPython requires passing struct tm, but we allow to pass time_t
-        // (and don't support struct tm so far).
         t = micropy_obj_get_int(mp_state, args[1]);
     }
     struct tm *tm = localtime (&t);
-    char buf[32];
+    char buf[64];
     size_t sz = strftime (buf, sizeof(buf), micropy_obj_str_get_str(mp_state, args[0]), tm);
     return micropy_obj_new_str(mp_state, buf, sz, false);
 }
