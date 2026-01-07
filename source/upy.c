@@ -32006,23 +32006,23 @@ STATIC NORETURN void micropy_math_error(struct _mp_state_ctx_t *mp_state) {
 }
 
 #define MATH_FUN_1(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name (struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_2(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj, mp_obj_t y_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj), micropy_obj_get_float(mp_state, y_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name (struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj, mp_obj_t y_obj) { return micropy_obj_new_float(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj), micropy_obj_get_float(mp_state, y_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_2(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_BOOL(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_bool(mp_state, MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj))); } \
+    STATIC mp_obj_t mp_math_ ## py_name (struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { return micropy_obj_new_bool(mp_state, c_name (micropy_obj_get_float(mp_state, x_obj))); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_TO_INT(py_name, c_name) \
-    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { mp_int_t x = MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj)); return micropy_obj_new_int(mp_state, x); } \
+    STATIC mp_obj_t mp_math_ ## py_name (struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { mp_int_t x = MICROPY_FLOAT_C_FUN(c_name)(micropy_obj_get_float(mp_state, x_obj)); return micropy_obj_new_int(mp_state, x); } \
     STATIC MP_DEFINE_CONST_FUN_OBJ_1(mp_math_## py_name ## _obj, mp_math_ ## py_name);
 
 #define MATH_FUN_1_ERRCOND(py_name, c_name, error_condition) \
-    STATIC mp_obj_t mp_math_ ## py_name(struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { \
+    STATIC mp_obj_t mp_math_ ## py_name (struct _mp_state_ctx_t *mp_state, mp_obj_t x_obj) { \
         mp_float_t x = micropy_obj_get_float(mp_state, x_obj); \
         if (error_condition) { \
             micropy_math_error(mp_state); \
