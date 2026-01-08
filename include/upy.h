@@ -3702,7 +3702,7 @@ typedef enum {
     MP_IMPORT_STAT_FILE,
 } mp_import_stat_t;
 
-mp_import_stat_t micropy_import_stat(struct _mp_state_ctx_t *mp_state, const char *path);
+uint micropy_import_stat(struct _mp_state_ctx_t *mp_state, const char *path);
 mp_lexer_t *micropy_lexer_new_from_file(struct _mp_state_ctx_t *mp_state, const char *filename);
 
 #if MICROPY_HELPER_LEXER_UNIX

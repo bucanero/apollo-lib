@@ -15,7 +15,7 @@
 
 #ifdef __vita__
 // PS Vita
-#define PY_HEAP_SIZE            (32 * 1024 * 1024)
+#define PY_HEAP_SIZE            (16 * 1024 * 1024)
 #elif __PSP__
 // PlayStation Portable
 #define PY_HEAP_SIZE            (2 * 1024 * 1024)
@@ -3861,7 +3861,10 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	{
 		void* py_heap = malloc(dsize + PY_HEAP_SIZE);
 		if (!py_heap)
+		{
+			LOG("Memory allocation failed!");
 			return 0;
+		}
 
 		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 		add_bsd_vars_python(upy);
