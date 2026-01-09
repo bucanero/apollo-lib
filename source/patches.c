@@ -15,7 +15,7 @@
 
 #ifdef __vita__
 // PS Vita
-#define PY_HEAP_SIZE            (32 * 1024 * 1024)
+#define PY_HEAP_SIZE            (16 * 1024 * 1024)
 #elif __PSP__
 // PlayStation Portable
 #define PY_HEAP_SIZE            (2 * 1024 * 1024)
@@ -3861,10 +3861,21 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	{
 		void* py_heap = malloc(dsize + PY_HEAP_SIZE);
 		if (!py_heap)
+		{
+			LOG("Memory allocation failed!");
 			return 0;
+		}
 
 		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 		add_bsd_vars_python(upy);
+
+		char py_path[256];
+		snprintf(py_path, sizeof(py_path), "%s%s", (char*) host_callback(APOLLO_HOST_DATA_PATH, NULL), "python");
+		LOG("Python import path: %s", py_path);
+
+		micropy_obj_list_init(upy, (MP_OBJ_FROM_PTR(&(upy)->vm.mp_sys_path_obj)), 0);
+		mp_obj_t py_path_obj = micropy_obj_new_bytes(upy, (const byte*) py_path, strlen(py_path));
+		micropy_obj_list_append(upy, (MP_OBJ_FROM_PTR(&(upy)->vm.mp_sys_path_obj)), py_path_obj);
 	}
 
 	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
@@ -3910,6 +3921,7 @@ static void* dummy_host_callback(int id, int* size)
 	switch (id)
 	{
 	case APOLLO_HOST_TEMP_PATH:
+	case APOLLO_HOST_DATA_PATH:
 		break;
 
 	case APOLLO_HOST_USERNAME:

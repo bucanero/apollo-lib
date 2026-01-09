@@ -3,12 +3,6 @@
 #include <string.h>
 #include "apollo.h"
 
-#ifdef __WIN32__
-#define TMP_FOLDER      "C:\\WINDOWS\\TEMP\\"
-#else
-#define TMP_FOLDER      "/tmp/"
-#endif
-
 #ifdef __PS3_PC__
 #define CLI_VERSION     APOLLO_LIB_VERSION " PS3/big-endian"
 #else
@@ -58,25 +52,6 @@ int is_active_code(const char* a, int id)
 
     free(arg);
     return 0;
-}
-
-static void* cli_host_callback(int id, int* size)
-{
-	switch (id)
-	{
-	case APOLLO_HOST_TEMP_PATH:
-		return TMP_FOLDER;
-
-	case APOLLO_HOST_USERNAME:
-	case APOLLO_HOST_SYS_NAME:
-	case APOLLO_HOST_LAN_ADDR:
-	case APOLLO_HOST_WLAN_ADDR:
-		if (size) *size = 6;
-		return "APOLLO";
-	}
-
-	if (size) *size = 1;
-	return "";
 }
 
 static void get_user_options(code_entry_t* entry)
@@ -156,7 +131,7 @@ int main(int argc, char **argv)
                 get_user_options(code);
 
             printf("\n===============[ Applying code #%ld ]===============\n", len);
-            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, &cli_host_callback))
+            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, NULL))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
