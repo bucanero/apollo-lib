@@ -31,19 +31,103 @@ Some codes span multiple lines with additional data.
 Code Types
 ==========
 
-Type 0-2: Direct Write Operations
-----------------------------------
+Type 0: Direct Write Operation (8-bit)
+--------------------------------------
 
-**Format:** ``BTXXXXXX YYYYYYYY``
+**Format:** ``0TXXXXXX 000000YY``
 
 **Parameters:**
 
-- ``B`` = Byte size (0=8-bit, 1=16-bit, 2=32-bit)
+- ``T`` = Address type (0=Normal, 8=Offset From Pointer)
+- ``XXXXXX`` = Address/offset
+- ``YY`` = Value to write
+
+**Description:** Direct memory write operations. Writes the specified value to the given address.
+
+Example: 8-bit Direct Write
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Code:** 
+
+::
+
+   00A01234 000000FF 
+
+**Description:** Write value ``0xFF`` to
+address ``0xA01234``
+
+**Code:** 
+
+::
+
+   08123456 00000042 
+
+**Description:** Write value ``0x42`` to pointer offset ``0x123456``
+
+Type 1: Direct Write Operation (16-bit)
+---------------------------------------
+
+**Format:** ``1TXXXXXX 0000YYYY``
+
+**Parameters:**
+
+- ``T`` = Address type (0=Normal, 8=Offset From Pointer)
+- ``XXXXXX`` = Address/offset
+- ``YYYY`` = Value to write
+
+**Description:** Direct memory write operations. Writes the specified value to the given address.
+
+Example: 16-bit Direct Write
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Code:** 
+
+::
+
+   10B00000 00001234
+
+**Description:** Write value ``0x1234``
+to address ``0xB00000``
+
+**Code:** 
+
+::
+
+   18550000 0000ABCD
+
+**Description:** Write value ``0xABCD`` to pointer offset ``0x550000``
+
+Type 2: Direct Write Operation (32-bit)
+---------------------------------------
+
+**Format:** ``2TXXXXXX YYYYYYYY``
+
+**Parameters:**
+
 - ``T`` = Address type (0=Normal, 8=Offset From Pointer)
 - ``XXXXXX`` = Address/offset
 - ``YYYYYYYY`` = Value to write
 
 **Description:** Direct memory write operations. Writes the specified value to the given address.
+
+Example: 32-bit Direct Write
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Code:** 
+
+::
+
+   20080000 12345678
+
+**Description:** Write value ``0x12345678`` to address ``0x080000``
+
+**Code:** 
+
+::
+
+   28300000 87654321
+
+**Description:** Write value ``0x87654321`` to pointer offset ``0x300000``
 
 Type 3: Increase/Decrease Write
 --------------------------------
@@ -94,6 +178,55 @@ Type 3: Increase/Decrease Write
 - ``XXXXXXXX`` = Value to add/subtract
 
 **Description:** Increments or decrements the value at the specified address by the given amount.
+
+
+Example: Increase/Decrease Write
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Code:** 
+
+::
+   
+   30012345 0000000A
+   
+**Description:** Add ``0x0A`` (10) to
+the 1-byte value at address ``0x012345``
+
+**Code:**
+
+::
+   
+   32A54321 00000064
+   
+**Description:** Add ``0x64`` (100) to
+the 4-byte value at address ``0xA54321``
+
+**Code:** 
+
+::
+   
+   34800000 00000005
+   
+**Description:** Subtract ``0x05`` (5)
+from the 1-byte value at address ``0x800000``
+
+**Code:** 
+
+::
+   
+   38876543 00002710
+   
+**Description:** (Pointer offset) Add
+``0x2710`` (10000) to the 1-byte value
+
+**Code:** 
+
+::
+   
+   3F200000 00000001
+   
+**Description:** (Pointer offset)
+Subtract ``0x01`` from the 8-byte value at offset ``0x200000``
 
 Type 4: Multi-Write
 -------------------
@@ -152,6 +285,41 @@ Second line: ``NNNNWWWW VVVVVVVV``
 
 **Description:** Writes values to multiple addresses with optional increments.
 
+Simple Multi-Write (8-bit)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   40000100 00000001
+
+**Description:** Write ``0x01`` to address ``0x000100`` (8-bit)
+
+Incremental Multi-Write (32-bit)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   42001000 00000001
+   00020000 00000001
+
+**Description:** Write increasing values starting at ``0x00000001``: 
+
+- Write to ``0x001000``, then ``0x001200``, then ``0x001400``\ … 
+- Each write increases address by ``0x20000`` and value by ``0x01``
+
+Complex Multi-Write with Pointer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   4C030000 00000010
+   00050000 00000001
+
+**Description:** (Pointer offset) Write starting value ``0x10``: 
+
+- Write 1-byte values ``0x10``, ``0x11``, ``0x12``\ … 
+- To addresses: pointer+\ ``0x030000``, pointer+\ ``0x035000``, pointer+\ ``0x03A000``\ …
+
 Type 5: Copy Bytes
 ------------------
 
@@ -172,6 +340,25 @@ Type 5: Copy Bytes
   - ``YYYYYY`` = Destination offset
 
 **Description:** Copies bytes from one memory location to another.
+
+Example: Copy Bytes
+~~~~~~~~~~~~~~~~~~~
+
+::
+
+   50001000 00000010
+   50002000 00000000
+
+**Description:** Copy 16 bytes from address ``0x001000`` to address
+``0x002000``
+
+::
+
+   58012345 00000100
+   58654321 00000000
+
+**Description:** Copy 256 bytes from pointer offset ``0x012345`` to
+pointer offset ``0x654321``
 
 Type 6: Pointer Operations (Special Mega Code)
 -----------------------------------------------
@@ -271,6 +458,39 @@ Type 7: Conditional Write (No More/Less Than)
 
 **Description:** Writes only if current value meets condition (greater/less than threshold).
 
+Example: Conditional Write
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Code:**
+
+::
+   
+   70012345 00000064
+   
+**Description:** Write ``0x64`` to
+address ``0x012345`` only if current value < ``0x64`` (No More Than, 1
+byte)
+
+**Code:**
+
+::
+   
+   71A00000 00002710
+   
+**Description:** Write ``0x2710`` to
+address ``0xA00000`` only if current value > ``0x2710`` (No Less Than, 2
+bytes)
+
+**Code:**
+
+::
+   
+   78876543 3B9ACA00
+   
+**Description:** (Pointer offset) Write
+``0x3B9ACA00`` (1,000,000,000) only if current value < that amount (No
+More Than, 1 byte)
+
 Type 8: Forward Search
 ----------------------
 
@@ -286,6 +506,36 @@ Type 8: Forward Search
 **Additional lines:** Continue search pattern data (8 bytes per line)
 
 **Description:** Searches forward for a pattern and sets the pointer to its location.
+
+Simple Search
+~~~~~~~~~~~~~
+
+::
+
+   80000104 41424344
+
+**Description:** Search for pattern “ABCD” (ASCII) and set pointer to
+first occurrence
+
+Complex Search
+~~~~~~~~~~~~~~
+
+::
+
+   81000208 48656C6C  // "Hell"
+   6F2C576F 726C6421  // "o,World!" (spread across two lines)
+
+**Description:** Search for “Hello,World!” (12 bytes), find 2nd
+occurrence
+
+Search with Pointer Offset
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   88000104 504C4159  // "PLAY"
+
+**Description:** Search for “PLAY” starting from pointer location
 
 Type 9: Pointer Manipulation
 ----------------------------
@@ -322,430 +572,8 @@ Type 9: Pointer Manipulation
 
 **Description:** Direct pointer manipulation operations.
 
-Type A: Bulk Memory Write
--------------------------
-
-**Format:** ``ATxxxxxx yyyyyyyy`` + data lines
-
-**Parameters:**
-
-- ``T`` = Address type (0=Normal, 8=Offset From Pointer)
-- ``xxxxxx`` = Destination address
-- ``yyyyyyyy`` = Size of data to write
-
-**Additional lines:** Data to write (8 bytes per line)
-
-**Description:** Writes a block of data to memory.
-
-Type B: Backward Search
------------------------
-
-**Format:** ``BTCCYYYY XXXXXXXX`` + additional data lines
-
-**Parameters:**
-
-- ``T`` = Offset type (0=Default, 8=Offset from Pointer)
-- ``CC`` = Number of occurrences to find
-- ``YYYY`` = Length of bytes to search (1=1 byte, 2=2 bytes, etc.)
-- ``XXXXXXXX`` = Search pattern (first 4 bytes)
-
-**Additional lines:** Continue search pattern data
-
-**Description:** Searches backward from end pointer for a pattern.
-
-Type C: Address Byte Search
----------------------------
-
-**Format:** ``CBFFYYYY XXXXXXXX``
-
-**Parameters:**
-
-- ``B`` = Search type:
-
-  +--------+-----------------------------------------+
-  | Value  | Search Type                             |
-  +========+=========================================+
-  | 0      | Search forwards from given address      |
-  +--------+-----------------------------------------+
-  | 4      | Search from 0x0 to given address        |
-  +--------+-----------------------------------------+
-  | 8      | Offset from pointer; search forwards    |
-  +--------+-----------------------------------------+
-  | C      | Offset from pointer; search from 0x0    |
-  |        | to address                              |
-  +--------+-----------------------------------------+
-
-- ``FF`` = Number of occurrences to find
-- ``YYYY`` = Length of bytes to use from search address
-- ``XXXXXXXX`` = Address containing bytes to search for
-
-**Description:** Uses bytes from a specific address as a search pattern.
-
-Type D: Conditional Skip (Byte Test)
-------------------------------------
-
-**Format:** ``DBYYYYYY CCZDXXXX``
-
-**Parameters:**
-
-- ``B`` = Offset type (0=Normal, 8=Offset from Pointer)
-- ``YYYYYY`` = Address to test
-- ``CC`` = Number of code lines to skip if test fails
-- ``Z`` = Data type (0=16-bit, 1=8-bit)
-- ``D`` = Test operation:
-
-  +--------+-------------------+
-  | Value  | Operation         |
-  +========+===================+
-  | 0      | Equal             |
-  +--------+-------------------+
-  | 1      | Not equal         |
-  +--------+-------------------+
-  | 2      | Greater than      |
-  +--------+-------------------+
-  | 3      | Less than         |
-  +--------+-------------------+
-
-- ``XXXX`` = Value to test against
-
-**Description:** Tests a memory location and skips following lines if condition fails.
-
-Common Patterns
-===============
-
-Pointer Usage
--------------
-
-- Types 8, B, C set the ``pointer`` variable
-- Types 0-7, A can use pointer offsets when ``T`` = 8
-- Type 9 manipulates pointers directly
-
-Multi-line Codes
-----------------
-
-- Types 4, 5, 6, 8, A, B, C span multiple lines
-- Each additional line contains 8 bytes of data or parameters
-
-Endianness
-----------
-
-- Most operations use little-endian (host byte order)
-- Search operations (8, B) use big-endian for patterns
-- Type 9 supports both endianness modes
-
-Notes
-=====
-
-1. All offsets and addresses are hexadecimal
-2. Values are typically little-endian unless specified
-3. The pointer variable persists between code executions
-4. Search operations can fail, causing code skipping
-5. Conditional operations (D) allow for branching logic
-
-
-
-
-Save Wizard Code Examples
-=========================
-
-Type 0: 8-bit Direct Write
---------------------------
-
-**Code:** 
-
-::
-
-   00A01234 000000FF 
-
-**Description:** Write value ``0xFF`` to
-address ``0xA01234``
-
-**Code:** 
-
-::
-
-   08123456 00000042 
-
-**Description:** Write value ``0x42`` to
-pointer offset ``0x123456``
-
---------------
-
-Type 1: 16-bit Direct Write
----------------------------
-
-**Code:** 
-
-::
-
-   10B00000 00001234
-
-**Description:** Write value ``0x1234``
-to address ``0xB00000``
-
-**Code:** 
-
-::
-
-   18550000 0000ABCD
-
-**Description:** Write value ``0xABCD``
-to pointer offset ``0x550000``
-
---------------
-
-Type 2: 32-bit Direct Write
----------------------------
-
-**Code:** 
-
-::
-
-   20080000 12345678
-
-**Description:** Write value ``0x12345678`` to address ``0x080000``
-
-**Code:** 
-
-::
-
-   28300000 87654321
-
-**Description:** Write value ``0x87654321`` to pointer offset ``0x300000``
-
-
-Type 3: Increase/Decrease Write
--------------------------------
-
-**Code:** 
-
-::
-   
-   30012345 0000000A
-   
-**Description:** Add ``0x0A`` (10) to
-the 1-byte value at address ``0x012345``
-
-**Code:**
-
-::
-   
-   32A54321 00000064
-   
-**Description:** Add ``0x64`` (100) to
-the 4-byte value at address ``0xA54321``
-
-**Code:** 
-
-::
-   
-   34800000 00000005
-   
-**Description:** Subtract ``0x05`` (5)
-from the 1-byte value at address ``0x800000``
-
-**Code:** 
-
-::
-   
-   38876543 00002710
-   
-**Description:** (Pointer offset) Add
-``0x2710`` (10000) to the 1-byte value
-
-**Code:** 
-
-::
-   
-   3F200000 00000001
-   
-**Description:** (Pointer offset)
-Subtract ``0x01`` from the 8-byte value at offset ``0x200000``
-
-
-
-Type 4: Multi-Write
--------------------
-
-Simple Multi-Write (8-bit)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   40000100 00000001
-
-**Description:** Write ``0x01`` to address ``0x000100`` (8-bit)
-
-Incremental Multi-Write (32-bit)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   42001000 00000001
-   00020000 00000001
-
-**Description:** Write increasing values starting at ``0x00000001``: 
-
-- Write to ``0x001000``, then ``0x001200``, then ``0x001400``\ … 
-- Each write increases address by ``0x20000`` and value by ``0x01``
-
-Complex Multi-Write with Pointer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   4C030000 00000010
-   00050000 00000001
-
-**Description:** (Pointer offset) Write starting value ``0x10``: 
-
-- Write 1-byte values ``0x10``, ``0x11``, ``0x12``\ … 
-- To addresses: pointer+\ ``0x030000``, pointer+\ ``0x035000``, pointer+\ ``0x03A000``\ …
-
---------------
-
-Type 5: Copy Bytes
-------------------
-
-::
-
-   50001000 00000010
-   50002000 00000000
-
-**Description:** Copy 16 bytes from address ``0x001000`` to address
-``0x002000``
-
-::
-
-   58012345 00000100
-   58654321 00000000
-
-**Description:** Copy 256 bytes from pointer offset ``0x012345`` to
-pointer offset ``0x654321``
-
---------------
-
-Type 6: Pointer Operations
---------------------------
-
-**Code:**
-
-::
-   
-   60000001 00100000
-   
-**Description:** Read 32-bit value from
-address ``0x100000`` into pointer
-
-**Code:**
-
-::
-   
-   61000000 00000004
-   
-**Description:** Add ``0x04`` to pointer
-value from obtained address
-
-**Code:**
-
-::
-   
-   62000000 00001000
-   
-**Description:** Move pointer forward by
-``0x1000`` bytes
-
-**Code:**
-
-::
-   
-   64010001 000000FF
-   
-**Description:** Write ``0xFF`` (8-bit)
-to pointer address
-
-**Complex Example:**
-
-::
-
-   60200001 00100000  // Read address from 0x100000
-   61000000 00000004  // Add 4 to pointer
-   64010001 000000FF  // Write 0xFF at pointer address
-
---------------
-
-Type 7: Conditional Write
--------------------------
-
-**Code:**
-
-::
-   
-   70012345 00000064
-   
-**Description:** Write ``0x64`` to
-address ``0x012345`` only if current value < ``0x64`` (No More Than, 1
-byte)
-
-**Code:**
-
-::
-   
-   71A00000 00002710
-   
-**Description:** Write ``0x2710`` to
-address ``0xA00000`` only if current value > ``0x2710`` (No Less Than, 2
-bytes)
-
-**Code:**
-
-::
-   
-   78876543 3B9ACA00
-   
-**Description:** (Pointer offset) Write
-``0x3B9ACA00`` (1,000,000,000) only if current value < that amount (No
-More Than, 1 byte)
-
---------------
-
-Type 8: Forward Search
-----------------------
-
-Simple Search
-~~~~~~~~~~~~~
-
-::
-
-   80000104 41424344
-
-**Description:** Search for pattern “ABCD” (ASCII) and set pointer to
-first occurrence
-
-Complex Search
-~~~~~~~~~~~~~~
-
-::
-
-   81000208 48656C6C  // "Hell"
-   6F2C576F 726C6421  // "o,World!" (spread across two lines)
-
-**Description:** Search for “Hello,World!” (12 bytes), find 2nd
-occurrence
-
-Search with Pointer Offset
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   88000104 504C4159  // "PLAY"
-
-**Description:** Search for “PLAY” starting from pointer location
-
---------------
-
-Type 9: Pointer Manipulation
-----------------------------
+Example: Pointer Manipulation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Code:**
 
@@ -810,10 +638,21 @@ bytes from end of file
 **Description:** Set end pointer to
 current pointer + ``0x1000``
 
---------------
 
 Type A: Bulk Memory Write
 -------------------------
+
+**Format:** ``ATxxxxxx yyyyyyyy`` + data lines
+
+**Parameters:**
+
+- ``T`` = Address type (0=Normal, 8=Offset From Pointer)
+- ``xxxxxx`` = Destination address
+- ``yyyyyyyy`` = Size of data to write
+
+**Additional lines:** Data to write (8 bytes per line)
+
+**Description:** Writes a block of data to memory.
 
 Write 8 bytes
 ~~~~~~~~~~~~~
@@ -837,10 +676,24 @@ Write 16 bytes with pointer
 **Description:** Write 16 bytes “AAAABBBBCCCCDDDD” to pointer offset
 ``0x300000``
 
---------------
-
 Type B: Backward Search
 -----------------------
+
+**Format:** ``BTCCYYYY XXXXXXXX`` + additional data lines
+
+**Parameters:**
+
+- ``T`` = Offset type (0=Default, 8=Offset from Pointer)
+- ``CC`` = Number of occurrences to find
+- ``YYYY`` = Length of bytes to search (1=1 byte, 2=2 bytes, etc.)
+- ``XXXXXXXX`` = Search pattern (first 4 bytes)
+
+**Additional lines:** Continue search pattern data
+
+**Description:** Searches backward from end pointer for a pattern.
+
+Example: Backward Search
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Code:**
 
@@ -860,10 +713,36 @@ Type B: Backward Search
 **Description:** Search backward for 8-byte pattern starting from
 pointer
 
---------------
-
 Type C: Address Byte Search
 ---------------------------
+
+**Format:** ``CBFFYYYY XXXXXXXX``
+
+**Parameters:**
+
+- ``B`` = Search type:
+
+  +--------+-----------------------------------------+
+  | Value  | Search Type                             |
+  +========+=========================================+
+  | 0      | Search forwards from given address      |
+  +--------+-----------------------------------------+
+  | 4      | Search from 0x0 to given address        |
+  +--------+-----------------------------------------+
+  | 8      | Offset from pointer; search forwards    |
+  +--------+-----------------------------------------+
+  | C      | Offset from pointer; search from 0x0    |
+  |        | to address                              |
+  +--------+-----------------------------------------+
+
+- ``FF`` = Number of occurrences to find
+- ``YYYY`` = Length of bytes to use from search address
+- ``XXXXXXXX`` = Address containing bytes to search for
+
+**Description:** Uses bytes from a specific address as a search pattern.
+
+Example: Address Byte Search
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Code:**
 
@@ -892,10 +771,37 @@ of file to address ``0x200000`` using 8 bytes from that address
 **Description:** (Pointer offset) Search
 forward using 4 bytes from pointer+\ ``0x300000``, find 2nd occurrence
 
---------------
+Type D: Conditional Skip (Byte Test)
+------------------------------------
 
-Type D: Conditional Skip
-------------------------
+**Format:** ``DBYYYYYY CCZDXXXX``
+
+**Parameters:**
+
+- ``B`` = Offset type (0=Normal, 8=Offset from Pointer)
+- ``YYYYYY`` = Address to test
+- ``CC`` = Number of code lines to skip if test fails
+- ``Z`` = Data type (0=16-bit, 1=8-bit)
+- ``D`` = Test operation:
+
+  +--------+-------------------+
+  | Value  | Operation         |
+  +========+===================+
+  | 0      | Equal             |
+  +--------+-------------------+
+  | 1      | Not equal         |
+  +--------+-------------------+
+  | 2      | Greater than      |
+  +--------+-------------------+
+  | 3      | Less than         |
+  +--------+-------------------+
+
+- ``XXXX`` = Value to test against
+
+**Description:** Tests a memory location and skips following lines if condition fails.
+
+Example: Conditional Skip
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Code:**
 
@@ -933,7 +839,46 @@ pointer+\ ``0x654321`` is not equal to ``0x00``, skip 1 line if false
 **Description:** Test if 8-bit value at
 pointer is less than ``0x40``, skip 1 line if false
 
---------------
+Common Patterns
+===============
+
+Pointer Usage
+-------------
+
+- Types 8, B, C set the ``pointer`` variable
+- Types 0-7, A can use pointer offsets when ``T`` = 8
+- Type 9 manipulates pointers directly
+
+Multi-line Codes
+----------------
+
+- Types 4, 5, 6, 8, A, B, C span multiple lines
+- Each additional line contains 8 bytes of data or parameters
+
+Endianness
+----------
+
+- Most operations use little-endian (host byte order)
+- Search operations (8, B) use big-endian for patterns
+- Type 9 supports both endianness modes
+
+Notes
+=====
+
+1. All offsets and addresses are hexadecimal
+2. Values are typically little-endian unless specified
+3. The pointer variable persists between code executions
+4. Search operations can fail, causing code skipping
+5. Conditional operations (D) allow for branching logic
+
+
+
+
+Save Wizard Code Examples
+=========================
+
+
+
 
 Real-World Examples
 -------------------
