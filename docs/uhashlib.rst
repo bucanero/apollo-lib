@@ -126,7 +126,7 @@ These functions implement common checksum and non-cryptographic hash algorithms.
 
 .. py:function:: crc32big(data)
 
-   Computes CRC-32 checksum without reflection (big-endian).
+   Computes CRC-32/BZIP checksum without reflection (big-endian).
 
    :param bytes data: Input data to checksum
    :return: 4-byte CRC-32 checksum (big-endian)
@@ -236,7 +236,7 @@ These functions implement checksum algorithms used by specific video games.
 
 .. py:function:: sw4_checksum(data)
 
-   Computes 4-part checksum used by Star Wars: The Force Unleashed.
+   Computes 4-part checksum used by Samurai Warriors 4 (Sengoku Musou 4).
 
    :param bytes data: Input data to checksum
    :return: Tuple of 4 4-byte checksums (big-endian)
@@ -252,7 +252,7 @@ These functions implement checksum algorithms used by specific video games.
 
 .. py:function:: tiara2_checksum(data)
 
-   Computes checksum used by Tiara 2 games.
+   Computes checksum used by Tears to Tiara 2 games.
 
    :param bytes data: Input data to checksum
    :return: 4-byte Tiara 2 checksum (big-endian)
@@ -260,7 +260,7 @@ These functions implement checksum algorithms used by specific video games.
 
 .. py:function:: castlevania_checksum(data)
 
-   Computes checksum used by Castlevania: Lords of Shadow.
+   Computes checksum used by Castlevania: Lords of Shadow 1 & 2.
 
    :param bytes data: Input data to checksum
    :return: 4-byte Castlevania checksum (little-endian)
