@@ -1,6 +1,9 @@
 name: Build Sphinx documentation
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  # Triggers the workflow on push events but only for the main branch
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -33,7 +36,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
