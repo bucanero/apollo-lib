@@ -1,5 +1,5 @@
 :mod:`uzlib` -- zlib compression functions
-==================================
+==========================================
 
 .. module:: uzlib
    :synopsis: zlib compression functions

@@ -1,5 +1,5 @@
 :mod:`ucrypto` -- encryption related functions
-=====================================
+==============================================
 
 .. module:: ucrypto
    :synopsis: encryption related functions
