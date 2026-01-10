@@ -24,7 +24,7 @@ Sets the carry byte value for add() and wadd() operations.
 
 **Parameters:**
 
-- * : Integer value for carry bytes
+- ``*`` : Integer value for carry bytes
 
 **Example:**
 
@@ -151,7 +151,7 @@ Sets a variable to a value or computed hash.
 - ``set [var]:crc64_ecma`` - CRC-64 ECMA 182
 - ``set [var]:adler32`` - Adler-32 checksum
 - ``set [var]:adler16`` - Adler-16 checksum
-- ``set [var]:crc`` - Custom CRC (configured via set crc_*)
+- ``set [var]:crc`` - Custom CRC (configured via set ``crc_*``)
 - ``set [var]:md5_xor`` - XOR of MD5 hash bytes
 - ``set [var]:sha1_xor64`` - XOR of SHA-1 hash as 64-bit
 - ``set [var]:hmac_sha1(key)`` - HMAC-SHA1 with key
@@ -159,19 +159,19 @@ Sets a variable to a value or computed hash.
 **Checksum Functions:**
 
 - ``set [var]:eachecksum`` - EA/MC02 checksum
-- ``set [var]:ffx_checksum`` - FFX checksum (16-bit LE)
-- ``set [var]:ff13_checksum`` - FFXIII checksum (32-bit LE)
+- ``set [var]:ffx_checksum`` - Final Fantasy X checksum (16-bit LE)
+- ``set [var]:ff13_checksum`` - Final Fantasy XIII checksum (32-bit LE)
 - ``set [var]:castlevania_checksum`` - Castlevania LoS checksum
 - ``set [var]:deadrising_checksum`` - Dead Rising checksum (updates blocks)
-- ``set [var]:dbzxv2_checksum`` - DBZ XV2 checksum (64-bit)
+- ``set [var]:dbzxv2_checksum`` - Dragon Ball Z Xenoverse 2 checksum (64-bit)
 - ``set [var]:rockstar_checksum`` - Rockstar CHKS checksum
 - ``set [var]:kh25_checksum`` - Kingdom Hearts 2.5 checksum (32-bit LE)
-- ``set [var]:khcom_checksum`` - Kingdom Hearts CoM checksum
+- ``set [var]:khcom_checksum`` - Kingdom Hearts Chain of Memories checksum
 - ``set [var]:mgs2_checksum`` - Metal Gear Solid 2 checksum
-- ``set [var]:mgspw_checksum`` - Metal Gear Solid PW checksum
-- ``set [var]:sw4_checksum`` - SW4 checksum (4x32-bit)
-- ``set [var]:toz_checksum`` - TOZ SHA1 checksum
-- ``set [var]:tiara2_checksum`` - Tiara2 checksum
+- ``set [var]:mgspw_checksum`` - Metal Gear Solid Peace Walker checksum
+- ``set [var]:sw4_checksum`` - Samurai Warriors 4 checksum (4x32-bit)
+- ``set [var]:toz_checksum`` - Tales of Zestiria SHA1 checksum
+- ``set [var]:tiara2_checksum`` - Tears to Tiara 2 checksum
 - ``set [var]:checksum32`` - Generic 32-bit checksum
 - ``set [var]:force_crc32:value`` - Forces CRC32 to specific value
 
@@ -425,6 +425,65 @@ Compresses previously decompressed data.
 Encryption/Decryption Commands
 ==============================
 
+Standard Encryption Algorithms
+------------------------------
+
+**AES-ECB:**
+
+.. code-block:: text
+
+    decrypt aes_ecb(key)
+    encrypt aes_ecb(key)
+
+**AES-CBC:**
+
+.. code-block:: text
+
+    decrypt aes_cbc(key,iv)
+    encrypt aes_cbc(key,iv)
+
+**AES-CTR:**
+
+.. code-block:: text
+
+    decrypt aes_ctr(key,iv)
+    encrypt aes_ctr(key,iv)
+
+**Camellia:**
+
+.. code-block:: text
+
+    decrypt camellia_ecb(key)
+    encrypt camellia_ecb(key)
+
+**DES:**
+
+.. code-block:: text
+
+    decrypt des_ecb(key)
+    encrypt des_ecb(key)
+
+**Triple DES-CBC:**
+
+.. code-block:: text
+
+    decrypt des3_cbc(key,iv)
+    encrypt des3_cbc(key,iv)
+
+**Blowfish-ECB:**
+
+.. code-block:: text
+
+    decrypt blowfish_ecb(key)
+    encrypt blowfish_ecb(key)
+
+**Blowfish-CBC:**
+
+.. code-block:: text
+
+    decrypt blowfish_cbc(key,iv)
+    encrypt blowfish_cbc(key,iv)
+
 Custom Encryption Algorithms
 ----------------------------
 **Diablo 3:**
@@ -510,45 +569,6 @@ Custom Encryption Algorithms
 
     decrypt mgs(key)
     encrypt mgs(key)
-
-Standard Encryption Algorithms
-------------------------------
-
-**AES:**
-
-.. code-block:: text
-
-    decrypt aes_ecb(key)
-    encrypt aes_ecb(key)
-    decrypt aes_cbc(key,iv)
-    encrypt aes_cbc(key,iv)
-    decrypt aes_ctr(key,iv)
-    encrypt aes_ctr(key,iv)
-
-**Camellia:**
-
-.. code-block:: text
-
-    decrypt camellia_ecb(key)
-    encrypt camellia_ecb(key)
-
-**DES:**
-
-.. code-block:: text
-
-    decrypt des_ecb(key)
-    encrypt des_ecb(key)
-    decrypt des3_cbc(key,iv)
-    encrypt des3_cbc(key,iv)
-
-**Blowfish:**
-
-.. code-block:: text
-
-    decrypt blowfish_ecb(key)
-    encrypt blowfish_ecb(key)
-    decrypt blowfish_cbc(key,iv)
-    encrypt blowfish_cbc(key,iv)
 
 Notes
 =====
