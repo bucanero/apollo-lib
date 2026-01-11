@@ -88,14 +88,16 @@ Functions
    to modify binary data in-place. Supports various code types including
    byte, short, integer writes, and pointer chains.
 
+   For more information on Save Wizard code format, refer to :doc:`savewizard`.
+
    :param bytearray data: Binary data to modify (modified in-place)
    :param str code: Save Wizard code string
    :return: Number of bytes written/modified
    :rtype: int
 
    **Save Wizard Code Format**:
-   
-   Save Wizard codes use a specific format::
+
+   :doc:`Save Wizard codes</savewizard>` use a specific format::
    
       Example: "20001000 0000ABCD"
       
@@ -176,18 +178,3 @@ Error Handling
 - Search functions return ``None`` when pattern is not found
 - ``apply_savewizard`` may fail silently for invalid codes; check return value
   for number of bytes actually modified
-
-Notes on Save Wizard Codes
---------------------------
-
-Save Wizard codes are hexadecimal strings with specific semantics:
-
-1. **Address Calculation**: The address in the code is typically relative to
-   the save file base, not absolute memory addresses
-2. **Pointer Chains**: Codes starting with 0x4 use pointer chains to navigate
-   through data structures
-3. **Value Types**: The high nibble of the address determines the operation type
-4. **Multiple Codes**: Save Wizard often uses multiple codes for complex modifications
-
-For more information on Save Wizard code format, refer to Save Wizard
-documentation or community resources.
