@@ -7,11 +7,20 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef _USE_MBEDTLS
+#include <mbedtls/aes.h>
+#include <mbedtls/des.h>
+#include <mbedtls/md5.h>
+#include <mbedtls/blowfish.h>
+#include <mbedtls/camellia.h>
+#include "mbedtls_polar.h"
+#else
 #include <polarssl/aes.h>
 #include <polarssl/des.h>
 #include <polarssl/md5.h>
 #include <polarssl/blowfish.h>
 #include <polarssl/camellia.h>
+#endif
 #include "keys.h"
 #include "types.h"
 
