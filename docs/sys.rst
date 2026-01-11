@@ -7,12 +7,6 @@
 Functions
 ---------
 
-.. function:: exit(retval=0)
-
-   Terminate current program with a given exit code. Underlyingly, this
-   function raise as ``SystemExit`` exception. If an argument is given, its
-   value given as an argument to ``SystemExit``.
-
 .. function:: print_exception(exc, file=sys.stdout)
 
    Print exception with a traceback to a file-like object `file` (or
@@ -94,18 +88,6 @@ Constants
    reference board. It thus can be used to distinguish one board from another.
    If you need to check whether your program runs on MicroPython (vs other
    Python implementation), use ``sys.implementation`` instead.
-
-.. data:: stderr
-
-   Standard error stream.
-
-.. data:: stdin
-
-   Standard input stream.
-
-.. data:: stdout
-
-   Standard output stream.
 
 .. data:: version
 
