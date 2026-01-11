@@ -96,7 +96,7 @@ Functions
    :rtype: int
 
    **Save Wizard Code Format**:
-
+   
    :doc:`Save Wizard codes</savewizard>` use a specific format::
    
       Example: "20001000 0000ABCD"
