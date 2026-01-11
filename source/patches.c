@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #ifdef _USE_MBEDTLS
+#include <mbedtls/md.h>
 #include <mbedtls/md5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
