@@ -178,9 +178,9 @@ Game-Specific Checksum Functions
 
 These functions implement checksum algorithms used by specific video games.
 
-.. py:function:: eachecksum(data)
+.. py:function:: ea_checksum(data)
 
-   Computes checksum used by EA games (MC02 algorithm).
+   Computes checksum used by Electronic Arts games (MC02 algorithm).
 
    :param bytes data: Input data to checksum
    :return: 4-byte EA checksum (big-endian)
