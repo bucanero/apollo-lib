@@ -9,7 +9,7 @@ that supports:
 
 - :doc:`Save Wizard / Game Genie codes </savewizard>`
 - :doc:`Bruteforce Save Data scripts </bsd>`
-- Python scripts (using MicroPython)
+- `Python scripts (using MicroPython) <#python-libraries-and-micro-libraries>`__
 
 Reference documentation
 -----------------------
@@ -21,10 +21,10 @@ Reference documentation
    bsd.rst
    savewizard.rst
 
-Apollo Save Tool Core library (PS2/PS3/PS4/PSP/PS Vita)
--------------------------------------------------------
+Apollo Save Tool C library 
+--------------------------
 
-The library is cross-platform and is required to build: 
+The library is cross-platform (PS2 / PS3 / PS4 / PSP / PS Vita / Win / Linux / macOS) and is required to build: 
 
 - `Apollo Save Tool PS2 <https://github.com/bucanero/apollo-ps2>`__ 
 - `Apollo Save Tool PS3 <https://github.com/bucanero/apollo-ps3>`__ 
@@ -32,8 +32,8 @@ The library is cross-platform and is required to build:
 - `Apollo Save Tool PSP <https://github.com/bucanero/apollo-psp>`__ 
 - `Apollo Save Tool PS Vita <https://github.com/bucanero/apollo-vita>`__
 
-Python standard libraries and micro-libraries
----------------------------------------------
+Python libraries and micro-libraries
+------------------------------------
 
 The following standard Python libraries have been "micro-ified" to fit in with
 the philosophy of MicroPython.  They provide the core functionality of that
@@ -59,51 +59,6 @@ library.
    ustruct.rst
    utime.rst
    uzlib.rst
-
-
-
-Save Wizard / Game Genie
-~~~~~~~~~~~~~~~~~~~~~~~~
-
--  Code Type 0: Standard 1 Byte Write
--  Code Type 1: Standard 2 Byte Write
--  Code Type 2: Standard 4 Byte Write
--  Code Type 3: Increase / Decrease Write
--  Code Type 4: Multi-Write (Repeater)
--  Code Type 5: Copy and Paste
--  Code Type 6: Special Mega-code
--  Code Type 7: No More / No Less than Write
--  Code Type 8: Forward Byte Search (Set Pointer)
--  Code Type 9: Pointer Manipulator: (Set/Move Pointer)
--  Code Type A: Mass Write
--  Code Type B: Backward Byte Search (Set Pointer)
--  Code Type C: Address Byte Search (Set Pointer)
--  Code Type D: 2 Byte Test Commands (Code Skipper)
-
-Bruteforce Save Data (BSD)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
--  Commands: ``set``, ``write``, ``search``, ``insert``, ``delete``,
-   ``copy``, ``decrypt``, ``encrypt``, ``endian_swap``, ``compress``,
-   ``decompress``
--  Hashes: ``crc16``, ``crc32``, ``crc32big``, ``crc64_iso``,
-   ``crc64_ecma``, ``md5``, ``md5_xor``, ``sha1``, ``sha224``,
-   ``sha256``, ``sha384``, ``sha512``, ``hmac_sha1``, ``sha1_xor64``,
-   ``adler16``, ``adler32``, ``checksum32``, ``sdbm``, ``fnv1``,
-   ``add``, ``wadd``, ``dwadd``, ``qwadd``, ``wadd_le``, ``dwadd_le``,
-   ``wsub``, ``force_crc32``, ``murmur3_32``, ``jhash``,
-   ``jenkins_oaat``, ``lookup3_little2``, ``djb2``
--  Custom hashes: ``eachecksum``, ``ffx_checksum``, ``ff13_checksum``,
-   ``deadrising_checksum``, ``kh25_checksum``, ``khcom_checksum``,
-   ``mgs2_checksum``, ``sw4_checksum``, ``toz_checksum``,
-   ``tiara2_checksum``, ``castlevania_checksum``, ``rockstar_checksum``,
-   ``dbzxv2_checksum``
--  Encryption: ``aes_ecb``, ``aes_cbc``, ``aes_ctr``, ``des_ecb``,
-   ``des3_cbc``, ``blowfish_ecb``, ``blowfish_cbc``, ``camellia_ecb``
--  Custom encryption: ``diablo3``, ``dw8xl``, ``silent_hill3``,
-   ``nfs_undercover``, ``ffxiii``, ``borderlands3``, ``mgs_pw``,
-   ``mgs_base64``, ``mgs``, ``mgs5_tpp``, ``monster_hunter``,
-   ``rgg_studio``
 
 Apollo ``savepatch`` archive
 ----------------------------
