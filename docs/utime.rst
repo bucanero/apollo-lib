@@ -34,7 +34,7 @@ Functions
 
 .. function:: mktime(time_tuple)
 
-   This is inverse function of localtime. It's argument is a full 8-tuple
+   This is inverse function of localtime. Its argument is a full 8-tuple
    which expresses a time as per localtime. It returns an integer which is
    the number of seconds since Jan 1, 1970.
 
