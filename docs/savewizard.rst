@@ -9,7 +9,8 @@ Save Wizard code format Reference
 Overview
 ========
 
-The Save Wizard code format is a proprietary cheat/editing system used to modify game save files. This document outlines the code structure and available code types based on the provided C implementation.
+The Save Wizard code format is a proprietary cheat/editing system used to modify game save files.
+This document outlines the code structure and available code types based on the Apollo Save Tool implementation.
 
 Code Structure
 ==============
@@ -18,11 +19,12 @@ Each code line follows a specific format:
 
 ::
 
-   TXXXXXX YYYYYYYY
+   TBXXXXXX YYYYYYYY
 
 Where:
 
 - ``T`` = Code type identifier (0-9, A-D)
+- ``B`` = Sub-type or additional parameter (varies by code type)
 - ``XXXXXX`` = 6-character hexadecimal offset/address
 - ``YYYYYYYY`` = 8-character hexadecimal value/parameter
 
@@ -34,6 +36,8 @@ Code Types
 Type 0: Direct Write Operation (8-bit)
 --------------------------------------
 
+**Description:** Direct memory write operation. Writes 1 Byte (8 Bits) to a specific address.
+
 **Format:** ``0TXXXXXX 000000YY``
 
 **Parameters:**
@@ -42,30 +46,29 @@ Type 0: Direct Write Operation (8-bit)
 - ``XXXXXX`` = Address/offset
 - ``YY`` = Value to write
 
-**Description:** Direct memory write operations. Writes the specified value to the given address.
-
 Example: 8-bit Direct Write
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:** 
+**Example Code:** 
 
 ::
 
    00A01234 000000FF 
 
-**Description:** Write value ``0xFF`` to
-address ``0xA01234``
+**Description:** Write value ``0xFF`` to address ``0xA01234``
 
-**Code:** 
+**Example Code:** 
 
 ::
 
    08123456 00000042 
 
-**Description:** Write value ``0x42`` to pointer offset ``0x123456``
+**Description:** Write value ``0x42`` to pointer offset + ``0x123456``
 
 Type 1: Direct Write Operation (16-bit)
 ---------------------------------------
+
+**Description:** Direct memory write operation. Writes 2 Bytes (16 Bits) to a specific address.
 
 **Format:** ``1TXXXXXX 0000YYYY``
 
@@ -75,30 +78,29 @@ Type 1: Direct Write Operation (16-bit)
 - ``XXXXXX`` = Address/offset
 - ``YYYY`` = Value to write
 
-**Description:** Direct memory write operations. Writes the specified value to the given address.
-
 Example: 16-bit Direct Write
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:** 
+**Example Code:** 
 
 ::
 
    10B00000 00001234
 
-**Description:** Write value ``0x1234``
-to address ``0xB00000``
+**Description:** Write value ``0x1234`` to address ``0xB00000``
 
-**Code:** 
+**Example Code:** 
 
 ::
 
    18550000 0000ABCD
 
-**Description:** Write value ``0xABCD`` to pointer offset ``0x550000``
+**Description:** Write value ``0xABCD`` to pointer offset + ``0x550000``
 
 Type 2: Direct Write Operation (32-bit)
 ---------------------------------------
+
+**Description:** Direct memory write operations. Writes 4 Bytes (32 Bits) to a specific address.
 
 **Format:** ``2TXXXXXX YYYYYYYY``
 
@@ -108,12 +110,10 @@ Type 2: Direct Write Operation (32-bit)
 - ``XXXXXX`` = Address/offset
 - ``YYYYYYYY`` = Value to write
 
-**Description:** Direct memory write operations. Writes the specified value to the given address.
-
 Example: 32-bit Direct Write
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:** 
+**Example Code:** 
 
 ::
 
@@ -121,16 +121,22 @@ Example: 32-bit Direct Write
 
 **Description:** Write value ``0x12345678`` to address ``0x080000``
 
-**Code:** 
+**Example Code:** 
 
 ::
 
    28300000 87654321
 
-**Description:** Write value ``0x87654321`` to pointer offset ``0x300000``
+**Description:** Write value ``0x87654321`` to pointer offset + ``0x300000``
 
 Type 3: Increase/Decrease Write
 --------------------------------
+
+**Description:** Increments or decrements the value at the specified address by the given amount.
+
+   This does not add/remove Bytes into the save, it just adjusts the value of the Bytes already in it.
+   
+   For the 8 Byte Value Type, it will write 4 Bytes of data but will continue to write the bytes afterwards if it cannot write any more.
 
 **Format:** ``3BYYYYYY XXXXXXXX``
 
@@ -177,62 +183,60 @@ Type 3: Increase/Decrease Write
 - ``YYYYYY`` = Address
 - ``XXXXXXXX`` = Value to add/subtract
 
-**Description:** Increments or decrements the value at the specified address by the given amount.
-
-
 Example: Increase/Decrease Write
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:** 
+**Example Code:** 
 
 ::
    
    30012345 0000000A
    
-**Description:** Add ``0x0A`` (10) to
-the 1-byte value at address ``0x012345``
+**Description:** Add ``0x0A`` (10) to the 1-byte value at address ``0x012345``
 
-**Code:**
+**Example Code:** 
 
 ::
    
    32A54321 00000064
    
-**Description:** Add ``0x64`` (100) to
-the 4-byte value at address ``0xA54321``
+**Description:** Add ``0x64`` (100) to the 4-byte value at address ``0xA54321``
 
-**Code:** 
+**Example Code:** 
 
 ::
    
    34800000 00000005
    
-**Description:** Subtract ``0x05`` (5)
-from the 1-byte value at address ``0x800000``
+**Description:** Subtract ``0x05`` (5) from the 1-byte value at address ``0x800000``
 
-**Code:** 
+**Example Code:** 
 
 ::
    
    38876543 00002710
    
-**Description:** (Pointer offset) Add
-``0x2710`` (10000) to the 1-byte value
+**Description:** (Pointer offset) Add ``0x2710`` (10000) to the 1-byte value
 
-**Code:** 
+**Example Code:** 
 
 ::
    
    3F200000 00000001
    
-**Description:** (Pointer offset)
-Subtract ``0x01`` from the 8-byte value at offset ``0x200000``
+**Description:** (Pointer offset) Subtract ``0x01`` from the 8-byte value at offset ``0x200000``
 
 Type 4: Multi-Write
 -------------------
 
-**Format:** ``4TXXXXXX YYYYYYYY`` (First line)
-Additional lines vary by subtype
+**Description:** Writes values to multiple addresses with optional increments.
+
+**Format (two lines):**
+
+::
+
+   4TXXXXXX YYYYYYYY
+   4NNNWWWW VVVVVVVV
 
 **Parameters:**
 
@@ -277,22 +281,22 @@ Additional lines vary by subtype
 
 **For incremental types (4,5,6,C,D,E):**
 
-Second line: ``NNNNWWWW VVVVVVVV``
+Second line: ``4NNNWWWW VVVVVVVV``
 
-- ``NNNN`` = Number of times to write
+- ``NNN`` = Number of times to write
 - ``WWWW`` = Address increment per write
 - ``VVVVVVVV`` = Value increment per write
 
-**Description:** Writes values to multiple addresses with optional increments.
-
-Simple Multi-Write (8-bit)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Simple Multi-Write (16-bit)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
-   40000100 00000001
+   41004500 00000100
+   4004000C 00000002
 
-**Description:** Write ``0x01`` to address ``0x000100`` (8-bit)
+**Description:** Write 4 times, value ``0x0100`` (16-bit) to start address ``0x004500``,
+incrementing address by ``0x000C`` and value by ``0x0002`` each time.
 
 Incremental Multi-Write (32-bit)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -323,6 +327,8 @@ Complex Multi-Write with Pointer
 Type 5: Copy Bytes
 ------------------
 
+**Description:** Copies bytes from one memory location to another.
+
 **Format (two lines):**
 
 ::
@@ -339,8 +345,6 @@ Type 5: Copy Bytes
 - Second line:
   - ``YYYYYY`` = Destination offset
 
-**Description:** Copies bytes from one memory location to another.
-
 Example: Copy Bytes
 ~~~~~~~~~~~~~~~~~~~
 
@@ -349,8 +353,7 @@ Example: Copy Bytes
    50001000 00000010
    50002000 00000000
 
-**Description:** Copy 16 bytes from address ``0x001000`` to address
-``0x002000``
+**Description:** Copy 16 bytes from address ``0x001000`` to address ``0x002000``
 
 ::
 
@@ -362,6 +365,8 @@ pointer offset ``0x654321``
 
 Type 6: Pointer Operations (Special Mega Code)
 -----------------------------------------------
+
+**Description:** Complex pointer manipulation and conditional operations.
 
 **Format:** ``6TWX0Y0Z VVVVVVVV``
 
@@ -408,10 +413,13 @@ Type 6: Pointer Operations (Special Mega Code)
 - ``Z`` = Flag relative to current pointer
 - ``VVVVVVVV`` = Data value
 
-**Description:** Complex pointer manipulation and conditional operations.
-
 Type 7: Conditional Write (No More/Less Than)
 ----------------------------------------------
+
+**Description:** Writes only if current value meets condition (greater/less than threshold).
+   This code is the same as a standard write code however it will only write the bytes if the current value at the address is no more or no less than X.
+   
+   For example, you can use a no less than value to make sure the address has more than X but will take no effect if it already has more than the value on the save.
 
 **Format:** ``7BYYYYYY XXXXXXXX``
 
@@ -456,43 +464,41 @@ Type 7: Conditional Write (No More/Less Than)
 - ``YYYYYY`` = Address
 - ``XXXXXXXX`` = Value to write conditionally
 
-**Description:** Writes only if current value meets condition (greater/less than threshold).
-
 Example: Conditional Write
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:**
+**Example Code:**
 
 ::
    
    70012345 00000064
    
 **Description:** Write ``0x64`` to
-address ``0x012345`` only if current value < ``0x64`` (No More Than, 1
-byte)
+address ``0x012345`` only if current value < ``0x64`` (No More Than, 1 byte)
 
-**Code:**
+**Example Code:**
 
 ::
    
    71A00000 00002710
    
 **Description:** Write ``0x2710`` to
-address ``0xA00000`` only if current value > ``0x2710`` (No Less Than, 2
-bytes)
+address ``0xA00000`` only if current value > ``0x2710`` (No Less Than, 2 bytes)
 
-**Code:**
+**Example Code:**
 
 ::
    
    78876543 3B9ACA00
    
 **Description:** (Pointer offset) Write
-``0x3B9ACA00`` (1,000,000,000) only if current value < that amount (No
-More Than, 1 byte)
+``0x3B9ACA00`` (1,000,000,000) only if current value < that amount (No More Than, 1 byte)
 
 Type 8: Forward Search
 ----------------------
+
+**Description:** Searches forward for a pattern and sets the pointer to its location.
+   Will start from the beginning of the save file, but can be changed using a previous Pointer Offset.
 
 **Format:** ``8TZZXXXX YYYYYYYY`` + additional data lines
 
@@ -504,8 +510,6 @@ Type 8: Forward Search
 - ``YYYYYYYY`` = Search pattern (first 4 bytes)
 
 **Additional lines:** Continue search pattern data (8 bytes per line)
-
-**Description:** Searches forward for a pattern and sets the pointer to its location.
 
 Simple Search
 ~~~~~~~~~~~~~
@@ -540,6 +544,8 @@ Search with Pointer Offset
 Type 9: Pointer Manipulation
 ----------------------------
 
+**Description:** Direct pointer manipulation operations.
+
 **Format:** ``9Y000000 XXXXXXXX``
 
 **Parameters:**
@@ -570,64 +576,56 @@ Type 9: Pointer Manipulation
 
 - ``XXXXXXXX`` = Value/address
 
-**Description:** Direct pointer manipulation operations.
-
 Example: Pointer Manipulation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:**
+**Example Code:**
 
 ::
    
    90000000 00100000
    
-**Description:** Set pointer to 32-bit
-Big Endian value at address ``0x100000``
+**Description:** Set pointer to 32-bit Big Endian value at address ``0x100000``
 
-**Code:**
+**Example Code:**
 
 ::
    
    92000000 00000004
    
-**Description:** Move pointer forward by
-4 bytes
+**Description:** Move pointer forward by 4 bytes
 
-**Code:**
+**Example Code:**
 
 ::
    
    93000000 00001000
    
-**Description:** Move pointer back by
-4096 bytes
+**Description:** Move pointer back by 4096 bytes
 
-**Code:**
+**Example Code:**
 
 ::
    
    94000000 00000100
    
-**Description:** Set pointer to 256
-bytes from end of file
+**Description:** Set pointer to 256 bytes from end of file
 
-**Code:**
+**Example Code:**
 
 ::
    
    95000000 00C00000
    
-**Description:** Set pointer directly to
-``0xC00000``
+**Description:** Set pointer directly to ``0xC00000``
 
-**Code:**
+**Example Code:**
 
 ::
    
    9D000000 00100000
    
-**Description:** Set end pointer to
-``0x100000``
+**Description:** Set end pointer to ``0x100000``
 
 **Code:**
 
@@ -635,24 +633,22 @@ bytes from end of file
    
    9E000000 00001000
    
-**Description:** Set end pointer to
-current pointer + ``0x1000``
-
+**Description:** Set end pointer to current pointer + ``0x1000``
 
 Type A: Bulk Memory Write
 -------------------------
 
-**Format:** ``ATxxxxxx yyyyyyyy`` + data lines
+**Description:** Writes a block of data to memory.
+
+**Format:** ``ATXXXXXX YYYYYYYY`` + data lines
 
 **Parameters:**
 
 - ``T`` = Address type (0=Normal, 8=Offset From Pointer)
-- ``xxxxxx`` = Destination address
-- ``yyyyyyyy`` = Size of data to write
+- ``XXXXXX`` = Destination address
+- ``YYYYYYYY`` = Size of data to write
 
 **Additional lines:** Data to write (8 bytes per line)
-
-**Description:** Writes a block of data to memory.
 
 Write 8 bytes
 ~~~~~~~~~~~~~
@@ -673,11 +669,13 @@ Write 16 bytes with pointer
    41414141 42424242  // "AAAA", "BBBB"
    43434343 44444444  // "CCCC", "DDDD"
 
-**Description:** Write 16 bytes “AAAABBBBCCCCDDDD” to pointer offset
-``0x300000``
+**Description:** Write 16 bytes “AAAABBBBCCCCDDDD” to pointer offset ``0x300000``
 
 Type B: Backward Search
 -----------------------
+
+**Description:** Searches backward from end pointer for a pattern.
+   Will start from the end of the save file, but can be changed using a previous Pointer Offset.
 
 **Format:** ``BTCCYYYY XXXXXXXX`` + additional data lines
 
@@ -690,12 +688,10 @@ Type B: Backward Search
 
 **Additional lines:** Continue search pattern data
 
-**Description:** Searches backward from end pointer for a pattern.
-
 Example: Backward Search
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -703,7 +699,7 @@ Example: Backward Search
    
 **Description:** Search backward for “end!” from end of file
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -715,6 +711,10 @@ pointer
 
 Type C: Address Byte Search
 ---------------------------
+
+**Description:** Uses bytes from a specific address as a search pattern.
+   Rather than searching for Bytes already given such as code types 8 and B,
+   this code will instead search using the bytes at a specific address.
 
 **Format:** ``CBFFYYYY XXXXXXXX``
 
@@ -739,30 +739,26 @@ Type C: Address Byte Search
 - ``YYYY`` = Length of bytes to use from search address
 - ``XXXXXXXX`` = Address containing bytes to search for
 
-**Description:** Uses bytes from a specific address as a search pattern.
-
 Example: Address Byte Search
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:**
+**Example Code:**
 
 ::
    
    C0010404 00100000
    
-**Description:** Use 4 bytes from
-address ``0x100000`` as search pattern, find first occurrence
+**Description:** Use 4 bytes from address ``0x100000`` as search pattern, find first occurrence
 
-**Code:**
+**Example Code:**
 
 ::
    
    C4010808 00200000
    
-**Description:** Search from beginning
-of file to address ``0x200000`` using 8 bytes from that address
+**Description:** Search from beginning of file to address ``0x200000`` using 8 bytes from that address
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -773,6 +769,8 @@ forward using 4 bytes from pointer+\ ``0x300000``, find 2nd occurrence
 
 Type D: Conditional Skip (Byte Test)
 ------------------------------------
+
+**Description:** Tests a memory location and skips following lines if condition fails.
 
 **Format:** ``DBYYYYYY CCZDXXXX``
 
@@ -798,12 +796,10 @@ Type D: Conditional Skip (Byte Test)
 
 - ``XXXX`` = Value to test against
 
-**Description:** Tests a memory location and skips following lines if condition fails.
-
 Example: Conditional Skip
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -812,7 +808,7 @@ Example: Conditional Skip
 **Description:** Test if 16-bit value at
 ``0x123456`` equals ``0x3E80``, skip 2 lines if false
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -821,7 +817,7 @@ Example: Conditional Skip
 **Description:** Test if 8-bit value at
 pointer+\ ``0x654321`` is not equal to ``0x00``, skip 1 line if false
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -830,7 +826,7 @@ pointer+\ ``0x654321`` is not equal to ``0x00``, skip 1 line if false
 **Description:** Test if 16-bit value at
 ``0xA00000`` is greater than ``0x3E80``, skip 3 lines if false
 
-**Code:**
+**Example Code:**
 
 ::
    
@@ -895,7 +891,7 @@ Example 2: Unlimited Ammo
 
 .. code-block:: text
 
-   000ABCDE 00000063  // Set ammo to 99 (0x63) at 8-bit address
+   000ABCDE 00000063  // Set ammo to 99 (0x63) at 0xABCDE address
 
 Example 3: Unlock All Weapons
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -911,8 +907,8 @@ Example 4: Pointer-based Money Hack
 .. code-block:: text
 
    80000104 4D6F6E79  // Search for "Mony" (part of "Money")
-   62000000 00000004  // Move pointer 4 bytes forward
-   64020001 05F5E0FF  // Write 99,999,999 (0x05F5E0FF) at pointer
+   92000000 00000004  // Move pointer 4 bytes forward
+   28000000 05F5E0FF  // Write 99,999,999 (0x05F5E0FF) at pointer
 
 Example 5: Conditional God Mode
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
