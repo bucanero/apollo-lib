@@ -6,6 +6,12 @@
 #define CLI_VERSION     APOLLO_LIB_VERSION
 
 static int log = 0;
+static const char* CODE_TYPES[] = {
+    "Unknown",
+    "Save Wizard",
+    "BSD",
+    "Python"
+};
 
 void print_usage(const char* argv0)
 {
@@ -110,7 +116,7 @@ int main(int argc, char **argv)
 
         if (item)
         {
-            printf("\n:%s\n\n[%s]\n%s\n", code->file, code->name, code->codes);
+            printf("Type: %s\n\n:%s\n\n[%s]\n%s\n", CODE_TYPES[code->type], code->file, code->name, code->codes);
             return 0;
         }
 

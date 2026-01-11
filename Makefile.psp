@@ -1,6 +1,6 @@
 TARGET_LIB = psp-libapollo.a
 OBJS       = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
-			 source/patches.o source/wildcard.o
+			 source/patches.o source/wildcard.o source/upy.o
 
 INCDIR = include
 CFLAGS = -O2 -Wall -D__PS4__ -D_GNU_SOURCE -D_USE_MBEDTLS

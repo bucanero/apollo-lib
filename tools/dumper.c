@@ -5,8 +5,6 @@
 
 #define CLI_VERSION     APOLLO_LIB_VERSION
 
-static int log = 0;
-
 void print_usage(const char* argv0)
 {
     printf("USAGE: %s filename.ext\n\n", argv0);

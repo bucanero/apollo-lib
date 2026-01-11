@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "1.4.0"
+#define APOLLO_LIB_VERSION         "2.0.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
+#define APOLLO_CODE_SAVEWIZARD     1
 #define APOLLO_CODE_BSD            2
+#define APOLLO_CODE_PYTHON         3
 
 #define APOLLO_CODE_FLAG_PARENT    1
 #define APOLLO_CODE_FLAG_CHILD     2
@@ -23,6 +25,7 @@ extern "C" {
 typedef enum
 {
     APOLLO_HOST_TEMP_PATH,
+    APOLLO_HOST_DATA_PATH,
     APOLLO_HOST_SYS_NAME,
     APOLLO_HOST_USERNAME,
     APOLLO_HOST_PSID,
@@ -115,8 +118,9 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 //---  Apollo patch functions ---
 
 void free_patch_var_list(void);
-int apply_bsd_patch_code(const char* file_path, const code_entry_t* code);
-int apply_ggenie_patch_code(const char* file_path, const code_entry_t* code);
+size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
+size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
+size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
 int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
 int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
@@ -202,8 +206,21 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
 #define OFFZIP_WBITS_ZLIB		15
 #define OFFZIP_WBITS_DEFLATE	-15
 
-int offzip_util(const char *input, const char *output_dir, int offset, int wbits, int count);
-int packzip_util(const char *input, const char *output, uint32_t offset, int wbits);
+typedef struct offzip_list
+{
+    void* data;
+    uint32_t outlen;
+    uint32_t offset;
+    uint32_t ziplen;
+    int wbits;
+} offzip_t;
+
+offzip_t* offzip_util(const uint8_t *data, size_t dlen, int offset, int wbits, int count);
+void offzip_free(void);
+int offzip_init(size_t dsz, int wbits);
+int offzip_search(const uint8_t *data);
+int offzip_verify(const uint8_t *data, uint32_t *offset, uint32_t *inlen, uint32_t *outlen);
+int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* outsize);
 
 
 //---  Apollo checksum functions ---
@@ -373,6 +390,15 @@ uint32_t jhash(const uint8_t *data, uint32_t length, uint32_t initval);
  * RETURN VALUE: 32 bit result of hash calculation
  */
 uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
+
+uint32_t md5_xor_hash(const uint8_t* data, uint32_t len);
+uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len);
+
+uint32_t add_hash(const uint8_t* data, uint32_t len);
+uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le);
+uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le);
+uint32_t qwadd_hash(const uint8_t* data, uint32_t len);
+uint32_t wsub_hash(const uint8_t* data, uint32_t len);
 
 #ifdef __cplusplus
 }

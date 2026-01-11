@@ -314,8 +314,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 					res = tmp;
 
 //			    	LOG("%s", line);
-					if (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?") || (
-						(line[0] < '0') && (line[0] > '9') && (line[0] < 'A') && (line[0] > 'F')))
+					if (entry->type == APOLLO_CODE_GAMEGENIE && (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")))
 						entry->type = APOLLO_CODE_BSD;
 
 					if (wildcard_match(line, "*{*}*"))
@@ -406,6 +405,11 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 				line += 5;
 				line[0] = APOLLO_CODE_FLAG_ALERT;
 			}
+			else if (wildcard_match_icase(line, "[PYTHON:*"))
+			{
+				line += 7;
+				line[0] = APOLLO_CODE_PYTHON;
+			}
 			else if (wildcard_match_icase(line, "*GROUP:\\*"))
 			{
 				group = 0;
@@ -436,6 +440,9 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 
 			if(line[-1] == APOLLO_CODE_FLAG_ALERT)
 				code->flags |= APOLLO_CODE_FLAG_ALERT;
+
+			if(line[-1] == APOLLO_CODE_PYTHON)
+				code->type = APOLLO_CODE_PYTHON;
 
 			if (wildcard_match_icase(code->name, "*(REQUIRED)*"))
 				code->flags |= APOLLO_CODE_FLAG_REQUIRED;
