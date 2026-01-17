@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <polarssl/md5.h>
 #include <polarssl/sha1.h>
+#include <polarssl/pkcs5.h>
 #include "apollo.h"
 #include "crc_util.h"
 #include "types.h"
@@ -784,6 +785,24 @@ uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len)
     BE64(sha[0]);
 
     return sha[0];
+}
+
+int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
+                unsigned int count, uint8_t *DK, size_t dkLen)
+{
+    md_context_t sha1_ctx;
+    md_init_ctx(&sha1_ctx, md_info_from_type(POLARSSL_MD_SHA1));
+
+    return pkcs5_pbkdf2_hmac(&sha1_ctx, Pwd, Plen, Salt, Slen, count, dkLen, DK);
+}
+
+int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
+                unsigned int count, uint8_t *DK, size_t dkLen)
+{
+    md_context_t sha2_ctx;
+    md_init_ctx(&sha2_ctx, md_info_from_type(POLARSSL_MD_SHA256));
+
+    return pkcs5_pbkdf2_hmac(&sha2_ctx, Pwd, Plen, Salt, Slen, count, dkLen, DK);
 }
 
 uint32_t add_hash(const uint8_t* data, uint32_t len)
