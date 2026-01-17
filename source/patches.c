@@ -3867,6 +3867,7 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
+	char *py_code;
 	uint8_t* ptr;
 	mp_obj_t savedata_obj;
 	mp_buffer_info_t bufinfo;
@@ -3892,12 +3893,20 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		mp_obj_t py_path_obj = micropy_obj_new_bytes(upy, (const byte*) py_path, strlen(py_path));
 		micropy_obj_list_append(upy, (MP_OBJ_FROM_PTR(&(upy)->vm.mp_sys_path_obj)), py_path_obj);
 	}
+	else
+	{
+		// Clear garbage from previous runs
+		micropy_exec_str(upy, "import gc\ngc.collect()\n");
+	}
+
+	py_code = strdup(code->codes);
+	apply_tag_opts(py_code, code);
 
 	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
 	qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
 
-	if (micropy_exec_str(upy, code->codes) != SUCCESS)
+	if (micropy_exec_str(upy, py_code) != SUCCESS)
 	{
 		dsize = 0;
 		LOG("Python script execution failed!");
@@ -3927,6 +3936,7 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 py_end:
 	micropy_delete_global(upy, qsd);
+	free(py_code);
 
 	return (dsize);
 }
