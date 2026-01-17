@@ -39526,7 +39526,7 @@ mp_obj_t micropy_mod_ucrypto_diablo3(struct _mp_state_ctx_t *mp_state, mp_obj_t 
         // decryption mode
         diablo_decrypt_data(bufinfo.buf, bufinfo.len);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_diablo3_obj, micropy_mod_ucrypto_diablo3);
 
@@ -39541,7 +39541,7 @@ mp_obj_t micropy_mod_ucrypto_silent_hill3(struct _mp_state_ctx_t *mp_state, mp_o
         // decryption mode
         sh3_decrypt_data(bufinfo.buf, bufinfo.len);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_silent_hill3_obj, micropy_mod_ucrypto_silent_hill3);
 
@@ -39556,7 +39556,7 @@ mp_obj_t micropy_mod_ucrypto_nfs_undercover(struct _mp_state_ctx_t *mp_state, mp
         // decryption mode
         nfsu_decrypt_data(bufinfo.buf, bufinfo.len);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_nfs_undercover_obj, micropy_mod_ucrypto_nfs_undercover);
 
@@ -39572,7 +39572,7 @@ mp_obj_t micropy_mod_ucrypto_final_fantasy13(struct _mp_state_ctx_t *mp_state, s
         // decryption mode
         ff13_decrypt_data(micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
-    return args[0];
+    return args[1];
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_final_fantasy13_obj, 4, 4, micropy_mod_ucrypto_final_fantasy13);
 
@@ -39587,7 +39587,7 @@ mp_obj_t micropy_mod_ucrypto_borderlands3(struct _mp_state_ctx_t *mp_state, mp_o
         // decryption mode
         borderlands3_Decrypt(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_borderlands3_obj, micropy_mod_ucrypto_borderlands3);
 
@@ -39602,7 +39602,7 @@ mp_obj_t micropy_mod_ucrypto_mgs_pw(struct _mp_state_ctx_t *mp_state, mp_obj_t e
         // decryption mode
         mgspw_Decrypt(bufinfo.buf, bufinfo.len);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs_pw_obj, micropy_mod_ucrypto_mgs_pw);
 
@@ -39617,7 +39617,7 @@ mp_obj_t micropy_mod_ucrypto_mgs_base64(struct _mp_state_ctx_t *mp_state, mp_obj
         // decryption mode
         mgs_DecodeBase64(bufinfo.buf, bufinfo.len);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs_base64_obj, micropy_mod_ucrypto_mgs_base64);
 
@@ -39674,7 +39674,7 @@ mp_obj_t micropy_mod_ucrypto_monster_hunter(struct _mp_state_ctx_t *mp_state, mp
         // decryption mode
         monsterhunter_decrypt_data(bufinfo.buf, bufinfo.len, ver);
 
-    return enc_mode;
+    return data;
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_monster_hunter_obj, micropy_mod_ucrypto_monster_hunter);
 
@@ -39767,7 +39767,7 @@ mp_obj_t micropy_mod_ucrypto_aes_cbc(struct _mp_state_ctx_t *mp_state, size_t n_
         // decryption mode
         aes_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
-    return args[0];
+    return args[1];
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_aes_cbc_obj, 4, 4, micropy_mod_ucrypto_aes_cbc);
 
@@ -39784,7 +39784,7 @@ mp_obj_t micropy_mod_ucrypto_blowfish_cbc(struct _mp_state_ctx_t *mp_state, size
         // decryption mode
         blowfish_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
-    return args[0];
+    return args[1];
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_blowfish_cbc_obj, 4, 4, micropy_mod_ucrypto_blowfish_cbc);
 
@@ -39801,7 +39801,7 @@ mp_obj_t micropy_mod_ucrypto_des3_cbc(struct _mp_state_ctx_t *mp_state, size_t n
         // decryption mode
         des3_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
-    return args[0];
+    return args[1];
 }
 MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(mod_ucrypto_des3_cbc_obj, 4, 4, micropy_mod_ucrypto_des3_cbc);
 
