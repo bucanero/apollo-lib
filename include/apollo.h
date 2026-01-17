@@ -394,6 +394,9 @@ uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
 uint32_t md5_xor_hash(const uint8_t* data, uint32_t len);
 uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len);
 
+int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
+int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
+
 uint32_t add_hash(const uint8_t* data, uint32_t len);
 uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le);
 uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le);

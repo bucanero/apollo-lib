@@ -18,6 +18,7 @@ The library is cross-platform and is required to build:
 
 - Save Wizard / Game Genie
 - Bruteforce Save Data scripts
+- Python scripts (MicroPython)
 
 ### Save Wizard / Game Genie
 
@@ -35,6 +36,10 @@ The library is cross-platform and is required to build:
 - Code Type B: Backward Byte Search (Set Pointer)
 - Code Type C: Address Byte Search (Set Pointer)
 - Code Type D: 2 Byte Test Commands (Code Skipper)
+
+### Python scripts
+
+- Full support for [MicroPython](https://micropython.org/) v1.8.1 with a set of [custom libraries](https://bucanero.github.io/apollo-lib/#python-libraries-and-micro-libraries) to manipulate save-game data.
 
 ### Bruteforce Save Data (BSD)
 

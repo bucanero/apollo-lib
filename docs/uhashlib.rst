@@ -86,6 +86,71 @@ These functions implement standard cryptographic hash algorithms.
    :return: 20-byte HMAC-SHA1 result
    :rtype: bytes
 
+Password-Based Key Derivation Functions (PBKDF2)
+------------------------------------------------
+
+The PBKDF2 (Password-Based Key Derivation Function 2) functions implement key derivation from passwords using HMAC with SHA-1 or SHA-256. These functions are commonly used for password hashing and key derivation in cryptographic applications.
+
+.. py:function:: pbkdf2_sha1(password, salt, iterations, dklen)
+
+   Derives a cryptographic key from a password using PBKDF2 with HMAC-SHA1.
+
+   PBKDF2 applies a pseudorandom function (HMAC-SHA1) to the input password along with a salt value and repeats the process many times to produce a derived key. This "key stretching" technique makes brute-force attacks more difficult.
+
+   :param bytes password: Password or passphrase from which to derive the key
+   :param bytes salt: Cryptographic salt (should be random and unique for each password)
+   :param int iterations: Number of iterations (higher values increase security but slow down computation)
+   :param int dklen: Desired length of the derived key in bytes
+   :return: Derived key as bytes
+   :rtype: bytes
+
+   **Security Considerations**:
+   
+   - Use a cryptographically random salt of at least 16 bytes
+   - Use a high iteration count (typically 100,000 to 1,000,000)
+   - SHA-1 is considered cryptographically weak; prefer ``pbkdf2_sha256`` when possible
+   - The derived key length should match the requirements of the cryptographic algorithm using it
+
+   **Example**::
+
+      import uhashlib
+      import os
+      
+      password = b"mySecretPassword123"
+      salt = os.urandom(16)  # Generate random salt
+      derived_key = uhashlib.pbkdf2_sha1(password, salt, 100000, 32)
+      # Returns 32-byte derived key
+
+.. py:function:: pbkdf2_sha256(password, salt, iterations, dklen)
+
+   Derives a cryptographic key from a password using PBKDF2 with HMAC-SHA256.
+
+   This is a more secure variant using SHA-256 as the underlying hash function. It provides better cryptographic security than SHA-1 and is recommended for new applications.
+
+   :param bytes password: Password or passphrase from which to derive the key
+   :param bytes salt: Cryptographic salt (should be random and unique for each password)
+   :param int iterations: Number of iterations (higher values increase security but slow down computation)
+   :param int dklen: Desired length of the derived key in bytes
+   :return: Derived key as bytes
+   :rtype: bytes
+
+   **Security Considerations**:
+   
+   - Use a cryptographically random salt of at least 16 bytes
+   - Use a high iteration count (typically 100,000 to 1,000,000)
+   - SHA-256 is currently considered cryptographically secure
+   - Consider using even higher iteration counts for very sensitive applications
+
+   **Example**::
+
+      import uhashlib
+      import os
+      
+      password = b"mySecretPassword123"
+      salt = os.urandom(16)  # Generate random salt
+      derived_key = uhashlib.pbkdf2_sha256(password, salt, 100000, 32)
+      # Returns 32-byte derived key
+
 Standard Checksum Functions
 ---------------------------
 
@@ -398,7 +463,7 @@ These functions implement various general-purpose non-cryptographic hash algorit
    Computes FNV-1 (Fowler-Noll-Vo) hash.
 
    :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: FNV1_INIT_VALUE)
+   :param int init: Optional initial value (default: ``0x811c9dc5``)
    :return: 4-byte FNV-1 hash (big-endian)
    :rtype: bytes
 
