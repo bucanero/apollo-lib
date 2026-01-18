@@ -20,6 +20,7 @@ Reference documentation
    cli.rst
    bsd.rst
    savewizard.rst
+   savepatch.rst
 
 Apollo Save Tool C library 
 --------------------------
