@@ -1,8 +1,7 @@
 Apollo Save Tool documentation
 ==============================
 
-|Downloads| |Release| |License| |macOS Linux binaries| |Windows
-binaries| |Twitter|
+|Downloads| |Release| |License| |Twitter|
 
 `The Apollo Save Tool library <https://github.com/bucanero/apollo-lib>`__ and :doc:`command-line tools </cli>` implement a save-data patch engine
 that supports:
@@ -93,9 +92,5 @@ License, or (at your option) any later version.
    :target: https://github.com/bucanero/apollo-lib/releases/latest
 .. |License| image:: https://img.shields.io/github/license/bucanero/apollo-lib.svg?maxAge=2592000
    :target: https://github.com/bucanero/apollo-lib/blob/master/LICENSE
-.. |macOS Linux binaries| image:: https://github.com/bucanero/apollo-lib/actions/workflows/build.yml/badge.svg
-   :target: https://github.com/bucanero/apollo-lib/actions/workflows/build.yml
-.. |Windows binaries| image:: https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml/badge.svg
-   :target: https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml
 .. |Twitter| image:: https://img.shields.io/twitter/follow/dparrino?label=Follow
    :target: https://x.com/dparrino
