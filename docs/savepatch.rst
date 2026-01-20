@@ -149,9 +149,7 @@ Each cheat code or patch is defined in its own section with a title and code lin
 
 **Code Lines**
 
-Code lines follow the title and contain the actual patch data:
-
-::
+Code lines follow the title and contain the actual patch data::
 
    [Money 9,999,999]
    80010004 12345678
@@ -231,9 +229,7 @@ between square brackets. (Example: ``[Cheat Name]``)
 Option Substitution in Codes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Options can be referenced within code lines using the option tag:
-
-::
+Options can be referenced within code lines using the option tag::
    
    80010004 12345678
    28000004 0{MONEY}
@@ -244,7 +240,7 @@ Options can be referenced within code lines using the option tag:
 
 
 Using Cheat Status
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Cheats Status flags are detected in the cheat code name.
 

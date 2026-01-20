@@ -601,9 +601,7 @@ Custom Encryption Algorithms
 How to calculate data checksums
 ================================
 
-**Example 1:**
-
-::
+**Example 1**::
 
     :SAVE.DAT
 
@@ -623,9 +621,7 @@ Then writes the result at offset 0x10.
     - You can have many variables.
 - Finally, the content of the variable ``[hash]`` is written at offset ``0x10`` of the file.
 
-**Example 2:**
-
-::
+**Example 2**::
 
     :SAVE.DAT
 
@@ -637,9 +633,7 @@ Then writes the result at offset 0x10.
 
 Same as the previous example, but calculates and writes the CRC32 checksum for ``SAVE.DAT``.
 
-**Example 3:**
-
-::
+**Example 3**::
 
    :SAVE.DAT
 
@@ -657,9 +651,7 @@ Same as the previous example, but calculates and writes the CRC32 checksum for `
 The script reads 10 bytes starting from offset 0x100 and stores them
 in the variable ``[anyname1]``
 
-**Example 4:**
-
-::
+**Example 4**::
 
    :SAVE.DAT
 
@@ -671,9 +663,7 @@ This script sets the text “hello” into the variable ``[myvariable2]``,
 then writes the data of ``[myvariable2]`` starting at offset
 ``0x100``.
 
-**Example 5:**
-
-::
+**Example 5**::
 
     :SAVE.DAT
 
