@@ -30,8 +30,8 @@ These functions implement custom encryption schemes used by various video games.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: dw8xl(data)
 
@@ -47,8 +47,8 @@ These functions implement custom encryption schemes used by various video games.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: nfs_undercover(enc_mode, data)
 
@@ -56,8 +56,8 @@ These functions implement custom encryption schemes used by various video games.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: final_fantasy13(enc_mode, data, key, version)
 
@@ -67,8 +67,8 @@ These functions implement custom encryption schemes used by various video games.
    :param bytearray data: Data buffer to process (modified in-place)
    :param bytearray key: Encryption key
    :param int version: Algorithm version parameter
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: borderlands3(enc_mode, data, type)
 
@@ -77,8 +77,8 @@ These functions implement custom encryption schemes used by various video games.
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
    :param int type: Encryption type parameter
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: mgs_pw(enc_mode, data)
 
@@ -86,8 +86,8 @@ These functions implement custom encryption schemes used by various video games.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: mgs_base64(enc_mode, data)
 
@@ -95,8 +95,8 @@ These functions implement custom encryption schemes used by various video games.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` for encode, ``DECRYPT`` for decode)
    :param bytearray data: Data buffer to process (modified in-place)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: mgs(enc_mode, data, key)
 
@@ -124,8 +124,8 @@ These functions implement custom encryption schemes used by various video games.
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
    :param int game_version: Game version (2 or 3)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
    :raises ValueError: If game_version is not 2 or 3
 
 .. py:function:: rgg_studio(data, key)
@@ -160,8 +160,8 @@ These functions implement standard cryptographic algorithms.
    :param bytearray data: Data buffer to process (modified in-place)
    :param bytearray key: Encryption key (16, 24, or 32 bytes for AES-128, AES-192, or AES-256)
    :param bytearray iv: Initialization vector (16 bytes)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: aes_ctr(data, key, iv)
 
@@ -191,8 +191,8 @@ These functions implement standard cryptographic algorithms.
    :param bytearray data: Data buffer to process (modified in-place)
    :param bytearray key: Encryption key (24 bytes for 3-key DES)
    :param bytearray iv: Initialization vector (8 bytes)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: blowfish_ecb(enc_mode, data, key)
 
@@ -212,8 +212,8 @@ These functions implement standard cryptographic algorithms.
    :param bytearray data: Data buffer to process (modified in-place)
    :param bytearray key: Encryption key (1 to 56 bytes)
    :param bytearray iv: Initialization vector (8 bytes)
-   :return: The enc_mode parameter
-   :rtype: int
+   :return: The data parameter
+   :rtype: bytearray
 
 .. py:function:: camellia_ecb(enc_mode, data, key)
 

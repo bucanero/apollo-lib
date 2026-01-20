@@ -361,30 +361,38 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	switch (type)
 	{
 	case ENC_AES_ECB:
+		LOG("Encrypting AES ECB %d data (%d bytes)", key_len*8, length);
 		aes_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_AES_ECB:
+		LOG("Decrypting AES ECB %d data (%d bytes)", key_len*8, length);
 		aes_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_BLOWFISH_ECB:
+		LOG("Encrypting Blowfish ECB data (%d bytes)", length);
 		blowfish_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_BLOWFISH_ECB:
+		LOG("Decrypting Blowfish ECB data (%d bytes)", length);
 		blowfish_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_DES_ECB:
+		LOG("Encrypting DES ECB data (%d bytes)", length);
 		des_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_DES_ECB:
+		LOG("Decrypting DES ECB data (%d bytes)", length);
 		des_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_CAMELLIA_ECB:
+		LOG("Encrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
 		camellia_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_CAMELLIA_ECB:
+		LOG("Decrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
 		camellia_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
@@ -431,27 +439,34 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	{
 	case ENC_AES_CTR:
 	case DEC_AES_CTR:
+		LOG("Xcrypting AES CTR %d data (%d bytes)", key_len*8, length);
 		aes_ctr_xcrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_AES_CBC:
+		LOG("Encrypting AES CBC %d data (%d bytes)", key_len*8, length);
 		aes_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_AES_CBC:
+		LOG("Decrypting AES CBC %d data (%d bytes)", key_len*8, length);
 		aes_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_BLOWFISH_CBC:
+		LOG("Encrypting Blowfish CBC data (%d bytes)", length);
 		blowfish_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_BLOWFISH_CBC:
+		LOG("Decrypting Blowfish CBC data (%d bytes)", length);
 		blowfish_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_3DES_CBC:
+		LOG("Encrypting 3-DES CBC data (%d bytes)", length);
 		des3_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_3DES_CBC:
+		LOG("Decrypting 3-DES CBC data (%d bytes)", length);
 		des3_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
@@ -3852,6 +3867,7 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
+	char *py_code;
 	uint8_t* ptr;
 	mp_obj_t savedata_obj;
 	mp_buffer_info_t bufinfo;
@@ -3877,12 +3893,20 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		mp_obj_t py_path_obj = micropy_obj_new_bytes(upy, (const byte*) py_path, strlen(py_path));
 		micropy_obj_list_append(upy, (MP_OBJ_FROM_PTR(&(upy)->vm.mp_sys_path_obj)), py_path_obj);
 	}
+	else
+	{
+		// Clear garbage from previous runs
+		micropy_exec_str(upy, "import gc\ngc.collect()\n");
+	}
+
+	py_code = strdup(code->codes);
+	apply_tag_opts(py_code, code);
 
 	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
 	qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
 
-	if (micropy_exec_str(upy, code->codes) != SUCCESS)
+	if (micropy_exec_str(upy, py_code) != SUCCESS)
 	{
 		dsize = 0;
 		LOG("Python script execution failed!");
@@ -3912,6 +3936,7 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 py_end:
 	micropy_delete_global(upy, qsd);
+	free(py_code);
 
 	return (dsize);
 }
@@ -3974,7 +3999,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 		break;
 
 	case APOLLO_CODE_BSD:
-		LOG("Bruteforce Save Data Code");
+		LOG("BSD Script Code");
 		dsize = apply_bsd_patch_code(&data, dsize, code);
 		break;
 

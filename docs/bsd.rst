@@ -12,26 +12,6 @@ BSD (Binary Scripting Definition) is a scripting language for binary file manipu
 Basic Commands
 ==============
 
-carry
------
-Sets the carry byte value for add() and wadd() operations.
-
-**Syntax:**
-
-.. code-block:: text
-
-    carry(*)
-
-**Parameters:**
-
-- ``*`` : Integer value for carry bytes
-
-**Example:**
-
-.. code-block:: text
-
-    carry(2)    ; Sets 2 byte carry
-
 set
 ---
 Sets values to variables, pointers, ranges, or CRC parameters.
@@ -422,6 +402,26 @@ Compresses previously decompressed data.
 
     compress(0x100)
 
+carry
+-----
+Sets the carry byte value for add() and wadd() operations.
+
+**Syntax:**
+
+.. code-block:: text
+
+    carry(*)
+
+**Parameters:**
+
+- ``*`` : Integer value for carry bytes
+
+**Example:**
+
+.. code-block:: text
+
+    carry(2)    ; Sets 2 byte carry
+
 Encryption/Decryption Commands
 ==============================
 
@@ -486,6 +486,7 @@ Standard Encryption Algorithms
 
 Custom Encryption Algorithms
 ----------------------------
+
 **Diablo 3:**
 
 .. code-block:: text
@@ -518,8 +519,18 @@ Custom Encryption Algorithms
 
 .. code-block:: text
 
-    decrypt ffxiii(mode,key)
-    encrypt ffxiii(mode,key)
+    decrypt ffxiii(game,key)
+    encrypt ffxiii(game,key)
+
+**game:**
+
+- ``1`` : Final Fantasy XIII
+- ``2`` : Final Fantasy XIII-2
+- ``3`` : Final Fantasy Lightning Returns
+
+**key:**
+
+- 16-byte encryption key (hex string)
 
 **RGG Studio (Yakuza):**
 
@@ -528,12 +539,19 @@ Custom Encryption Algorithms
     decrypt rgg_studio(key)
     encrypt rgg_studio(key)
 
+**key:** encryption key (hex string)
+
 **Borderlands 3:**
 
 .. code-block:: text
 
     decrypt borderlands3(type)
     encrypt borderlands3(type)
+
+**type:**
+
+- ``0`` : Profile Save
+- ``1`` : Game Save
 
 **Monster Hunter PSP:**
 
@@ -542,12 +560,20 @@ Custom Encryption Algorithms
     decrypt monster_hunter(type)
     encrypt monster_hunter(type)
 
+**type:**
+
+- ``2`` : Monster Hunter Portable 2nd
+- ``2`` : Monster Hunter Freedom Unite
+- ``3`` : Monster Hunter Portable 3rd
+
 **Metal Gear Solid 5:**
 
 .. code-block:: text
 
     decrypt mgs5_tpp(xor_key)
     encrypt mgs5_tpp(xor_key)
+
+**xor_key:** Integer XOR key
 
 **Metal Gear Solid Peace Walker:**
 
@@ -569,6 +595,87 @@ Custom Encryption Algorithms
 
     decrypt mgs(key)
     encrypt mgs(key)
+
+**key:** encryption key (hex string)
+
+How to calculate data checksums
+================================
+
+**Example 1**::
+
+    :SAVE.DAT
+
+    [Update MD5 Hash]
+    ; calculate hash for Range from 0x20 to 0x3FFFF
+    set range:0x20,0x3FFFF
+    set [hash]:md5
+    write at 0x10:[hash]
+
+This example calculates the MD5 hash of the ``SAVE.DAT`` file, using the range from 0x20 to 0x3FFFF.
+Then writes the result at offset 0x10.
+
+- The MD5 hash is calculated and stored in the ``[hash]`` variable
+    - ``md5`` is a function.
+- The result is stored in the ``[hash]`` variable. 
+    - Variable can be any name.
+    - You can have many variables.
+- Finally, the content of the variable ``[hash]`` is written at offset ``0x10`` of the file.
+
+**Example 2**::
+
+    :SAVE.DAT
+
+    [Update CRC32 checksum]
+    ; calculate CRC for Range from 0x8 to EOF
+    set range:0x8,EOF
+    set [crc32_result]:crc32
+    write at 0x04:[crc32_result]
+
+Same as the previous example, but calculates and writes the CRC32 checksum for ``SAVE.DAT``.
+
+**Example 3**::
+
+   :SAVE.DAT
+
+   ; a comment line
+   ; another comment line
+
+   [My BSD Script]
+   set [anyname1]:read(0x100, 0x0A) 
+
+-  ``read(offset, length)`` is a function that reads n bytes from
+   current file
+-  ``0x100`` is the offset in hex
+-  ``0x0A`` is the length in hex (10 bytes)
+
+The script reads 10 bytes starting from offset 0x100 and stores them
+in the variable ``[anyname1]``
+
+**Example 4**::
+
+   :SAVE.DAT
+
+   [My BSD Script]
+   set [myvariable2]:"hello" 
+   write at 0x100:[myvariable2]
+
+This script sets the text “hello” into the variable ``[myvariable2]``,
+then writes the data of ``[myvariable2]`` starting at offset
+``0x100``.
+
+**Example 5**::
+
+    :SAVE.DAT
+
+    [Update CRC32 checksum]
+    set range:0x8,EOF
+    set [crc32_result]:crc32
+    msgbox [crc32_result]
+
+This example calculates a CRC32 and prints the variable ``crc32_result`` binary
+content to the system log. 
+
+- Useful for debugging.
 
 Notes
 =====
