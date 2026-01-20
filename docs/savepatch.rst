@@ -368,7 +368,7 @@ References
 ~~~~~~~~~~~~~
 
 - `Apollo SDK documentation <https://deepwiki.com/bucanero/apollo-lib>`__
-- `Save Wizard / Game Genie code format </savewizard>`__
-- `Bruteforce Save Data script syntax </bsd>`__
+- :doc:`Save Wizard / Game Genie code format </savewizard>`
+- :doc:`Bruteforce Save Data script syntax </bsd>`
 - `Python scripting with Apollo <index.html#python-libraries-and-micro-libraries>`__
 - `Game-specific cheat code databases <https://github.com/bucanero/apollo-patches>`__
