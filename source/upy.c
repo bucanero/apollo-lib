@@ -38757,7 +38757,9 @@ mp_obj_t micropy_mod_uhashlib_pbkdf2_sha1(struct _mp_state_ctx_t *mp_state, size
     int dklen = micropy_obj_int_get_truncated(mp_state, args[3]);
     dklen = MIN(dklen, sizeof(out));
 
-    pbkdf2_sha1(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen);
+    if (pbkdf2_sha1(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "PBKDF2-SHA1 failed"));
+    }
 
     return micropy_obj_new_bytearray(mp_state, dklen, out);
 }
@@ -38773,7 +38775,9 @@ mp_obj_t micropy_mod_uhashlib_pbkdf2_sha256(struct _mp_state_ctx_t *mp_state, si
     int dklen = micropy_obj_int_get_truncated(mp_state, args[3]);
     dklen = MIN(dklen, sizeof(out));
 
-    pbkdf2_sha256(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen);
+    if (pbkdf2_sha256(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
+        micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "PBKDF2-SHA256 failed"));
+    }
 
     return micropy_obj_new_bytearray(mp_state, dklen, out);
 }
