@@ -398,7 +398,7 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
 			{
 				line += 8;
-				line[0] = APOLLO_CODE_FLAG_ALERT;
+				line[0] = APOLLO_CODE_FLAG_REQUIRED;
 			}
 			else if (wildcard_match_icase(line, "[INFO:*"))
 			{
@@ -444,7 +444,8 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			if(line[-1] == APOLLO_CODE_PYTHON)
 				code->type = APOLLO_CODE_PYTHON;
 
-			if (wildcard_match_icase(code->name, "*(REQUIRED)*"))
+			if (line[-1] == APOLLO_CODE_FLAG_REQUIRED ||
+				wildcard_match_icase(code->name, "*(REQUIRED)*"))
 				code->flags |= APOLLO_CODE_FLAG_REQUIRED;
 
 			switch (group)
