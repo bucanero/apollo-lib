@@ -18,9 +18,9 @@ Reference documentation
    :maxdepth: 2
 
    cli.rst
+   savepatch.rst
    bsd.rst
    savewizard.rst
-   savepatch.rst
 
 Apollo Save Tool C library 
 --------------------------

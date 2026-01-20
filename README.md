@@ -4,6 +4,7 @@
 [![macOS Linux binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml)
 [![Windows binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml)
 [![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://twitter.com/dparrino)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bucanero/apollo-lib)
 
 This library and command-line tools implement a save-data patch engine that supports Save Wizard/Game Genie codes and Bruteforce Save Data scripts.
 
