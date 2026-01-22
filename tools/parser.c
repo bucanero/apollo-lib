@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo .savepatch parser v%s - (c) 2021-2025 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo .savepatch parser v%s - (c) 2021-2026 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 1)
     {

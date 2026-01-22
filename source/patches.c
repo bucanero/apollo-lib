@@ -3994,7 +3994,7 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	switch (code->type)
 	{
 	case APOLLO_CODE_GAMEGENIE:
-		LOG("Game Genie Code");
+		LOG("Save Wizard Code");
 		dsize = apply_sw_patch_code(data, dsize, code);
 		break;
 
