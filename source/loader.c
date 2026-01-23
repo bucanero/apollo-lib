@@ -395,20 +395,23 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 				wildcard_match(line, "; --- * ---") ||
 				wildcard_match_icase(line, "GROUP:*"))
 		{
+			code = calloc(1, sizeof(code_entry_t));
+			code->type = APOLLO_CODE_GAMEGENIE;
+
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
 			{
 				line += 8;
-				line[0] = APOLLO_CODE_FLAG_REQUIRED;
+				code->activated = 1;
 			}
 			else if (wildcard_match_icase(line, "[INFO:*"))
 			{
 				line += 5;
-				line[0] = APOLLO_CODE_FLAG_ALERT;
+				code->flags |= APOLLO_CODE_FLAG_ALERT;
 			}
 			else if (wildcard_match_icase(line, "[PYTHON:*"))
 			{
 				line += 7;
-				line[0] = APOLLO_CODE_PYTHON;
+				code->type = APOLLO_CODE_PYTHON;
 			}
 			else if (wildcard_match_icase(line, "*GROUP:\\*"))
 			{
@@ -430,22 +433,13 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			}
 			line++;
 
-			code = calloc(1, sizeof(code_entry_t));
-			code->type = APOLLO_CODE_GAMEGENIE;
 			code->options = (file_opt ? get_files_opt(save_path, file_opt) : NULL);
 			code->options_count = (file_opt ? 1 : 0);
 			code->file = strdup(filePath);
 			code->name = strdup(line);
 			list_append(list_codes, code);
 
-			if(line[-1] == APOLLO_CODE_FLAG_ALERT)
-				code->flags |= APOLLO_CODE_FLAG_ALERT;
-
-			if(line[-1] == APOLLO_CODE_PYTHON)
-				code->type = APOLLO_CODE_PYTHON;
-
-			if (line[-1] == APOLLO_CODE_FLAG_REQUIRED ||
-				wildcard_match_icase(code->name, "*(REQUIRED)*"))
+			if (wildcard_match_icase(code->name, "*(REQUIRED)*"))
 				code->flags |= APOLLO_CODE_FLAG_REQUIRED;
 
 			switch (group)
