@@ -48,6 +48,7 @@ const char* info_flags(int flag)
     if (flag & APOLLO_CODE_FLAG_ALERT)    return "[!] ";
     if (flag & APOLLO_CODE_FLAG_EMPTY)    return "[E] ";
     if (flag & APOLLO_CODE_FLAG_DISABLED) return "[D] ";
+    if (flag & APOLLO_CODE_FLAG_REQUIRED) return "[R] ";
 
     return "";
 }

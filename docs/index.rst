@@ -8,7 +8,7 @@ that supports:
 
 - :doc:`Save Wizard / Game Genie codes </savewizard>`
 - :doc:`Bruteforce Save Data scripts </bsd>`
-- `Python scripts (using MicroPython) <#python-libraries-and-micro-libraries>`__
+- :doc:`Python scripts (using MicroPython) </python>`
 
 Reference documentation
 -----------------------
@@ -20,6 +20,7 @@ Reference documentation
    savepatch.rst
    bsd.rst
    savewizard.rst
+   python.rst
 
 Apollo Save Tool C library 
 --------------------------
@@ -31,34 +32,6 @@ The library is cross-platform (PS2 / PS3 / PS4 / PSP / PS Vita / Win / Linux / m
 - `Apollo Save Tool PS4 <https://github.com/bucanero/apollo-ps4>`__ 
 - `Apollo Save Tool PSP <https://github.com/bucanero/apollo-psp>`__ 
 - `Apollo Save Tool PS Vita <https://github.com/bucanero/apollo-vita>`__
-
-Python libraries and micro-libraries
-------------------------------------
-
-The following standard Python libraries have been "micro-ified" to fit in with
-the philosophy of MicroPython.  They provide the core functionality of that
-module and are intended to be a drop-in replacement for the standard Python
-library.
-
-.. toctree::
-   :maxdepth: 1
-
-   apollo.rst
-   gc.rst
-   math.rst
-   sys.rst
-   ubinascii.rst
-   ucollections.rst
-   ucrypto.rst
-   uhashlib.rst
-   uheapq.rst
-   uio.rst
-   ujson.rst
-   umsgpack.rst
-   ure.rst
-   ustruct.rst
-   utime.rst
-   uzlib.rst
 
 Apollo ``savepatch`` archive
 ----------------------------

@@ -78,7 +78,7 @@ enum
 	BITWISE_OR
 } bitwise_ops;
 
-static const char* base_id = NULL;
+static const char* save_file = NULL;
 static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
@@ -1970,8 +1970,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_log_dump("host_username", var->data, var->len);
 				}
 
-				// set [*]:host_sysname*
-				else if (wildcard_match_icase(line, "host_sysname*"))
+				// set [*]:host_sys_name*
+				else if (wildcard_match_icase(line, "host_sys_name*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_SYS_NAME, NULL);
 
@@ -1979,7 +1979,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
 
-					_log_dump("host_sysname", var->data, var->len);
+					_log_dump("host_sys_name", var->data, var->len);
 				}
 
 				// set [*]:0x???????? (e.g. 0x00000000)
@@ -3865,6 +3865,27 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	}
 }
 
+static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
+{
+	mp_obj_t bytearray;
+	qstr bsd_name;
+	char* rval;
+	int rlen;
+	const char *host_vars[] = {"host_sys_name", "host_username", "host_psid", "host_account_id", "host_lan_addr", "host_wlan_addr"};
+
+	for (int id = 0; id < APOLLO_HOST_TEMP_PATH; id++)
+	{
+		rval = host_callback(id, &rlen);
+		bytearray = micropy_obj_new_bytearray(upy_ctx, rlen, rval);
+		bsd_name = micropy_qstr_from_str(upy_ctx, host_vars[id]);
+		micropy_store_global(upy_ctx, bsd_name, bytearray);
+	}
+
+	bytearray = micropy_obj_new_bytearray(upy_ctx, strlen(save_file), (char*) save_file);
+	bsd_name = micropy_qstr_from_str(upy_ctx, "host_file_path");
+	micropy_store_global(upy_ctx, bsd_name, bytearray);
+}
+
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	char *py_code;
@@ -3884,6 +3905,7 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 		add_bsd_vars_python(upy);
+		add_host_vars_python(upy);
 
 		char py_path[256];
 		snprintf(py_path, sizeof(py_path), "%s%s", (char*) host_callback(APOLLO_HOST_DATA_PATH, NULL), "python");
@@ -3962,13 +3984,13 @@ static void* dummy_host_callback(int id, int* size)
 	return "";
 }
 
-int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb)
+int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
 	uint8_t* data;
 	size_t dsize = 0;
 	bsd_variable_t *ozip_file = NULL;
 	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
-	base_id = title_id;
+	save_file = fpath;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
 
 	LOG("Applying [%s] to '%s'...", code->name, fpath);
