@@ -142,7 +142,7 @@ Each cheat code or patch is defined in its own section with a title and code lin
 
 **Special Title Prefixes**
 
-- ``[DEFAULT:...]`` - Code is auto-added by default when any code is selected
+- ``[DEFAULT:...]`` - Code is activated by default
 - ``[INFO:...]`` - Informational/alert message
 - ``[PYTHON:...]`` - Python script code
 - ``[GROUP:...]`` - Group header for organizing codes
@@ -245,15 +245,21 @@ Using Cheat Status
 Cheats Status flags are detected in the cheat code name.
 
 - ``info:`` → If the cheat name starts with ``INFO:`` the text is shown with an alert icon.
--  ``default:`` → The patch is auto-added by default when the user selects any code.
-- ``(Required)`` → If a patch code is mandatory to work (like a checksum update), adding the ``(Required)`` tag makes the code to be auto-added.
+-  ``default:`` → The patch is activated by default.
+- ``(Required)`` → If a patch code is mandatory to work (like a checksum update), adding the ``(Required)`` tag makes the code to be auto-added when the user selects any code.
 
 **Example**::
 
-   [INFO: This Patch may not work] ;The text is shown with an alert icon.
+   [INFO: This Patch may not work]
+   ;The text is shown with an alert icon.
    04000000 00000018
 
-   [Unlock All Character Bios (Required)] ;The code is required and will be auto-added.
+   [DEFAULT:Max 99 Lives]
+   ; This code is activated by default
+   0000ABCD 00000063
+
+   [Unlock All Character Bios (Required)]
+   ;The code is required and will be auto-added when the user selects any other code.
    94000000 00000018
    4A000000 00000001
    402A0004 00000000
@@ -296,7 +302,7 @@ Codes can be grouped together using group headers::
    [group:\]
    ; Ends the current group.
 
-   [info:Cheats below does not work]
+   [info:Cheats below do not work]
 
    [Cheat 2 (partial working)]
    00000000 00000000
@@ -316,14 +322,14 @@ Here's a complete SavePatch file example::
 
    :BLES00001-SAVEDATA\SAVEDATA.DAT
 
-   {MONVAL}000186A0=99,999;000F4240=1,000,000{/MONVAL}
+   {MAXMON}000186A0=99,999;000F4240=1,000,000{/MAXMON}
    {LV}0001=Level 1;000A=Level 10;0032=Level 50{/LV}
 
    [GROUP:Basic Cheats]
 
    [DEFAULT:Max Money]
    80010004 12345678
-   28000004 {MONVAL}
+   28000004 {MAXMON}
 
    [INFO:This cheat gives you maximum money]
    ; This is just a comment showing info
