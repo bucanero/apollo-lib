@@ -16,7 +16,7 @@ Global variables
    :type: bytearray
    :value: A byte array containing the raw binary save data.
 
-.. py:data:: host_save_file
+.. py:data:: host_file_path
 
    :type: bytearray
    :value: The full path of the save data file being modified. (e.g., "/user/savegames/SAVEDATA.DAT")

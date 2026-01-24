@@ -3882,7 +3882,7 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	}
 
 	bytearray = micropy_obj_new_bytearray(upy_ctx, strlen(save_file), (char*) save_file);
-	bsd_name = micropy_qstr_from_str(upy_ctx, "host_save_file");
+	bsd_name = micropy_qstr_from_str(upy_ctx, "host_file_path");
 	micropy_store_global(upy_ctx, bsd_name, bytearray);
 }
 
