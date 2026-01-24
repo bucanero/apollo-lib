@@ -181,7 +181,7 @@ after declaring the code name between square brackets. (Example: ``[Cheat Name]`
 Python Script Codes
 ~~~~~~~~~~~~~~~~~~~
 
-To define a `Python script code <index.html#python-scripting>`__,
+To define a :doc:`Python script code </python>`,
 write the script lines after declaring the code name
 between square brackets and the ``[python:Cheat Name]`` tag.
 
@@ -376,5 +376,5 @@ References
 - `Apollo SDK documentation <https://deepwiki.com/bucanero/apollo-lib>`__
 - :doc:`Save Wizard / Game Genie code format </savewizard>`
 - :doc:`Bruteforce Save Data script syntax </bsd>`
-- `Python scripting with Apollo <index.html#python-scripting>`__
+- :doc:`Python scripting with Apollo </python>`
 - `Game-specific cheat code databases <https://github.com/bucanero/apollo-patches>`__
