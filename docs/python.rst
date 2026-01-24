@@ -6,7 +6,7 @@ Apollo includes a built-in MicroPython interpreter that allows you to write cust
 to manipulate save data. The following global variables are available to your scripts:
 
 Global variables
-~~~~~~~~~~~~~~~~
+----------------
 
 .. py:data:: savedata
 
@@ -52,7 +52,7 @@ Global variables
    :value: The system's WLAN MAC address. (e.g., ``b"\x12\x34\x56\x78\x9A\xBC"``)
 
 Libraries and micro-libraries
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 The following standard Python libraries have been "micro-ified" to fit in with
 the philosophy of MicroPython.  They provide the core functionality of that
