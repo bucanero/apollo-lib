@@ -47,12 +47,12 @@ jobs:
 
     - name: Get short SHA
       run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
-    
-    - name: Compress output
-      run: |
-        tar -zcvf build.tar.gz tools/patcher tools/parser tools/dumper tools/patcher-bigendian
 
     - uses: actions/upload-artifact@v4
       with:
-        name: build-${{ env.sha_name }}-${{matrix.os}}
-        path: build.tar.gz
+        name: apollo-cli-${{ env.sha_name }}-${{matrix.os}}
+        path: |
+          tools/patcher
+          tools/parser
+          tools/dumper
+          tools/patcher-bigendian
