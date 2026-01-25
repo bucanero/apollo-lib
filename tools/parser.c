@@ -48,6 +48,7 @@ const char* info_flags(int flag)
     if (flag & APOLLO_CODE_FLAG_ALERT)    return "[!] ";
     if (flag & APOLLO_CODE_FLAG_EMPTY)    return "[E] ";
     if (flag & APOLLO_CODE_FLAG_DISABLED) return "[D] ";
+    if (flag & APOLLO_CODE_FLAG_REQUIRED) return "[R] ";
 
     return "";
 }
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo .savepatch parser v%s - (c) 2021-2025 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo .savepatch parser v%s - (c) 2021-2026 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 1)
     {

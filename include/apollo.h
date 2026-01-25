@@ -24,14 +24,14 @@ extern "C" {
 
 typedef enum
 {
-    APOLLO_HOST_TEMP_PATH,
-    APOLLO_HOST_DATA_PATH,
     APOLLO_HOST_SYS_NAME,
     APOLLO_HOST_USERNAME,
     APOLLO_HOST_PSID,
     APOLLO_HOST_ACCOUNT_ID,
     APOLLO_HOST_LAN_ADDR,
     APOLLO_HOST_WLAN_ADDR,
+    APOLLO_HOST_TEMP_PATH,
+    APOLLO_HOST_DATA_PATH,
 } apollo_host_data_t;
 
 typedef struct list_node_s
@@ -121,7 +121,7 @@ void free_patch_var_list(void);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
-int apply_cheat_patch_code(const char* file_path, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb);
+int apply_cheat_patch_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
 int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 
@@ -393,6 +393,9 @@ uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
 
 uint32_t md5_xor_hash(const uint8_t* data, uint32_t len);
 uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len);
+
+int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
+int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
 
 uint32_t add_hash(const uint8_t* data, uint32_t len);
 uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le);

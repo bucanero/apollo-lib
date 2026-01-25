@@ -82,10 +82,10 @@ static void get_user_options(code_entry_t* entry)
 int main(int argc, char **argv)
 {
     size_t len;
-    char *data, title[32];
+    char *data;
     list_t* list_codes;
 
-    printf("\nApollo cheat patcher v%s - (c) 2022-2025 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo cheat patcher v%s - (c) 2022-2026 by Bucanero\n\n", CLI_VERSION);
 
     if (--argc < 2)
     {
@@ -119,19 +119,18 @@ int main(int argc, char **argv)
 
     list_node_t *node = list_head(list_codes);
 
-    snprintf(title, sizeof(title), "%p", data);
     printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
-        if (is_active_code(argv[2], len))
+        if (code->activated || is_active_code(argv[2], len))
         {
             log++;
             if (code->options_count)
                 get_user_options(code);
 
             printf("\n===============[ Applying code #%ld ]===============\n", len);
-            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], title, code, NULL))
+            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], code, NULL))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");

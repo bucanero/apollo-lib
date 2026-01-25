@@ -88,7 +88,7 @@ enum
 	BITWISE_OR
 } bitwise_ops;
 
-static const char* base_id = NULL;
+static const char* save_file = NULL;
 static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
@@ -371,30 +371,38 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	switch (type)
 	{
 	case ENC_AES_ECB:
+		LOG("Encrypting AES ECB %d data (%d bytes)", key_len*8, length);
 		aes_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_AES_ECB:
+		LOG("Decrypting AES ECB %d data (%d bytes)", key_len*8, length);
 		aes_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_BLOWFISH_ECB:
+		LOG("Encrypting Blowfish ECB data (%d bytes)", length);
 		blowfish_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_BLOWFISH_ECB:
+		LOG("Decrypting Blowfish ECB data (%d bytes)", length);
 		blowfish_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_DES_ECB:
+		LOG("Encrypting DES ECB data (%d bytes)", length);
 		des_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_DES_ECB:
+		LOG("Decrypting DES ECB data (%d bytes)", length);
 		des_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_CAMELLIA_ECB:
+		LOG("Encrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
 		camellia_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
 	case DEC_CAMELLIA_ECB:
+		LOG("Decrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
 		camellia_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
@@ -441,27 +449,34 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	{
 	case ENC_AES_CTR:
 	case DEC_AES_CTR:
+		LOG("Xcrypting AES CTR %d data (%d bytes)", key_len*8, length);
 		aes_ctr_xcrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_AES_CBC:
+		LOG("Encrypting AES CBC %d data (%d bytes)", key_len*8, length);
 		aes_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_AES_CBC:
+		LOG("Decrypting AES CBC %d data (%d bytes)", key_len*8, length);
 		aes_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_BLOWFISH_CBC:
+		LOG("Encrypting Blowfish CBC data (%d bytes)", length);
 		blowfish_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_BLOWFISH_CBC:
+		LOG("Decrypting Blowfish CBC data (%d bytes)", length);
 		blowfish_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_3DES_CBC:
+		LOG("Encrypting 3-DES CBC data (%d bytes)", length);
 		des3_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 	case DEC_3DES_CBC:
+		LOG("Decrypting 3-DES CBC data (%d bytes)", length);
 		des3_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
@@ -1965,8 +1980,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_log_dump("host_username", var->data, var->len);
 				}
 
-				// set [*]:host_sysname*
-				else if (wildcard_match_icase(line, "host_sysname*"))
+				// set [*]:host_sys_name*
+				else if (wildcard_match_icase(line, "host_sys_name*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_SYS_NAME, NULL);
 
@@ -1974,7 +1989,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
 
-					_log_dump("host_sysname", var->data, var->len);
+					_log_dump("host_sys_name", var->data, var->len);
 				}
 
 				// set [*]:0x???????? (e.g. 0x00000000)
@@ -3860,8 +3875,30 @@ static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	}
 }
 
+static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
+{
+	mp_obj_t bytearray;
+	qstr bsd_name;
+	char* rval;
+	int rlen;
+	const char *host_vars[] = {"host_sys_name", "host_username", "host_psid", "host_account_id", "host_lan_addr", "host_wlan_addr"};
+
+	for (int id = 0; id < APOLLO_HOST_TEMP_PATH; id++)
+	{
+		rval = host_callback(id, &rlen);
+		bytearray = micropy_obj_new_bytearray(upy_ctx, rlen, rval);
+		bsd_name = micropy_qstr_from_str(upy_ctx, host_vars[id]);
+		micropy_store_global(upy_ctx, bsd_name, bytearray);
+	}
+
+	bytearray = micropy_obj_new_bytearray(upy_ctx, strlen(save_file), (char*) save_file);
+	bsd_name = micropy_qstr_from_str(upy_ctx, "host_file_path");
+	micropy_store_global(upy_ctx, bsd_name, bytearray);
+}
+
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
+	char *py_code;
 	uint8_t* ptr;
 	mp_obj_t savedata_obj;
 	mp_buffer_info_t bufinfo;
@@ -3878,6 +3915,7 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 		upy = micropy_create(py_heap, dsize + PY_HEAP_SIZE);
 		add_bsd_vars_python(upy);
+		add_host_vars_python(upy);
 
 		char py_path[256];
 		snprintf(py_path, sizeof(py_path), "%s%s", (char*) host_callback(APOLLO_HOST_DATA_PATH, NULL), "python");
@@ -3887,12 +3925,20 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		mp_obj_t py_path_obj = micropy_obj_new_bytes(upy, (const byte*) py_path, strlen(py_path));
 		micropy_obj_list_append(upy, (MP_OBJ_FROM_PTR(&(upy)->vm.mp_sys_path_obj)), py_path_obj);
 	}
+	else
+	{
+		// Clear garbage from previous runs
+		micropy_exec_str(upy, "import gc\ngc.collect()\n");
+	}
+
+	py_code = strdup(code->codes);
+	apply_tag_opts(py_code, code);
 
 	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
 	qsd = micropy_qstr_from_str(upy, "savedata");
 	micropy_store_global(upy, qsd, savedata_obj);
 
-	if (micropy_exec_str(upy, code->codes) != SUCCESS)
+	if (micropy_exec_str(upy, py_code) != SUCCESS)
 	{
 		dsize = 0;
 		LOG("Python script execution failed!");
@@ -3922,6 +3968,7 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 py_end:
 	micropy_delete_global(upy, qsd);
+	free(py_code);
 
 	return (dsize);
 }
@@ -3947,13 +3994,13 @@ static void* dummy_host_callback(int id, int* size)
 	return "";
 }
 
-int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_entry_t* code, apollo_host_cb_t host_cb)
+int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
 	uint8_t* data;
 	size_t dsize = 0;
 	bsd_variable_t *ozip_file = NULL;
 	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
-	base_id = title_id;
+	save_file = fpath;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
 
 	LOG("Applying [%s] to '%s'...", code->name, fpath);
@@ -3979,12 +4026,12 @@ int apply_cheat_patch_code(const char* fpath, const char* title_id, const code_e
 	switch (code->type)
 	{
 	case APOLLO_CODE_GAMEGENIE:
-		LOG("Game Genie Code");
+		LOG("Save Wizard Code");
 		dsize = apply_sw_patch_code(data, dsize, code);
 		break;
 
 	case APOLLO_CODE_BSD:
-		LOG("Bruteforce Save Data Code");
+		LOG("BSD Script Code");
 		dsize = apply_bsd_patch_code(&data, dsize, code);
 		break;
 
