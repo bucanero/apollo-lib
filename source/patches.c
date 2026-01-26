@@ -3943,15 +3943,18 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		goto py_end;
 	}
 
-	dsize = bufinfo.len;
-	ptr = realloc(*src_data, dsize);
-	if (!ptr)
+	if (dsize < bufinfo.len)
 	{
-		dsize = 0;
-		LOG("Memory allocation failed!");
-		goto py_end;
+		ptr = realloc(*src_data, bufinfo.len);
+		if (!ptr)
+		{
+			dsize = 0;
+			LOG("Memory allocation failed!");
+			goto py_end;
+		}
+		*src_data = ptr;
 	}
-	*src_data = ptr;
+	dsize = bufinfo.len;
 
 	LOG("Output size: %ld", bufinfo.len);
 	memcpy(*src_data, bufinfo.buf, dsize);
