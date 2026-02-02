@@ -3880,16 +3880,11 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 		bsd_name = micropy_qstr_from_str(upy_ctx, host_vars[id]);
 		micropy_store_global(upy_ctx, bsd_name, bytearray);
 	}
-
-	bytearray = micropy_obj_new_bytearray(upy_ctx, strlen(save_file), (char*) save_file);
-	bsd_name = micropy_qstr_from_str(upy_ctx, "host_file_path");
-	micropy_store_global(upy_ctx, bsd_name, bytearray);
 }
 
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	char *py_code;
-	uint8_t* ptr;
 	mp_obj_t savedata_obj;
 	mp_buffer_info_t bufinfo;
 	qstr qsd;
@@ -3921,6 +3916,10 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		micropy_exec_str(upy, "import gc\ngc.collect()\n");
 	}
 
+	// Set host file path variable
+	qsd = micropy_qstr_from_str(upy, "host_file_path");
+	micropy_store_global(upy, qsd, micropy_obj_new_bytearray(upy, strlen(save_file), (char*) save_file));
+
 	py_code = strdup(code->codes);
 	apply_tag_opts(py_code, code);
 
@@ -3945,14 +3944,14 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 	if (dsize < bufinfo.len)
 	{
-		ptr = realloc(*src_data, bufinfo.len);
-		if (!ptr)
+		free(*src_data);
+		*src_data = malloc(bufinfo.len);
+		if (*src_data == NULL)
 		{
 			dsize = 0;
 			LOG("Memory allocation failed!");
 			goto py_end;
 		}
-		*src_data = ptr;
 	}
 	dsize = bufinfo.len;
 
@@ -3960,6 +3959,8 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	memcpy(*src_data, bufinfo.buf, dsize);
 
 py_end:
+	micropy_delete_global(upy, qsd);
+	qsd = micropy_qstr_from_str(upy, "host_file_path");
 	micropy_delete_global(upy, qsd);
 	free(py_code);
 
