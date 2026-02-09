@@ -147,6 +147,10 @@ static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, in
     uint8_t *out_data;
 
     if(!in_data) return(NULL);
+    if(!wbits) {
+        LOG(" LZMA (Not supported)");
+        return(NULL);
+    }
 
     *out_size = compressBound(in_size);
     out_data = (uint8_t *)malloc(*out_size);
@@ -155,9 +159,7 @@ static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, in
 
     LOG("- input size    0x%08x / %u", in_size, in_size);
 
-    if(!wbits) {
-        LOG(" LZMA (Not supported)");
-    } else if(wbits > 0) {
+    if(wbits > 0) {
         LOG("- compression   ZLIB");
     } else {
         LOG("- compression   DEFLATE");
