@@ -2509,6 +2509,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				asprintf(&var->name, "~extracted\\%08" PRIX32 ".dat", ozip_list->offset);
 				list_append(var_list, var);
 
+				//keep reference to the original variable's data for compression later
+				ozip_list->data = &var->data;
+				ozip_list->ref_outlen = &var->len;
+
 				LOG("Added [%s] size = %d bytes", var->name, var->len);
 			}
 		}
@@ -4001,6 +4005,7 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 
 	if (is_ozip)
 	{
+		LOG("Loading Zip data [%s]...", code->file);
 		ozip_file = _get_bsd_variable(code->file);
 		if(!ozip_file)
 		{
@@ -4041,7 +4046,9 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	if (is_ozip)
 	{
 		ozip_file->data = data;
-		ozip_file->len = dsize;
+		if (dsize)
+			ozip_file->len = dsize;
+
 		return dsize;
 	}
 

@@ -213,6 +213,7 @@ typedef struct offzip_list
     uint32_t offset;
     uint32_t ziplen;
     int wbits;
+    void* ref_outlen; //pointer to the outlen field of the corresponding variable in the var_list
 } offzip_t;
 
 offzip_t* offzip_util(const uint8_t *data, size_t dlen, int offset, int wbits, int count);
