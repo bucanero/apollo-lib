@@ -43,7 +43,7 @@ typedef enum
 typedef struct
 {
     char* name;
-    int len;
+    uint32_t len;
     uint8_t* data;
 } bsd_variable_t;
 
@@ -2006,7 +2006,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				// set [*]:*
 				else
 				{
-					var->data = (uint8_t*) _decode_variable_data(line, &var->len);
+					var->data = _decode_variable_data(line, &len);
+					var->len = len;
 					LOG("[%s] = %s", var->name, line);
 				}
 			        
@@ -3882,7 +3883,7 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	mp_obj_t bytearray;
 	qstr bsd_name;
 	char* rval;
-	int rlen;
+	uint32_t rlen;
 	const char *host_vars[] = {"host_sys_name", "host_username", "host_psid", "host_account_id", "host_lan_addr", "host_wlan_addr"};
 
 	for (int id = 0; id < APOLLO_HOST_TEMP_PATH; id++)
@@ -3979,7 +3980,7 @@ py_end:
 	return (dsize);
 }
 
-static void* dummy_host_callback(int id, int* size)
+static void* dummy_host_callback(int id, uint32_t* size)
 {
 	switch (id)
 	{

@@ -90,7 +90,7 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
     // if ref_outlen is set, then use references to read the original data and outlen from the variable list
     if (data_in->ref_outlen) {
         in_data = *(uint8_t**)data_in->data;
-        data_in->outlen = *(uint32_t*)data_in->ref_outlen;
+        data_in->outlen = *data_in->ref_outlen;
     }
 
     uint8_t* zdata = zipit(in_data, data_in->outlen, &data_in->ziplen, data_in->wbits, Z_DEFAULT_STRATEGY, 0);
