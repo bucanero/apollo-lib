@@ -88,7 +88,11 @@ static long search_data(const uint8_t* data, size_t size, int start, const uint8
 {
 	int k = 1;
 
-	for (size_t i = start; i <= (size-len); i++)
+	if (size < len)
+		return -1;
+
+	size -= len;
+	for (size_t i = start; i <= size; i++)
 		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
@@ -99,8 +103,12 @@ static long reverse_search_data(const uint8_t* data, size_t size, int start, con
 {
 	int k = 1;
 
+	if (size < len)
+		return -1;
+
+	size -= len;
 	for (long i = start; i >= 0; i--)
-		if ((i+len <= (long)size) && (memcmp(data + i, search, len) == 0) && (k++ == count))
+		if ((i <= size) && (memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
 	return -1;
