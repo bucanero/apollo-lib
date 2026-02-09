@@ -2365,17 +2365,16 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 			LOG("Searching {%s} ...", line);
 			pointer = search_data(data, dsize, off, find, len, cnt);
+			free(find);
 			
 			if (pointer < 0)
 			{
 				LOG("ERROR: SEARCH PATTERN NOT FOUND");
-				free(find);
 				dsize = 0;
 				goto bsd_end;
 			}
 			
 			LOG("POINTER = 0x%lX (%ld)", pointer, pointer);
-			free(find);
 		}
 
 		else if (wildcard_match_icase(line, "copy *:*:*"))
