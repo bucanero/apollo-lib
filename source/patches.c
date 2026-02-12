@@ -43,7 +43,7 @@ typedef enum
 typedef struct
 {
     char* name;
-    int len;
+    uint32_t len;
     uint8_t* data;
 } bsd_variable_t;
 
@@ -88,7 +88,11 @@ static long search_data(const uint8_t* data, size_t size, int start, const uint8
 {
 	int k = 1;
 
-	for (size_t i = start; i <= (size-len); i++)
+	if (size < len)
+		return -1;
+
+	size -= len;
+	for (size_t i = start; i <= size; i++)
 		if ((memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
@@ -99,8 +103,12 @@ static long reverse_search_data(const uint8_t* data, size_t size, int start, con
 {
 	int k = 1;
 
+	if (size < len)
+		return -1;
+
+	size -= len;
 	for (long i = start; i >= 0; i--)
-		if ((i+len <= (long)size) && (memcmp(data + i, search, len) == 0) && (k++ == count))
+		if ((i <= size) && (memcmp(data + i, search, len) == 0) && (k++ == count))
 			return i;
 
 	return -1;
@@ -1998,7 +2006,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				// set [*]:*
 				else
 				{
-					var->data = (uint8_t*) _decode_variable_data(line, &var->len);
+					var->data = _decode_variable_data(line, &len);
+					var->len = len;
 					LOG("[%s] = %s", var->name, line);
 				}
 			        
@@ -2356,17 +2365,16 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 			LOG("Searching {%s} ...", line);
 			pointer = search_data(data, dsize, off, find, len, cnt);
+			free(find);
 			
 			if (pointer < 0)
 			{
 				LOG("ERROR: SEARCH PATTERN NOT FOUND");
-				free(find);
 				dsize = 0;
 				goto bsd_end;
 			}
 			
 			LOG("POINTER = 0x%lX (%ld)", pointer, pointer);
-			free(find);
 		}
 
 		else if (wildcard_match_icase(line, "copy *:*:*"))
@@ -2508,6 +2516,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				var->data = ozip_list->data;
 				asprintf(&var->name, "~extracted\\%08" PRIX32 ".dat", ozip_list->offset);
 				list_append(var_list, var);
+
+				//keep reference to the original variable's data for compression later
+				ozip_list->data = &var->data;
+				ozip_list->ref_outlen = &var->len;
 
 				LOG("Added [%s] size = %d bytes", var->name, var->len);
 			}
@@ -3870,7 +3882,7 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	mp_obj_t bytearray;
 	qstr bsd_name;
 	char* rval;
-	int rlen;
+	uint32_t rlen;
 	const char *host_vars[] = {"host_sys_name", "host_username", "host_psid", "host_account_id", "host_lan_addr", "host_wlan_addr"};
 
 	for (int id = 0; id < APOLLO_HOST_TEMP_PATH; id++)
@@ -3880,16 +3892,11 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 		bsd_name = micropy_qstr_from_str(upy_ctx, host_vars[id]);
 		micropy_store_global(upy_ctx, bsd_name, bytearray);
 	}
-
-	bytearray = micropy_obj_new_bytearray(upy_ctx, strlen(save_file), (char*) save_file);
-	bsd_name = micropy_qstr_from_str(upy_ctx, "host_file_path");
-	micropy_store_global(upy_ctx, bsd_name, bytearray);
 }
 
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	char *py_code;
-	uint8_t* ptr;
 	mp_obj_t savedata_obj;
 	mp_buffer_info_t bufinfo;
 	qstr qsd;
@@ -3921,6 +3928,10 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		micropy_exec_str(upy, "import gc\ngc.collect()\n");
 	}
 
+	// Set host file path variable
+	qsd = micropy_qstr_from_str(upy, "host_file_path");
+	micropy_store_global(upy, qsd, micropy_obj_new_bytearray(upy, strlen(save_file), (char*) save_file));
+
 	py_code = strdup(code->codes);
 	apply_tag_opts(py_code, code);
 
@@ -3945,14 +3956,14 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 	if (dsize < bufinfo.len)
 	{
-		ptr = realloc(*src_data, bufinfo.len);
-		if (!ptr)
+		free(*src_data);
+		*src_data = malloc(bufinfo.len);
+		if (*src_data == NULL)
 		{
 			dsize = 0;
 			LOG("Memory allocation failed!");
 			goto py_end;
 		}
-		*src_data = ptr;
 	}
 	dsize = bufinfo.len;
 
@@ -3961,12 +3972,14 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 py_end:
 	micropy_delete_global(upy, qsd);
+	qsd = micropy_qstr_from_str(upy, "host_file_path");
+	micropy_delete_global(upy, qsd);
 	free(py_code);
 
 	return (dsize);
 }
 
-static void* dummy_host_callback(int id, int* size)
+static void* dummy_host_callback(int id, uint32_t* size)
 {
 	switch (id)
 	{
@@ -4000,6 +4013,7 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 
 	if (is_ozip)
 	{
+		LOG("Loading Zip data [%s]...", code->file);
 		ozip_file = _get_bsd_variable(code->file);
 		if(!ozip_file)
 		{
@@ -4048,6 +4062,5 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 		write_buffer(fpath, data, dsize);
 
 	free(data);
-
 	return dsize;
 }
