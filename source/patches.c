@@ -4054,8 +4054,7 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	if (is_ozip)
 	{
 		ozip_file->data = data;
-		if (dsize)
-			ozip_file->len = dsize;
+		ozip_file->len = dsize;
 
 		return dsize;
 	}
