@@ -4062,6 +4062,5 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 		write_buffer(fpath, data, dsize);
 
 	free(data);
-
 	return dsize;
 }
