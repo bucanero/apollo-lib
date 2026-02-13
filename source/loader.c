@@ -46,6 +46,7 @@ uint8_t * x_to_u8_buffer(const char *hex)
 	if (len % 2 != 0)
 		return NULL;
 
+	len /= 2;
 	result = (uint8_t *)malloc(len);
 	memset(result, 0, len);
 	ptr = result;
