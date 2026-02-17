@@ -3773,8 +3773,9 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				//	Y = Address to test
 				//	C = Lines of code to skip if test fails
 				//	Z = Value data type
-				//	0 = 16-bit
+				//	0 = 16-bit (BE)
 				//	1 = 8-bit
+				//	2 = 16-bit (LE)
 				//	D = Test Operation
 				//	0 = Equal
 				//	1 = Not Equal
