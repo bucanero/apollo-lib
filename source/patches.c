@@ -3813,6 +3813,10 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				case '2':
 					src = (data[off+1] << 8) | data[off];
 					break;
+
+				default:
+					LOG("Unexpected data type (%c)!", bit);
+					break;
 				}
 
 				switch (op)
