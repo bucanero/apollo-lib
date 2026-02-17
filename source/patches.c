@@ -3784,7 +3784,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				//	X = Value to test
 			{
 				int l, val, off;
-				uint16_t src;
+				uint16_t src = 0;
 				char t = line[1];
 				char op = line[12];
 				char bit = line[11];
@@ -3799,13 +3799,20 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sprintf(tmp4, "%.4s", line+13);
 				sscanf(tmp4, "%x", &val);
 
-				src = *(uint16_t*)(data + off);
-				MEM16(src);
-
-				if (bit == '1')
+				switch (bit)
 				{
+				case '0':
+					src = (data[off] << 8) | data[off+1];
+					break;
+
+				case '1':
 					val &= 0xFF;
 					src = (uint8_t)data[off];
+					break;
+
+				case '2':
+					src = (data[off+1] << 8) | data[off];
+					break;
 				}
 
 				switch (op)
