@@ -3773,8 +3773,9 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				//	Y = Address to test
 				//	C = Lines of code to skip if test fails
 				//	Z = Value data type
-				//	0 = 16-bit
+				//	0 = 16-bit (BE)
 				//	1 = 8-bit
+				//	2 = 16-bit (LE)
 				//	D = Test Operation
 				//	0 = Equal
 				//	1 = Not Equal
@@ -3783,7 +3784,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				//	X = Value to test
 			{
 				int l, val, off;
-				uint16_t src;
+				uint16_t src = 0;
 				char t = line[1];
 				char op = line[12];
 				char bit = line[11];
@@ -3798,13 +3799,24 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sprintf(tmp4, "%.4s", line+13);
 				sscanf(tmp4, "%x", &val);
 
-				src = *(uint16_t*)(data + off);
-				MEM16(src);
-
-				if (bit == '1')
+				switch (bit)
 				{
+				case '0':
+					src = (data[off] << 8) | data[off+1];
+					break;
+
+				case '1':
 					val &= 0xFF;
 					src = (uint8_t)data[off];
+					break;
+
+				case '2':
+					src = (data[off+1] << 8) | data[off];
+					break;
+
+				default:
+					LOG("Unexpected data type (%c)!", bit);
+					break;
 				}
 
 				switch (op)
