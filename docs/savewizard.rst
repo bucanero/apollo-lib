@@ -779,7 +779,7 @@ Type D: Conditional Skip (Byte Test)
 - ``B`` = Offset type (0=Normal, 8=Offset from Pointer)
 - ``YYYYYY`` = Address to test
 - ``CC`` = Number of code lines to skip if test fails
-- ``Z`` = Data type (0=16-bit, 1=8-bit)
+- ``Z`` = Data type (0=16-bit BE, 1=8-bit, 2=16-bit LE)
 - ``D`` = Test operation:
 
   +--------+-------------------+
