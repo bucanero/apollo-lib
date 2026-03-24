@@ -39891,7 +39891,7 @@ mp_obj_t micropy_mod_apollo_endian_swap(struct _mp_state_ctx_t *mp_state, size_t
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
 
-    size_t wbytes = bufinfo.len;
+    size_t wbytes = 4;
     if (n_args > 1) {
         // custom initial value
         wbytes = micropy_obj_int_get_truncated(mp_state, args[1]);
