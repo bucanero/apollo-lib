@@ -1,7 +1,14 @@
 #include <stdio.h>
+#include <string.h>
+#ifdef _USE_MBEDTLS
+#include <mbedtls/md5.h>
+#include <mbedtls/sha1.h>
+#include "mbedtls_polar.h"
+#else
 #include <polarssl/md5.h>
 #include <polarssl/sha1.h>
 #include <polarssl/pkcs5.h>
+#endif
 #include "apollo.h"
 #include "crc_util.h"
 #include "types.h"
