@@ -31,10 +31,14 @@
 
 #define md                  mbedtls_md
 #define md5                 mbedtls_md5
+#define md_context_t        mbedtls_md_context_t
+#define md_init_ctx         mbedtls_md_init_ctx
 #define md_info_from_type   mbedtls_md_info_from_type
 
-#define POLARSSL_MD_MD4     MBEDTLS_MD_MD4
-#define POLARSSL_MD_MD2     MBEDTLS_MD_MD2
+#define pkcs5_pbkdf2_hmac   mbedtls_pkcs5_pbkdf2_hmac
+
+#define POLARSSL_MD_SHA1    MBEDTLS_MD_SHA1
+#define POLARSSL_MD_SHA256  MBEDTLS_MD_SHA256
 
 #define BLOWFISH_BLOCKSIZE  MBEDTLS_BLOWFISH_BLOCKSIZE
 #define BLOWFISH_DECRYPT    MBEDTLS_BLOWFISH_DECRYPT
