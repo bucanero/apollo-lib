@@ -38262,7 +38262,9 @@ extern void sha1( const unsigned char *input, size_t ilen, unsigned char output[
 extern void sha256( const unsigned char *input, size_t ilen, unsigned char output[32], int is224 );
 extern void sha512( const unsigned char *input, size_t ilen, unsigned char output[64], int is384 );
 extern void md5( const unsigned char *input, size_t ilen, unsigned char output[16] );
+#ifndef _USE_MBEDTLS
 extern void sha1_hmac( const unsigned char *key, size_t keylen, const unsigned char *input, size_t ilen, unsigned char output[20] );
+#endif
 
 //---  Custom game checksum functions ---//
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_eachecksum_obj);

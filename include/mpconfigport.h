@@ -161,4 +161,9 @@ static inline void mp_hal_set_interrupt_char(char c) {}
 #define MICROPY_MIN_USE_STDOUT (1)
 #endif
 
+#ifdef _USE_MBEDTLS
+#include <mbedtls/md.h>
+#include "mbedtls_polar.h"
+#endif
+
 #define MP_STATE_PORT MP_STATE_VM
