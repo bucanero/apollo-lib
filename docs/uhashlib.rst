@@ -213,12 +213,12 @@ These functions implement common checksum and non-cryptographic hash algorithms.
    :return: 8-byte CRC-64-ISO checksum (big-endian)
    :rtype: bytes
 
-.. py:function:: crc(width, data, poly, init, xor, refIn, refOut)
+.. py:function:: crc(data, width, poly, init, xor, refIn, refOut)
 
    Computes custom CRC with user-defined parameters.
 
-   :param int width: CRC width in bits (16, 32, or 64)
    :param bytes data: Input data to checksum
+   :param int width: CRC width in bits (16, 32, or 64)
    :param int poly: Polynomial value
    :param int init: Initial value
    :param int xor: Final XOR value

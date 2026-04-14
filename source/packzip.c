@@ -31,11 +31,7 @@
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
-
 #define VER         "0.3.1"
-
-//#define MAXZIPLEN(n) ((n)+(((n)/1000)+1)+12)
-#define MAXZIPLEN(n) ((n)+(((n)/10)+1)+12)  // for lzma
 #define min(a,b)   (((a)<(b))?(a):(b))
 
 
@@ -80,6 +76,7 @@ static uint32_t zlib_compress(uint8_t *in, int insz, uint8_t *out, int outsz, in
 
 static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
     void *ptr;
+    uint8_t* in_data = data_in->data;
 
     LOG("- offset        0x%08x", data_in->offset);
     LOG("- windowbits    %d", data_in->wbits);
@@ -90,7 +87,13 @@ static int packzip_compress(offzip_t* data_in, uint8_t **obuf, size_t *olen) {
         memset(*obuf + data_in->offset, 0, min(*olen - data_in->offset, data_in->ziplen));
     }
 
-    uint8_t* zdata = zipit(data_in->data, data_in->outlen, &data_in->ziplen, data_in->wbits, Z_DEFAULT_STRATEGY, 0);
+    // if ref_outlen is set, then use references to read the original data and outlen from the variable list
+    if (data_in->ref_outlen) {
+        in_data = *(uint8_t**)data_in->data;
+        data_in->outlen = *data_in->ref_outlen;
+    }
+
+    uint8_t* zdata = zipit(in_data, data_in->outlen, &data_in->ziplen, data_in->wbits, Z_DEFAULT_STRATEGY, 0);
     if(!zdata) {
         LOG("- the compression failed");
         return 0;
@@ -144,27 +147,25 @@ static uint8_t* zipit(uint8_t *in_data, uint32_t in_size, uint32_t *out_size, in
     uint8_t *out_data;
 
     if(!in_data) return(NULL);
+    if(!wbits) {
+        LOG(" LZMA (Not supported)");
+        return(NULL);
+    }
 
-    *out_size = MAXZIPLEN(in_size);
+    *out_size = compressBound(in_size);
     out_data = (uint8_t *)malloc(*out_size);
 
     if(!out_data) return(NULL);
 
     LOG("- input size    0x%08x / %u", in_size, in_size);
 
-    LOG("- compression  ");
-    if(!wbits) {
-        LOG(" LZMA (Not supported)");
-
-    } else if(wbits > 0) {
-        LOG(" ZLIB");
-        ret = zlib_compress(in_data, in_size, out_data, *out_size, wbits, flags, store);
-
+    if(wbits > 0) {
+        LOG("- compression   ZLIB");
     } else {
-        LOG(" DEFLATE");
-        ret = zlib_compress(in_data, in_size, out_data, *out_size, wbits, flags, store);
+        LOG("- compression   DEFLATE");
     }
 
+    ret = zlib_compress(in_data, in_size, out_data, *out_size, wbits, flags, store);
     if(ret <= 0) {
         free(out_data);
         out_data = NULL;

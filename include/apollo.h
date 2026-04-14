@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "2.0.0"
+#define APOLLO_LIB_VERSION         "2.0.2"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_SAVEWIZARD     1
@@ -82,7 +82,7 @@ typedef struct
     uint8_t refOut;
 } custom_crc_t;
 
-typedef void* (*apollo_host_cb_t)(int info, int* size);
+typedef void* (*apollo_host_cb_t)(int info, uint32_t* size);
 typedef option_entry_t* (*apollo_get_files_cb_t)(const char*, const char*);
 
 //---  Generic list functions ---
@@ -213,6 +213,7 @@ typedef struct offzip_list
     uint32_t offset;
     uint32_t ziplen;
     int wbits;
+    uint32_t* ref_outlen; //pointer to the outlen field of the corresponding variable in the var_list
 } offzip_t;
 
 offzip_t* offzip_util(const uint8_t *data, size_t dlen, int offset, int wbits, int count);
