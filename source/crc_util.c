@@ -5,7 +5,7 @@
 #include <mbedtls/md5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/pkcs5.h>
-#include "mbedtls_polar.h"
+#include <mbedtls/compat-1.3.h>
 #else
 #include <polarssl/md5.h>
 #include <polarssl/sha1.h>

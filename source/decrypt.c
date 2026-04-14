@@ -13,7 +13,7 @@
 #include <mbedtls/md5.h>
 #include <mbedtls/blowfish.h>
 #include <mbedtls/camellia.h>
-#include "mbedtls_polar.h"
+#include <mbedtls/compat-1.3.h>
 #else
 #include <polarssl/aes.h>
 #include <polarssl/des.h>

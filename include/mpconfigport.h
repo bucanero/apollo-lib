@@ -163,7 +163,7 @@ static inline void mp_hal_set_interrupt_char(char c) {}
 
 #ifdef _USE_MBEDTLS
 #include <mbedtls/md.h>
-#include "mbedtls_polar.h"
+#include <mbedtls/compat-1.3.h>
 #endif
 
 #define MP_STATE_PORT MP_STATE_VM
