@@ -1,7 +1,18 @@
+#include <inttypes.h>
+#ifdef _USE_MBEDTLS
+#include <mbedtls/md.h>
+#include <mbedtls/md5.h>
+#include <mbedtls/sha1.h>
+#include <mbedtls/sha256.h>
+#include <mbedtls/sha512.h>
+#include <mbedtls/compat-1.3.h>
+#else
+#include <polarssl/md.h>
 #include <polarssl/md5.h>
 #include <polarssl/sha1.h>
 #include <polarssl/sha256.h>
 #include <polarssl/sha512.h>
+#endif
 #include <zlib.h>
 #include <dirent.h>
 
@@ -1245,7 +1256,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_SHA1;
 					var->data = malloc(var->len);
-					sha1_hmac((uint8_t*) key, key_len, start, len, var->data);
+					md_hmac(md_info_from_type(POLARSSL_MD_SHA1), (uint8_t*) key, key_len, start, len, var->data);
 					free(key);
 
 					LOG("len %d SHA1/HMAC", len);

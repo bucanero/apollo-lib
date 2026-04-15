@@ -38262,7 +38262,6 @@ extern void sha1( const unsigned char *input, size_t ilen, unsigned char output[
 extern void sha256( const unsigned char *input, size_t ilen, unsigned char output[32], int is224 );
 extern void sha512( const unsigned char *input, size_t ilen, unsigned char output[64], int is384 );
 extern void md5( const unsigned char *input, size_t ilen, unsigned char output[16] );
-extern void sha1_hmac( const unsigned char *key, size_t keylen, const unsigned char *input, size_t ilen, unsigned char output[20] );
 
 //---  Custom game checksum functions ---//
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_eachecksum_obj);
@@ -38743,7 +38742,7 @@ mp_obj_t micropy_mod_uhashlib_hmac_sha1(struct _mp_state_ctx_t *mp_state, mp_obj
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    sha1_hmac(keyinfo.buf, keyinfo.len, bufinfo.buf, bufinfo.len, out);
+    md_hmac(md_info_from_type(POLARSSL_MD_SHA1), keyinfo.buf, keyinfo.len, bufinfo.buf, bufinfo.len, out);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
 }
