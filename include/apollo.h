@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "2.0.2"
+#define APOLLO_LIB_VERSION         "2.0.4"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_SAVEWIZARD     1
@@ -218,9 +218,9 @@ typedef struct offzip_list
 
 offzip_t* offzip_util(const uint8_t *data, size_t dlen, int offset, int wbits, int count);
 void offzip_free(void);
-int offzip_init(size_t dsz, int wbits);
-int offzip_search(const uint8_t *data);
-int offzip_verify(const uint8_t *data, uint32_t *offset, uint32_t *inlen, uint32_t *outlen);
+void* offzip_init(const uint8_t *data, size_t dsz, int wbits);
+int offzip_search(void *offz_fd);
+int offzip_verify(void *offz_fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen);
 int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* outsize);
 
 

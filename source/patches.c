@@ -2525,7 +2525,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				var = malloc(sizeof(bsd_variable_t));
 				var->len = ozip_list->outlen;
 				var->data = ozip_list->data;
-				asprintf(&var->name, "~extracted\\%08" PRIX32 ".dat", ozip_list->offset);
+				asprintf(&var->name, "~extracted\\%08" PRIx32 ".dat", ozip_list->offset);
 				list_append(var_list, var);
 
 				//keep reference to the original variable's data for compression later

@@ -36,7 +36,7 @@
 #define VER             "0.3.5"
 #define INSZ            0x800   // the amount of bytes we want to decompress each time
 #define OUTSZ           0x10000 // the buffer used for decompressing the data
-#define FBUFFSZ         0x40000 // this buffer is used for reading, faster
+#define FBUFFSZ         0x10000 // this buffer is used for reading, faster
 #define SHOWX           0x7fff  // AND to show the current scanned offset each SHOWX offsets
 #define MAX_RESULTS     0x40
 
@@ -46,12 +46,18 @@
 
 #define g_minzip        32
 
+// Custom structure to hold memory buffer information
+typedef struct {
+    unsigned char *buffer;  // pointer to the memory buffer
+    size_t size;            // total size of the buffer
+    size_t position;        // current read position
+} MEMFILE;
 
-static int buffread(const uint8_t *fd, uint8_t *buff, int size);
-static void buffseek(const uint8_t *fd, int off, int mode);
+static int buffread(MEMFILE *fd, uint8_t *buff, int size);
+static void buffseek(MEMFILE *fd, int off, int mode);
 static void buffinc(int increase);
-static int unzip_all(const uint8_t *fd, offzip_t* out_list);
-static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
+static int unzip_all(MEMFILE *fd, offzip_t* out_list);
+static int unzip(MEMFILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump);
 static int zlib_err(int err);
 
 
@@ -61,14 +67,58 @@ static uint32_t g_offset = 0,
         g_filebuffsz    = 0;
 static int g_zipwbits   = 0;
 static int g_count      = 0;
-static size_t g_size    = 0;
+static MEMFILE g_memfd  = {0}; // memory file descriptor for reading from the input data
 static uint8_t *g_in    = NULL,
         *g_out          = NULL,
         *g_filebuff     = NULL;
 
+// Custom memory file operations
+// Read from memory buffer
+static size_t memfread(void *ptr, size_t size, size_t nmemb, MEMFILE *mf) {
+    size_t total_bytes = size * nmemb;
+    size_t bytes_available = mf->size - mf->position;
+    size_t bytes_to_read = (total_bytes < bytes_available) ? total_bytes : bytes_available;
+    
+    if (bytes_to_read > 0) {
+        memcpy(ptr, mf->buffer + mf->position, bytes_to_read);
+        mf->position += bytes_to_read;
+    }
+    
+    // Return number of complete items read
+    return bytes_to_read / size;
+}
 
-int offzip_init(size_t dsz, int wbits) {
-    g_size      = dsz;
+// Seek within memory buffer
+static int memfseek(MEMFILE *mf, long offset, int whence) {
+    size_t new_position;
+    
+    switch (whence) {
+        case SEEK_SET:
+            new_position = offset;
+            break;
+        case SEEK_CUR:
+        case SEEK_END:
+        default:
+            return -1;
+    }
+    
+    if (new_position > mf->size) {
+        return -1;
+    }
+    
+    mf->position = new_position;
+    return 0;
+}
+
+// Get current position
+static long memftell(MEMFILE *mf) {
+    return (long)mf->position;
+}
+
+void* offzip_init(const uint8_t *data, size_t dsz, int wbits) {
+    g_memfd.position = 0;
+    g_memfd.size     = dsz;
+    g_memfd.buffer   = (uint8_t*)data;
     g_zipwbits  = wbits;
     g_filebuffoff = 0;
     g_filebuffsz  = 0;
@@ -79,7 +129,7 @@ int offzip_init(size_t dsz, int wbits) {
     g_filebuff  = malloc(FBUFFSZ);
     if(!g_in || !g_out || !g_filebuff) {
         LOG("Error: unable to create buffers");
-        return (Z_INIT_ERROR);
+        return NULL;
     }
 
     memset(&z, 0, sizeof(z));
@@ -90,10 +140,10 @@ int offzip_init(size_t dsz, int wbits) {
         g_in        = NULL;
         g_out       = NULL;
         g_filebuff  = NULL;
-        return (Z_INIT_ERROR);
+        return NULL;
     }
 
-    return Z_OK;
+    return (&g_memfd);
 }
 
 void offzip_free(void) {
@@ -143,7 +193,7 @@ offzip_t* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, i
             "\n", argv[0], g_minzip);
 */
 
-    if(offzip_init(dlen, wbits) != Z_OK)
+    if(offzip_init(data, dlen, wbits) == NULL)
     {
         LOG("Error: unable to create buffers");
         return 0;
@@ -163,13 +213,13 @@ offzip_t* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, i
     LOG("- zip windowBits:     %d", g_zipwbits);
     LOG("- seek offset:        0x%08x  (%u)", g_offset, g_offset);
     LOG("- scan count :        %d", g_count);
-    buffseek(data, g_offset, SEEK_SET);
+    buffseek(&g_memfd, g_offset, SEEK_SET);
 
     LOG("+------------+-------------+-------------------------+");
     LOG("| hex_offset | blocks_dots | zip_size --> unzip_size |");
     LOG("+------------+-------------+-------------------------+");
 
-    files = unzip_all(data, ofz); //ZIPDOFILE
+    files = unzip_all(&g_memfd, ofz); //ZIPDOFILE
     if(files) {
         LOG("- %u valid zip blocks found", files);
     } else {
@@ -183,18 +233,7 @@ offzip_t* offzip_util(const uint8_t* data, size_t dlen, int offset, int wbits, i
     return(ofz);
 }
 
-static int memread(uint8_t *buff, int size, const uint8_t *fd) {
-    int ret = size;
-
-    if((size + g_offset) > g_size) {
-        ret = g_size - g_offset;
-    }
-
-    memcpy(buff, fd + g_offset, ret);
-    return ret;
-}
-
-static int buffread(const uint8_t *fd, uint8_t *buff, int size) {
+static int buffread(MEMFILE *fd, uint8_t *buff, int size) {
     int     len,
             rest,
             ret;
@@ -205,7 +244,7 @@ static int buffread(const uint8_t *fd, uint8_t *buff, int size) {
     if(rest < size) {
         ret = size - rest;
         memmove(g_filebuff, g_filebuff + g_filebuffoff, rest);
-        len = memread(g_filebuff + rest, FBUFFSZ - rest, fd);
+        len = memfread(g_filebuff + rest, 1, FBUFFSZ - rest, fd);
         g_filebuffoff = 0;
         g_filebuffsz  = rest + len;
         if(len < ret) {
@@ -219,15 +258,15 @@ static int buffread(const uint8_t *fd, uint8_t *buff, int size) {
     return ret;
 }
 
-static void buffseek(const uint8_t *fd, int off, int mode) {
-    if(mode != SEEK_SET || off > g_size)
+static void buffseek(MEMFILE *fd, int off, int mode) {
+    if(memfseek(fd, off, mode) < 0)
     {
         LOG("Error: buffseek");
         return;
     }
     g_filebuffoff = 0;
     g_filebuffsz  = 0;
-    g_offset      = off;
+    g_offset      = memftell(fd);
 }
 
 static void buffinc(int increase) {
@@ -235,7 +274,7 @@ static void buffinc(int increase) {
     g_offset      += increase;
 }
 
-int offzip_search(const uint8_t *fd) {
+int offzip_search(void *fd) {
     int     len,
             zerr,
             ret;
@@ -262,7 +301,7 @@ int offzip_search(const uint8_t *fd) {
     return ret;
 }
 
-static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
+static int unzip_all(MEMFILE *fd, offzip_t* out_list) {
     uint8_t  *fdo = NULL;
     uint32_t inlen,
             outlen;
@@ -291,7 +330,7 @@ static int unzip_all(const uint8_t *fd, offzip_t* out_list) {
     return extracted;
 }
 
-static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
+static int unzip(MEMFILE *fd, uint32_t *inlen, uint32_t *outlen, uint8_t **dump) {
     void *ptr;
     uint32_t oldsz = 0,
             oldoff,
@@ -304,8 +343,6 @@ static int unzip(const uint8_t *fd, uint32_t *inlen, uint32_t *outlen, uint8_t *
     inflateReset(&z);
 
     for(; (len = buffread(fd, g_in, INSZ)); buffinc(len)) {
-        //if(g_quiet >= 0) fputc('.', stderr);
-
         z.next_in   = g_in;
         z.avail_in  = len;
         do {
@@ -387,7 +424,7 @@ static int zlib_err(int zerr) {
     return 0;
 }
 
-int offzip_verify(const uint8_t *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
+int offzip_verify(void *fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen) {
     uint32_t oldoff,
             len;
     int     ret     = -1,
