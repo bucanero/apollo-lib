@@ -36,10 +36,16 @@ const char* info_flags(int flag)
 
 void print_usage(const char* argv0)
 {
-    printf("USAGE: %s file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf("Patching:\n");
+    printf(" USAGE: %s file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
     printf("  file.savepatch: The cheat patch file to apply\n");
     printf("  1,2,7-10,18:    The list of codes to apply\n");
     printf("  data-file.bin:  The target file to patch\n\n");
+    printf("Listing:\n");
+    printf(" USAGE: %s file.savepatch [-c 1,2,7-10,18]\n\n", argv0);
+    printf("  file.savepatch: The cheat patch file to list\n");
+    printf("  -c:             Display code details (Optional)\n");
+    printf("  1,2,7-10,18:    The list of codes to display (Optional)\n\n");
     return;
 }
 
@@ -190,9 +196,9 @@ int main(int argc, char **argv)
 
     printf("Game: %s\n\n", code->name);
 
-    if (argc == 1 || (argc == 2 && argv[2][1] == 'd') || (argc == 3 && argv[3][1] == 'c'))
+    if (argc == 1 || (argc == 2 && argv[2][1] == 'd') || (argc == 3 && argv[2][1] == 'c'))
     {
-        print_codes(code, node, (argc == 3) ? argv[2] : NULL, (argc == 2 && argv[2][1] == 'd'));
+        print_codes(code, node, (argc == 3) ? argv[3] : NULL, (argc == 2 && argv[2][1] == 'd'));
         return 0;
     }
 
