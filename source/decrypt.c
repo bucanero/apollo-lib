@@ -215,38 +215,38 @@ void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len
 	return;
 }
 
-void des_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void des3_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
 {
-	des_context ctx;
+	des3_context ctx;
 
-	if (key_len != DES_KEY_SIZE)
+	if (key_len != DES_KEY_SIZE * 3)
 		return;
 
-	des_init(&ctx);
-	des_setkey_dec(&ctx, key);
+	des3_init(&ctx);
+	des3_set3key_dec(&ctx, key);
 
 	for (len /= DES_BLOCK_SIZE; len > 0; len--)
 	{
-		des_crypt_ecb(&ctx, data, data);
+		des3_crypt_ecb(&ctx, data, data);
 		data += DES_BLOCK_SIZE;
 	}
 
 	return;
 }
 
-void des_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void des3_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
 {
-	des_context ctx;
+	des3_context ctx;
 
-	if (key_len != DES_KEY_SIZE)
+	if (key_len != DES_KEY_SIZE * 3)
 		return;
 
-	des_init(&ctx);
-	des_setkey_enc(&ctx, key);
+	des3_init(&ctx);
+	des3_set3key_enc(&ctx, key);
 
 	for (len /= DES_BLOCK_SIZE; len > 0; len--)
 	{
-		des_crypt_ecb(&ctx, data, data);
+		des3_crypt_ecb(&ctx, data, data);
 		data += DES_BLOCK_SIZE;
 	}
 

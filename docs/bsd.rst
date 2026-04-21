@@ -456,12 +456,12 @@ Standard Encryption Algorithms
     decrypt camellia_ecb(key)
     encrypt camellia_ecb(key)
 
-**DES:**
+**Triple DES-ECB:**
 
 .. code-block:: text
 
-    decrypt des_ecb(key)
-    encrypt des_ecb(key)
+    decrypt des3_ecb(key)
+    encrypt des3_ecb(key)
 
 **Triple DES-CBC:**
 

@@ -86,6 +86,15 @@ These functions implement standard cryptographic hash algorithms.
    :return: 20-byte HMAC-SHA1 result
    :rtype: bytes
 
+.. py:function:: hmac_sha256(key, data)
+
+   Computes HMAC-SHA256 (Hash-based Message Authentication Code using SHA-256).
+
+   :param bytes key: HMAC key
+   :param bytes data: Input data to authenticate
+   :return: 32-byte HMAC-SHA256 result
+   :rtype: bytes
+
 Password-Based Key Derivation Functions (PBKDF2)
 ------------------------------------------------
 
