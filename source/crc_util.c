@@ -534,6 +534,7 @@ static void _toz_sha1(const uint8_t* data, uint32_t length, const char* key, uin
 {
     sha1_context ctx;
 
+    sha1_init(&ctx);
     sha1_starts(&ctx);
     sha1_update(&ctx, data, length);
     sha1_update(&ctx, (const unsigned char*)key, strlen(key));

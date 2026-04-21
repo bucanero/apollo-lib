@@ -95,6 +95,74 @@ These functions implement standard cryptographic hash algorithms.
    :return: 32-byte HMAC-SHA256 result
    :rtype: bytes
 
+General-Purpose Hash Functions
+------------------------------
+
+These functions implement various general-purpose non-cryptographic hash algorithms.
+
+.. py:function:: sdbm(data, init=0)
+
+   Computes SDBM hash.
+
+   :param bytes data: Input data to hash
+   :param int init: Optional initial value (default: 0)
+   :return: 4-byte SDBM hash (big-endian)
+   :rtype: bytes
+
+.. py:function:: fnv1(data, init=FNV1_INIT_VALUE)
+
+   Computes FNV-1 (Fowler-Noll-Vo) hash.
+
+   :param bytes data: Input data to hash
+   :param int init: Optional initial value (default: ``0x811c9dc5``)
+   :return: 4-byte FNV-1 hash (big-endian)
+   :rtype: bytes
+
+.. py:function:: djb2(data)
+
+   Computes DJB2 hash (Daniel J. Bernstein hash).
+
+   :param bytes data: Input data to hash
+   :return: 4-byte DJB2 hash (big-endian)
+   :rtype: bytes
+
+.. py:function:: murmur3_32(data, init=0)
+
+   Computes MurmurHash3 32-bit hash.
+
+   :param bytes data: Input data to hash
+   :param int init: Optional initial value (default: 0)
+   :return: 4-byte MurmurHash3 hash (big-endian)
+   :rtype: bytes
+
+.. py:function:: jhash(data, init=0)
+
+   Computes jhash (Jenkins hash).
+
+   :param bytes data: Input data to hash
+   :param int init: Optional initial value (default: 0)
+   :return: 4-byte jhash (big-endian)
+   :rtype: bytes
+
+.. py:function:: jenkins_oaat(data, init=0)
+
+   Computes Jenkins one-at-a-time hash.
+
+   :param bytes data: Input data to hash
+   :param int init: Optional initial value (default: 0)
+   :return: 4-byte Jenkins OAAT hash (big-endian)
+   :rtype: bytes
+
+.. py:function:: lookup3_little2(data, iv1, iv2)
+
+   Computes lookup3 little-endian hash producing two 32-bit values.
+
+   :param bytes data: Input data to hash
+   :param int iv1: First initialization vector
+   :param int iv2: Second initialization vector
+   :return: Tuple of two 4-byte hash values (big-endian)
+   :rtype: tuple
+
 Password-Based Key Derivation Functions (PBKDF2)
 ------------------------------------------------
 
@@ -247,6 +315,95 @@ These functions implement common checksum and non-cryptographic hash algorithms.
    :return: 4-byte modified CRC value
    :rtype: bytes
 
+Custom Hash Functions
+---------------------
+
+These functions implement various custom or modified hash algorithms.
+
+.. py:function:: md5_xor(data)
+
+   Computes MD5 hash and XORs the four 32-bit words together.
+
+   :param bytes data: Input data to hash
+   :return: 4-byte XOR result of MD5 words (big-endian)
+   :rtype: bytes
+
+.. py:function:: sha1_xor64(data)
+
+   Computes SHA-1 hash and XORs to produce a 64-bit value.
+
+   :param bytes data: Input data to hash
+   :return: 8-byte XOR result of SHA-1 (big-endian)
+   :rtype: bytes
+
+.. py:function:: checksum32(data)
+
+   Computes a simple additive 32-bit checksum (sum of signed bytes).
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: add(data, carry=0)
+
+   Computes additive checksum (sum of bytes).
+
+   :param bytes data: Input data to checksum
+   :param int carry: Carry value (must be 2 if provided)
+   :return: 2 or 4-byte additive checksum (big-endian)
+   :rtype: bytes
+   :raises ValueError: If carry is specified and not 2
+
+.. py:function:: wadd(data, carry=0)
+
+   Computes word-additive checksum (sum of 16-bit words, big-endian).
+
+   :param bytes data: Input data to checksum
+   :param int carry: Carry value (must be 2 if provided)
+   :return: 2 or 4-byte word-additive checksum (big-endian)
+   :rtype: bytes
+   :raises ValueError: If carry is specified and not 2
+
+.. py:function:: wadd_le(data)
+
+   Computes word-additive checksum (sum of 16-bit words, little-endian).
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte word-additive checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: dwadd(data)
+
+   Computes double-word additive checksum (sum of 32-bit words, big-endian).
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte double-word additive checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: dwadd_le(data)
+
+   Computes double-word additive checksum (sum of 32-bit words, little-endian).
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte double-word additive checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: qwadd(data)
+
+   Computes quad-word additive checksum (sum of 64-bit words).
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte quad-word additive checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: wsub(data)
+
+   Computes word-subtractive checksum.
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte word-subtractive checksum (big-endian)
+   :rtype: bytes
+
 Game-Specific Checksum Functions
 --------------------------------
 
@@ -313,12 +470,12 @@ These functions implement checksum algorithms used by specific video games.
    Computes 4-part checksum used by Samurai Warriors 4 (Sengoku Musou 4).
 
    :param bytes data: Input data to checksum
-   :return: Tuple of 4 4-byte checksums (big-endian)
+   :return: Tuple of four 4-byte checksums (big-endian)
    :rtype: tuple
 
 .. py:function:: toz_checksum(data)
 
-   Computes 20-byte checksum used by Tales of Zestiria.
+   Computes 20-byte SHA1 cascade hash used by Tales of Zestiria.
 
    :param bytes data: Input data to checksum
    :return: 20-byte ToZ checksum
@@ -364,162 +521,6 @@ These functions implement checksum algorithms used by specific video games.
    :return: 4-byte Dead Rising checksum (big-endian)
    :rtype: bytes
 
-Custom Hash Functions
----------------------
-
-These functions implement various custom or modified hash algorithms.
-
-.. py:function:: md5_xor(data)
-
-   Computes MD5 hash and XORs the four 32-bit words together.
-
-   :param bytes data: Input data to hash
-   :return: 4-byte XOR result of MD5 words (big-endian)
-   :rtype: bytes
-
-.. py:function:: sha1_xor64(data)
-
-   Computes SHA-1 hash and XORs to produce a 64-bit value.
-
-   :param bytes data: Input data to hash
-   :return: 8-byte XOR result of SHA-1 (big-endian)
-   :rtype: bytes
-
-.. py:function:: checksum32(data)
-
-   Computes a simple 32-bit checksum.
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte checksum (big-endian)
-   :rtype: bytes
-
-.. py:function:: add(data, carry=0)
-
-   Computes additive checksum (sum of bytes).
-
-   :param bytes data: Input data to checksum
-   :param int carry: Carry value (must be 2 if provided)
-   :return: 2 or 4-byte additive checksum (big-endian)
-   :rtype: bytes
-   :raises ValueError: If carry is specified and not 2
-
-.. py:function:: wadd(data, carry=0)
-
-   Computes word-additive checksum (sum of 16-bit words, big-endian).
-
-   :param bytes data: Input data to checksum
-   :param int carry: Carry value (must be 2 if provided)
-   :return: 2 or 4-byte word-additive checksum (big-endian)
-   :rtype: bytes
-   :raises ValueError: If carry is specified and not 2
-
-.. py:function:: wadd_le(data)
-
-   Computes word-additive checksum (sum of 16-bit words, little-endian).
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte word-additive checksum (big-endian)
-   :rtype: bytes
-
-.. py:function:: dwadd(data)
-
-   Computes double-word additive checksum (sum of 32-bit words, big-endian).
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte double-word additive checksum (big-endian)
-   :rtype: bytes
-
-.. py:function:: dwadd_le(data)
-
-   Computes double-word additive checksum (sum of 32-bit words, little-endian).
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte double-word additive checksum (big-endian)
-   :rtype: bytes
-
-.. py:function:: qwadd(data)
-
-   Computes quad-word additive checksum (sum of 64-bit words).
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte quad-word additive checksum (big-endian)
-   :rtype: bytes
-
-.. py:function:: wsub(data)
-
-   Computes word-subtractive checksum.
-
-   :param bytes data: Input data to checksum
-   :return: 4-byte word-subtractive checksum (big-endian)
-   :rtype: bytes
-
-General-Purpose Hash Functions
-------------------------------
-
-These functions implement various general-purpose non-cryptographic hash algorithms.
-
-.. py:function:: sdbm(data, init=0)
-
-   Computes SDBM hash.
-
-   :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: 0)
-   :return: 4-byte SDBM hash (big-endian)
-   :rtype: bytes
-
-.. py:function:: fnv1(data, init=FNV1_INIT_VALUE)
-
-   Computes FNV-1 (Fowler-Noll-Vo) hash.
-
-   :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: ``0x811c9dc5``)
-   :return: 4-byte FNV-1 hash (big-endian)
-   :rtype: bytes
-
-.. py:function:: djb2(data)
-
-   Computes DJB2 hash (Daniel J. Bernstein hash).
-
-   :param bytes data: Input data to hash
-   :return: 4-byte DJB2 hash (big-endian)
-   :rtype: bytes
-
-.. py:function:: murmur3_32(data, init=0)
-
-   Computes MurmurHash3 32-bit hash.
-
-   :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: 0)
-   :return: 4-byte MurmurHash3 hash (big-endian)
-   :rtype: bytes
-
-.. py:function:: jhash(data, init=0)
-
-   Computes jhash (Jenkins hash).
-
-   :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: 0)
-   :return: 4-byte jhash (big-endian)
-   :rtype: bytes
-
-.. py:function:: jenkins_oaat(data, init=0)
-
-   Computes Jenkins one-at-a-time hash.
-
-   :param bytes data: Input data to hash
-   :param int init: Optional initial value (default: 0)
-   :return: 4-byte Jenkins OAAT hash (big-endian)
-   :rtype: bytes
-
-.. py:function:: lookup3_little2(data, iv1, iv2)
-
-   Computes lookup3 little-endian hash producing two 32-bit values.
-
-   :param bytes data: Input data to hash
-   :param int iv1: First initialization vector
-   :param int iv2: Second initialization vector
-   :return: Tuple of two 4-byte hash values (big-endian)
-   :rtype: tuple
 
 Usage Notes
 -----------
