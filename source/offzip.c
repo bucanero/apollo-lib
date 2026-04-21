@@ -124,15 +124,14 @@ void* offzip_init(const uint8_t *data, size_t dsz, int wbits) {
     g_filebuffsz  = 0;
     g_offset      = 0;
 
-    g_in        = malloc(INSZ);
-    g_out       = malloc(OUTSZ);
-    g_filebuff  = malloc(FBUFFSZ);
-
     memset(&z, 0, sizeof(z));
     if(inflateInit2(&z, g_zipwbits) != Z_OK) {
         return NULL;
     }
 
+    g_in        = malloc(INSZ);
+    g_out       = malloc(OUTSZ);
+    g_filebuff  = malloc(FBUFFSZ);
     if(!g_in || !g_out || !g_filebuff) {
         inflateEnd(&z);
         free(g_in);
