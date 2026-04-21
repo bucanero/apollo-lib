@@ -60,6 +60,5 @@ jobs:
           name: apollo-cli-${{ env.sha_name }}-${{matrix.mingw}}
           path: |
             tools/patcher.exe
-            tools/parser.exe
             tools/dumper.exe
             tools/patcher-bigendian.exe

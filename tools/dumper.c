@@ -31,14 +31,27 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (read_buffer(argv[1], &data, &len) != 0)
+    fp = fopen(argv[1], "rb");
+    if (!fp)
     {
         printf("[*] Could Not Access The File (%s)\n", argv[1]);
         return -1;
     }
+    fseek(fp, 0, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    data = malloc(len);
+    fread(data, 1, len, fp);
+    fclose(fp);
 
     snprintf(patch, sizeof(patch), "%s%s", argv[1], ".savepatch");
     fp = fopen(patch, "w");
+    if (!fp)
+    {
+        printf("[*] Could Not Create The File (%s)\n", patch);
+        return -1;
+    }
+
     fprintf(fp, "; set XXXXXXXX to the offset where you want to write the data.\n");
     fprintf(fp, "[%s]\n95000000 XXXXXXXX\nA8000000 %08X\n", argv[1], (uint32_t)len);
     for (size_t i=1; i <= len; i++)

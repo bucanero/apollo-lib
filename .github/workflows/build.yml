@@ -53,6 +53,5 @@ jobs:
         name: apollo-cli-${{ env.sha_name }}-${{matrix.os}}
         path: |
           tools/patcher
-          tools/parser
           tools/dumper
           tools/patcher-bigendian
