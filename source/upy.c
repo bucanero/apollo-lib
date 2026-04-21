@@ -797,7 +797,7 @@ QDEF(MP_QSTR_rgg_studio, (const byte*)"\xf8\x01\x0a" "rgg_studio")
 QDEF(MP_QSTR_aes_ecb, (const byte*)"\x49\x8c\x07" "aes_ecb")
 QDEF(MP_QSTR_aes_cbc, (const byte*)"\xef\x94\x07" "aes_cbc")
 QDEF(MP_QSTR_aes_ctr, (const byte*)"\x28\x96\x07" "aes_ctr")
-QDEF(MP_QSTR_des_ecb, (const byte*)"\x4c\xea\x07" "des_ecb")
+QDEF(MP_QSTR_des3_ecb, (const byte*)"\x9f\x2c\x08" "des3_ecb")
 QDEF(MP_QSTR_des3_cbc, (const byte*)"\x39\x03\x08" "des3_cbc")
 QDEF(MP_QSTR_blowfish_ecb, (const byte*)"\xbc\xcd\x0c" "blowfish_ecb")
 QDEF(MP_QSTR_blowfish_cbc, (const byte*)"\x1a\xd5\x0c" "blowfish_cbc")
@@ -39521,7 +39521,7 @@ MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_rgg_studio_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_ecb_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_cbc_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_aes_ctr_obj);
-MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_des_ecb_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_des3_ecb_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_des3_cbc_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_blowfish_ecb_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_ucrypto_blowfish_cbc_obj);
@@ -39761,21 +39761,21 @@ mp_obj_t micropy_mod_ucrypto_camellia_ecb(struct _mp_state_ctx_t *mp_state, mp_o
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_camellia_ecb_obj, micropy_mod_ucrypto_camellia_ecb);
 
-mp_obj_t micropy_mod_ucrypto_des_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
+mp_obj_t micropy_mod_ucrypto_des3_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t key) {
     mp_buffer_info_t bufinfo, keyinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
     if (micropy_obj_int_get_truncated(mp_state, enc_mode))
         // encryption mode
-        des_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+        des3_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
     else
         // decryption mode
-        des_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+        des3_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
-MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_des_ecb_obj, micropy_mod_ucrypto_des_ecb);
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_des3_ecb_obj, micropy_mod_ucrypto_des3_ecb);
 
 mp_obj_t micropy_mod_ucrypto_aes_cbc(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
     mp_buffer_info_t bufinfo, keyinfo, ivinfo;
@@ -39849,7 +39849,7 @@ STATIC const mp_rom_map_elem_t mp_module_ucrypto_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_aes_ecb), MP_ROM_PTR(&mod_ucrypto_aes_ecb_obj) },
     { MP_ROM_QSTR(MP_QSTR_aes_cbc), MP_ROM_PTR(&mod_ucrypto_aes_cbc_obj) },
     { MP_ROM_QSTR(MP_QSTR_aes_ctr), MP_ROM_PTR(&mod_ucrypto_aes_ctr_obj) },
-    { MP_ROM_QSTR(MP_QSTR_des_ecb), MP_ROM_PTR(&mod_ucrypto_des_ecb_obj) },
+    { MP_ROM_QSTR(MP_QSTR_des3_ecb), MP_ROM_PTR(&mod_ucrypto_des3_ecb_obj) },
     { MP_ROM_QSTR(MP_QSTR_des3_cbc), MP_ROM_PTR(&mod_ucrypto_des3_cbc_obj) },
     { MP_ROM_QSTR(MP_QSTR_blowfish_ecb), MP_ROM_PTR(&mod_ucrypto_blowfish_ecb_obj) },
     { MP_ROM_QSTR(MP_QSTR_blowfish_cbc), MP_ROM_PTR(&mod_ucrypto_blowfish_cbc_obj) },

@@ -63,7 +63,7 @@ enum
 	ENC_AES_ECB,
 	ENC_AES_CBC,
 	ENC_AES_CTR,
-	ENC_DES_ECB,
+	ENC_3DES_ECB,
 	ENC_3DES_CBC,
 	ENC_BLOWFISH_ECB,
 	ENC_BLOWFISH_CBC,
@@ -73,7 +73,7 @@ enum
 	DEC_AES_ECB,
 	DEC_AES_CBC,
 	DEC_AES_CTR,
-	DEC_DES_ECB,
+	DEC_3DES_ECB,
 	DEC_3DES_CBC,
 	DEC_BLOWFISH_ECB,
 	DEC_BLOWFISH_CBC,
@@ -397,13 +397,13 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 		blowfish_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
-	case ENC_DES_ECB:
-		LOG("Encrypting DES ECB data (%d bytes)", length);
-		des_ecb_encrypt(start, length, (uint8_t*) key, key_len);
+	case ENC_3DES_ECB:
+		LOG("Encrypting 3-DES ECB data (%d bytes)", length);
+		des3_ecb_encrypt(start, length, (uint8_t*) key, key_len);
 		break;
-	case DEC_DES_ECB:
-		LOG("Decrypting DES ECB data (%d bytes)", length);
-		des_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+	case DEC_3DES_ECB:
+		LOG("Decrypting 3-DES ECB data (%d bytes)", length);
+		des3_ecb_decrypt(start, length, (uint8_t*) key, key_len);
 		break;
 
 	case ENC_CAMELLIA_ECB:
@@ -2708,10 +2708,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				line += strlen("camellia_ecb(");
 				_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
-			else if (wildcard_match_icase(line, "des_ecb(*)*"))
+			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
-				line += strlen("des_ecb(");
-				_exec_encryption_key(DEC_DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				line += strlen("des3_ecb(");
+				_exec_encryption_key(DEC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
@@ -2870,10 +2870,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				line += strlen("camellia_ecb(");
 				_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
-			else if (wildcard_match_icase(line, "des_ecb(*)*"))
+			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
-				line += strlen("des_ecb(");
-				_exec_encryption_key(ENC_DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				line += strlen("des3_ecb(");
+				_exec_encryption_key(ENC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{

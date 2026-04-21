@@ -173,13 +173,13 @@ These functions implement standard cryptographic algorithms.
    :return: The data parameter
    :rtype: bytearray
 
-.. py:function:: des_ecb(enc_mode, data, key)
+.. py:function:: des3_ecb(enc_mode, data, key)
 
-   Encrypts or decrypts data using DES in ECB mode.
+   Encrypts or decrypts data using Triple DES in ECB mode.
 
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
-   :param bytearray key: Encryption key (8 bytes)
+   :param bytearray key: Encryption key (24 bytes for 3-key DES)
    :return: The data parameter
    :rtype: bytearray
 
