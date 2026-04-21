@@ -38134,18 +38134,19 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
         wbits = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    if (offzip_init(bufinfo.len, wbits) != Z_OK) {
+    void* ozfd = offzip_init(bufinfo.buf, bufinfo.len, wbits);
+    if (!ozfd) {
         micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "offZip init error"));
     }
 
     list = micropy_obj_new_list(mp_state, 0, NULL);
 
-    while (offzip_search(bufinfo.buf) == Z_OK)
+    while (offzip_search(ozfd) == Z_OK)
     {
         mp_obj_t items[4];
         uint32_t offz = 0, inlen = 0, outlen = 0;
 
-        if (offzip_verify(bufinfo.buf, &offz, &inlen, &outlen) != Z_OK) {
+        if (offzip_verify(ozfd, &offz, &inlen, &outlen) != Z_OK) {
             DEBUG_printf("offZip unzip error\n");
             continue;
         }
