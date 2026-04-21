@@ -10,6 +10,29 @@
 #endif
 
 static int log = 0;
+static const char* CODE_TYPES[] = {
+    "Unknown",
+    "Save Wizard",
+    "BSD",
+    "Python"
+};
+
+const char* group_flags(int flag)
+{
+    if (flag & APOLLO_CODE_FLAG_PARENT)   return "# ";
+    if (flag & APOLLO_CODE_FLAG_CHILD)    return "+--- ";
+
+    return "";
+}
+const char* info_flags(int flag)
+{
+    if (flag & APOLLO_CODE_FLAG_ALERT)    return "[!] ";
+    if (flag & APOLLO_CODE_FLAG_EMPTY)    return "[E] ";
+    if (flag & APOLLO_CODE_FLAG_DISABLED) return "[D] ";
+    if (flag & APOLLO_CODE_FLAG_REQUIRED) return "[R] ";
+
+    return "";
+}
 
 void print_usage(const char* argv0)
 {
@@ -79,15 +102,52 @@ static void get_user_options(code_entry_t* entry)
     }
 }
 
+void print_codes(code_entry_t *code, list_node_t *node, const char* code_opt, int out)
+{
+    FILE *fp = NULL;
+    size_t pos;
+
+    if (out)
+    {
+        char* data = strdup(code->file);
+        strcpy(strrchr(data, '.'), ".md");
+        fp = fopen(data, "w");
+        fprintf(fp, "# %s\n\n`%s`\n\n", code->name, code->file);
+        printf("Output file: %s\n\n", data);
+        free(data);
+    }
+
+    for (pos = 1, node = list_next(node); (code = list_get(node)); node = list_next(node), pos++)
+    {
+        if (code_opt)
+        {
+            if (is_active_code(code_opt, pos))
+                printf("===============[ Code #%ld ]===============\n"
+                    "Type: %s\nFile: %s\n\n[%s]\n%s\n", pos, CODE_TYPES[code->type], code->file, code->name, code->codes);
+
+            continue;
+        }
+
+        printf("%4ld. %s%s%s\n", pos, group_flags(code->flags), info_flags(code->flags), code->name);
+
+        if (out) fprintf(fp, "### %ld. %s\n", pos, code->name);
+        if (out && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
+            fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
+    }
+
+    if (out) fclose(fp);
+    printf("\nParse completed: %ld codes\n\n", pos-1);
+}
+
 int main(int argc, char **argv)
 {
     size_t len;
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo cheat patcher v%s - (c) 2022-2026 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", CLI_VERSION);
 
-    if (--argc < 2)
+    if (--argc < 1)
     {
         print_usage(argv[0]);
         return -1;
@@ -111,6 +171,15 @@ int main(int argc, char **argv)
     code_entry_t* code = calloc(1, sizeof(code_entry_t));
     code->name = argv[1];
     code->file = argv[1];
+    char *tmp = strchr(data+1, ';');
+    if (tmp)
+    {
+        tmp++;
+        code->name = calloc(1, 128);
+        memcpy(code->name, tmp, strchr(tmp, '\n') - tmp);
+        for (tmp = code->name; tmp[0]; tmp++)
+            if (*tmp < ' ') tmp[0] = ' ';
+    }
 
     list_codes = list_alloc();
     list_append(list_codes, code);
@@ -118,6 +187,14 @@ int main(int argc, char **argv)
     free(data);
 
     list_node_t *node = list_head(list_codes);
+
+    printf("Game: %s\n\n", code->name);
+
+    if (argc == 1 || (argc == 2 && argv[2][1] == 'd') || (argc == 3 && argv[3][1] == 'c'))
+    {
+        print_codes(code, node, (argc == 3) ? argv[2] : NULL, (argc == 2 && argv[2][1] == 'd'));
+        return 0;
+    }
 
     printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
