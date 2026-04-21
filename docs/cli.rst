@@ -11,24 +11,8 @@ useful for code creators and developers, to test SW codes and BSD
 scripts locally on a computer.
 
 -  `dumper <#dumper>`__
--  `parser <#parser>`__
 -  `patcher <#patcher>`__
 -  `patcher-bigendian <#patcher-bigendian>`__
-
-parser
-~~~~~~
-
-The ``parser`` command-line tool reads a ``.savepatch`` file, and
-provides a numbered list of detected cheat patches.
-
-::
-
-   Apollo .savepatch parser v1.4.0 - (c) 2021-2025 by Bucanero
-
-   USAGE: ./parser file.savepatch [code #]
-
-     file.savepatch: The cheat patch file to parse
-     code #:         The code patch to display (Optional)
 
 patcher
 ~~~~~~~
