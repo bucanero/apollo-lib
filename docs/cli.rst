@@ -23,13 +23,21 @@ the target file.
 
 ::
 
-   Apollo cheat patcher v1.4.0 - (c) 2022-2025 by Bucanero
+   Apollo Cheat Patcher v2.0.4 - (c) 2022-2026 by Bucanero
 
-   USAGE: ./patcher file.savepatch 1,2,7-10,18 [data-file.bin]
+   Patching:
+    USAGE: ./patcher file.savepatch 1,2,7-10,18 [data-file.bin]
 
      file.savepatch: The cheat patch file to apply
      1,2,7-10,18:    The list of codes to apply
      data-file.bin:  The target file to patch
+
+   Listing:
+    USAGE: ./patcher file.savepatch [-c 1,2,7-10,18]
+
+     file.savepatch: The cheat patch file to list
+     -c:             Display code details (Optional)
+     1,2,7-10,18:    The list of codes to display (Optional)
 
 patcher-bigendian
 ~~~~~~~~~~~~~~~~~
@@ -39,7 +47,7 @@ save-game data files.
 
 ::
 
-   Apollo cheat patcher v1.4.0 PS3/big-endian - (c) 2022 by Bucanero
+   Apollo Cheat Patcher v2.0.4 PS3/big-endian - (c) 2022-2026 by Bucanero
 
    USAGE: ./patcher-bigendian file.savepatch 1,2,7-10,18 [data-file.bin]
 
