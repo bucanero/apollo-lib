@@ -125,7 +125,7 @@ void print_codes(code_entry_t *code, list_node_t *node, const char* code_opt, in
         }
 
         fprintf(fp, "# %s\n\n`%s`\n\n", code->name, code->file);
-        printf("Output file: %s\n\n", data);
+        printf("Output file: %s\n", data);
         free(data);
     }
 
@@ -140,11 +140,16 @@ void print_codes(code_entry_t *code, list_node_t *node, const char* code_opt, in
             continue;
         }
 
-        printf("%4d. %s%s%s\n", pos, group_flags(code->flags), info_flags(code->flags), code->name);
+        if (out)
+        {
+            fprintf(fp, "### %d. %s\n", pos, code->name);
+            if (!(code->flags & APOLLO_CODE_FLAG_EMPTY))
+                fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
+ 
+            continue;
+        }
 
-        if (out) fprintf(fp, "### %d. %s\n", pos, code->name);
-        if (out && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
-            fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
+        printf("%4d. %s%s%s\n", pos, group_flags(code->flags), info_flags(code->flags), code->name);
     }
 
     if (out) fclose(fp);
