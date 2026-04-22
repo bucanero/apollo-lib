@@ -180,9 +180,17 @@ int main(int argc, char **argv)
     char *tmp = strchr(data+1, ';');
     if (tmp)
     {
+        size_t game_name_capacity = 128;
+        size_t game_name_len;
+
         tmp++;
-        code->name = calloc(1, 128);
-        memcpy(code->name, tmp, strchr(tmp, '\n') - tmp);
+        game_name_len = strcspn(tmp, "\n");
+        if (game_name_len >= game_name_capacity)
+            game_name_len = game_name_capacity - 1;
+
+        code->name = calloc(1, game_name_capacity);
+        memcpy(code->name, tmp, game_name_len);
+        code->name[game_name_len] = '\0';
         for (tmp = code->name; tmp[0]; tmp++)
             if (*tmp < ' ') tmp[0] = ' ';
     }
