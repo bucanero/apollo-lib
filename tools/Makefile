@@ -1,4 +1,5 @@
-TOOLS	=	patcher parser dumper
+TOOLS	=	patcher
+DUMPER	=	dumper
 COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patches.o ../source/decrypt.o \
 			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o
 DEPS	=	Makefile
@@ -11,15 +12,18 @@ ifdef BIGENDIAN
 CFLAGS	+=	-D__PS3_PC__
 endif
 
-OBJS	= $(COMMON) $(addsuffix .o, $(TOOLS))
+OBJS	= $(COMMON) $(addsuffix .o, $(TOOLS)) $(addsuffix .o, $(DUMPER))
 
-all: $(TOOLS)
+all: $(TOOLS) $(DUMPER)
 
 $(TOOLS): %: %.o $(COMMON) $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(COMMON) $(LDFLAGS)
+
+$(DUMPER): %: %.o $(DEPS)
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 $(OBJS): %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	-rm -f $(OBJS) $(TOOLS)
+	-rm -f $(OBJS) $(TOOLS) $(DUMPER)
