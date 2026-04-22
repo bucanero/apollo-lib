@@ -111,13 +111,19 @@ static void get_user_options(code_entry_t* entry)
 void print_codes(code_entry_t *code, list_node_t *node, const char* code_opt, int out)
 {
     FILE *fp = NULL;
-    size_t pos;
+    uint32_t pos;
 
     if (out)
     {
         char* data = strdup(code->file);
         strcpy(strrchr(data, '.'), ".md");
         fp = fopen(data, "w");
+        if (!fp)
+        {
+            printf("[*] Could Not Create The File (%s)\n", data);
+            exit(-1);
+        }
+
         fprintf(fp, "# %s\n\n`%s`\n\n", code->name, code->file);
         printf("Output file: %s\n\n", data);
         free(data);
@@ -128,21 +134,21 @@ void print_codes(code_entry_t *code, list_node_t *node, const char* code_opt, in
         if (code_opt)
         {
             if (is_active_code(code_opt, pos))
-                printf("===============[ Code #%ld ]===============\n"
+                printf("===============[ Code #%d ]===============\n"
                     "Type: %s\nFile: %s\n\n[%s]\n%s\n", pos, CODE_TYPES[code->type], code->file, code->name, code->codes);
 
             continue;
         }
 
-        printf("%4ld. %s%s%s\n", pos, group_flags(code->flags), info_flags(code->flags), code->name);
+        printf("%4d. %s%s%s\n", pos, group_flags(code->flags), info_flags(code->flags), code->name);
 
-        if (out) fprintf(fp, "### %ld. %s\n", pos, code->name);
+        if (out) fprintf(fp, "### %d. %s\n", pos, code->name);
         if (out && !(code->flags & APOLLO_CODE_FLAG_EMPTY))
             fprintf(fp, "\nTarget File: `%s`\n\n```\n%s```\n\n", code->file, code->codes);
     }
 
     if (out) fclose(fp);
-    printf("\nParse completed: %ld codes\n\n", pos-1);
+    printf("\nParse completed: %d codes\n\n", pos-1);
 }
 
 int main(int argc, char **argv)
@@ -180,17 +186,12 @@ int main(int argc, char **argv)
     char *tmp = strchr(data+1, ';');
     if (tmp)
     {
-        size_t game_name_capacity = 128;
-        size_t game_name_len;
-
         tmp++;
-        game_name_len = strcspn(tmp, "\n");
-        if (game_name_len >= game_name_capacity)
-            game_name_len = game_name_capacity - 1;
+        len = strcspn(tmp, "\n");
 
-        code->name = calloc(1, game_name_capacity);
-        memcpy(code->name, tmp, game_name_len);
-        code->name[game_name_len] = '\0';
+        code->name = malloc(len + 1);
+        memcpy(code->name, tmp, len);
+        code->name[len] = '\0';
         for (tmp = code->name; tmp[0]; tmp++)
             if (*tmp < ' ') tmp[0] = ' ';
     }
