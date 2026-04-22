@@ -6,7 +6,7 @@
 [![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://twitter.com/dparrino)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bucanero/apollo-lib)
 
-This library and command-line tools implement a save-data patch engine that supports Save Wizard/Game Genie codes and Bruteforce Save Data scripts.
+This library and command-line tools implement a save-data patch engine that supports Save Wizard/Game Genie codes, Python scripts, and Bruteforce Save Data (BSD) scripts.
 
 The library is cross-platform and is required to build:
 - [Apollo Save Tool PS2](https://github.com/bucanero/apollo-ps2)
@@ -40,7 +40,7 @@ The library is cross-platform and is required to build:
 
 ### Python scripts
 
-- Full support for [MicroPython](https://micropython.org/) v1.8.1 with a set of [custom libraries](https://bucanero.github.io/apollo-lib/#python-libraries-and-micro-libraries) to manipulate save-game data.
+- Support for Python 3.4.0 using [MicroPython](https://micropython.org/) v1.8.1 with a set of [powerful custom libraries](https://bucanero.github.io/apollo-lib/#python-libraries-and-micro-libraries) to manipulate save-game data.
 
 ### Bruteforce Save Data (BSD)
 
