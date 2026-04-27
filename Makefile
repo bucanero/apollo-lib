@@ -37,7 +37,7 @@ INCLUDE		:=	include
 DATA		:=	data
 LIBS		:=
 
-MACHDEP		:= -DBIGENDIAN 
+MACHDEP		:= -DBIGENDIAN -D_USE_MBEDTLS
 CFLAGS		+= -O2 -Wall -mcpu=cell $(MACHDEP) -fno-strict-aliasing $(INCLUDES)
 
 LD			:=	ppu-ld
