@@ -15,14 +15,17 @@ all: $(TOOLS) $(DUMPER)
 $(TOOLS): %: %.o $(COMMON) $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(COMMON) $(LDFLAGS)
 
-patcher-bigendian.o: patcher.c $(DEPS)
+patcher.o patcher-bigendian.o: patcher.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+dumper.o: dumper.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+../source/%.o: ../source/%.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(DUMPER): %: %.o $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
-
-$(OBJS): %.o: %.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	-rm -f $(OBJS) $(TOOLS) $(DUMPER)

@@ -1522,7 +1522,7 @@ size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entr
 
 					var->len = BSD_VAR_MD5;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, hash, var->len);
 
 					LOG("len %d SW4 HASH = %08X %08X %08X %08X", len, hash[0], hash[1], hash[2], hash[3]);
 				}
@@ -3084,11 +3084,10 @@ size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* c
     			//	6 = 4 Bytes (Only Writes XXXXXXXX)		E = Offset from Pointer; 4 Bytes (Only Writes XXXXXXXX)
     		{
     			int i, off, n, incoff;
-    			uint32_t val, incval, wv32;
+    			uint32_t val, incval;
     			char t = line[1];
     			uint8_t* write;
     			uint8_t wv8;
-    			uint16_t wv16;
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);

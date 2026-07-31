@@ -21,9 +21,11 @@
 #include <polarssl/blowfish.h>
 #include <polarssl/camellia.h>
 #endif
-#include "apollo.h"
 #include "keys.h"
 #include "types.h"
+
+extern apollo_endianness_t apollo_get_default_endianness(void);
+void mgs5tpp_encode_data_ex(uint32_t* data, uint32_t len, uint32_t key, apollo_endianness_t data_endian);
 
 
 void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
