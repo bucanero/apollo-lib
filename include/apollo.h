@@ -1,8 +1,7 @@
 #ifndef _APOLLO_LIB_H_
 #define _APOLLO_LIB_H_
 
-#include <stdint.h>
-#include <stdlib.h>
+#include "types.h"
 
 #define APOLLO_LIB_VERSION         "2.0.4"
 
@@ -117,11 +116,16 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 
 //---  Apollo patch functions ---
 
+apollo_endianness_t apollo_get_default_endianness(void);
+
 void free_patch_var_list(void);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
+size_t apply_sw_patch_code_ex(uint8_t* data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
+size_t apply_bsd_patch_code_ex(uint8_t** data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
 int apply_cheat_patch_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
+int apply_cheat_patch_code_ex(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian);
 int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 
@@ -185,6 +189,7 @@ void mgspw_Decrypt(uint32_t* data, uint32_t len);
 
 // Metal Gear Solid 5 TPP save data encryption
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key);
+void mgs5tpp_encode_data_ex(uint32_t* data, uint32_t len, uint32_t key, apollo_endianness_t data_endian);
 
 // RGG Studio save data encryption
 void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len);

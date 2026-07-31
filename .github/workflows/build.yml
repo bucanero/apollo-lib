@@ -41,8 +41,6 @@ jobs:
     - name: Build Apollo CLI tools
       run: |
         cd tools
-        make BIGENDIAN=1
-        mv patcher patcher-bigendian
         make clean && make
 
     - name: Get short SHA

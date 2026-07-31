@@ -1,4 +1,4 @@
-TOOLS	=	patcher
+TOOLS	=	patcher patcher-bigendian
 DUMPER	=	dumper
 COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patches.o ../source/decrypt.o \
 			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o
@@ -8,16 +8,15 @@ CC	=	gcc
 CFLAGS	=	-g -O3 -Wall -I../include -I../mbedtls-2.16.12/include -I. -D_GNU_SOURCE -D_USE_MBEDTLS -DAPOLLO_CLI
 LDFLAGS =	-lz -lm -lmbedcrypto -L../mbedtls-2.16.12/build/library
 
-ifdef BIGENDIAN
-CFLAGS	+=	-D__PS3_PC__
-endif
-
 OBJS	= $(COMMON) $(addsuffix .o, $(TOOLS)) $(addsuffix .o, $(DUMPER))
 
 all: $(TOOLS) $(DUMPER)
 
 $(TOOLS): %: %.o $(COMMON) $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(COMMON) $(LDFLAGS)
+
+patcher-bigendian.o: patcher.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(DUMPER): %: %.o $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)

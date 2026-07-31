@@ -3,12 +3,6 @@
 #include <string.h>
 #include "apollo.h"
 
-#ifdef __PS3_PC__
-#define CLI_VERSION     APOLLO_LIB_VERSION " PS3/big-endian"
-#else
-#define CLI_VERSION     APOLLO_LIB_VERSION
-#endif
-
 static int log = 0;
 static const char* CODE_TYPES[] = {
     "Unknown",
@@ -37,12 +31,14 @@ const char* info_flags(int flag)
 void print_usage(const char* argv0)
 {
     printf("Patching:\n");
-    printf(" USAGE: %s file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf(" USAGE: %s [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
     printf("  file.savepatch: The cheat patch file to apply\n");
     printf("  1,2,7-10,18:    The list of codes to apply\n");
     printf("  data-file.bin:  The target file to patch\n\n");
     printf("Listing:\n");
-    printf(" USAGE: %s file.savepatch [-c 1,2,7-10,18]\n\n", argv0);
+    printf(" USAGE: %s [-b|--big-endian] [-l|--little-endian] file.savepatch [-c 1,2,7-10,18]\n\n", argv0);
+    printf("  -b,--big-endian:    Use big-endian data mode\n");
+    printf("  -l,--little-endian: Use little-endian data mode\n");
     printf("  file.savepatch: The cheat patch file to list\n");
     printf("  -c:             Display code details (Optional)\n");
     printf("  1,2,7-10,18:    The list of codes to display (Optional)\n\n");
@@ -81,6 +77,25 @@ int is_active_code(const char* a, int id)
 
     free(arg);
     return 0;
+}
+
+static const char* get_basename(const char* path)
+{
+    const char* name = strrchr(path, '/');
+    if (!name)
+        name = strrchr(path, '\\');
+
+    return name ? name + 1 : path;
+}
+
+static apollo_endianness_t get_default_cli_endianness(const char* argv0)
+{
+    return strstr(get_basename(argv0), "bigendian") ? APOLLO_ENDIAN_BIG : apollo_get_default_endianness();
+}
+
+static const char* get_cli_version(apollo_endianness_t data_endian)
+{
+    return (data_endian == APOLLO_ENDIAN_BIG) ? APOLLO_LIB_VERSION " PS3/big-endian" : APOLLO_LIB_VERSION;
 }
 
 static void get_user_options(code_entry_t* entry)
@@ -161,12 +176,33 @@ int main(int argc, char **argv)
     size_t len;
     char *data;
     list_t* list_codes;
+    const char* argv0 = argv[0];
+    apollo_endianness_t data_endian = get_default_cli_endianness(argv0);
 
-    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", CLI_VERSION);
+    while (argc > 1)
+    {
+        if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
+        {
+            data_endian = APOLLO_ENDIAN_BIG;
+        }
+        else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
+        {
+            data_endian = APOLLO_ENDIAN_LITTLE;
+        }
+        else
+        {
+            break;
+        }
+
+        argc--;
+        argv++;
+    }
+
+    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", get_cli_version(data_endian));
 
     if (--argc < 1)
     {
-        print_usage(argv[0]);
+        print_usage(argv0);
         return -1;
     }
 
@@ -227,7 +263,7 @@ int main(int argc, char **argv)
                 get_user_options(code);
 
             printf("\n===============[ Applying code #%ld ]===============\n", len);
-            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], code, NULL))
+            if (apply_cheat_patch_code_ex((argc == 2) ? code->file : argv[3], code, NULL, data_endian))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
