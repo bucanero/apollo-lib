@@ -94,13 +94,24 @@ static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
+#if defined(__PPU__) || defined(__PS3_PC__)
+static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_BIG;
+#else
+static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_LITTLE;
+#endif
+
+static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
+static size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
+static int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian);
+
+void apollo_set_endianness(apollo_endianness_t endian)
+{
+	_default_endianness = endian;
+}
+
 apollo_endianness_t apollo_get_default_endianness(void)
 {
-#if defined(__PPU__) || defined(__PS3_PC__)
-	return APOLLO_ENDIAN_BIG;
-#else
-	return APOLLO_ENDIAN_LITTLE;
-#endif
+	return _default_endianness;
 }
 
 
@@ -562,7 +573,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	return apply_bsd_patch_code_ex(src_data, dsize, code, apollo_get_default_endianness());
 }
 
-size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
+static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
 {
 	char *bsd_code;
 	uint8_t *data = *src_data;
@@ -2910,7 +2921,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	return apply_sw_patch_code_ex(data, dsize, code, apollo_get_default_endianness());
 }
 
-size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
+static size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
 {
 	char *gg_code;
 	long pointer = 0, end_pointer = 0;
@@ -4004,7 +4015,7 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	return apply_cheat_patch_code_ex(fpath, code, host_cb, apollo_get_default_endianness());
 }
 
-int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian)
+static int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian)
 {
 	uint8_t* data;
 	size_t dsize = 0;

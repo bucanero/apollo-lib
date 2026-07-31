@@ -254,6 +254,7 @@ int main(int argc, char **argv)
 
     printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
+    apollo_set_endianness(data_endian);
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         if (code->activated || is_active_code(argv[2], len))
@@ -263,7 +264,7 @@ int main(int argc, char **argv)
                 get_user_options(code);
 
             printf("\n===============[ Applying code #%ld ]===============\n", len);
-            if (apply_cheat_patch_code_ex((argc == 2) ? code->file : argv[3], code, NULL, data_endian))
+            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], code, NULL))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
