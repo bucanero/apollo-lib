@@ -110,6 +110,14 @@ if(APOLLO_BUILD_GUI)
     add_executable(apollo_patcher_gui src/main.cpp)
     target_link_libraries(apollo_patcher_gui PRIVATE apollo_engine imgui OpenGL::GL)
 
+    if(MINGW)
+        # Static-link the MinGW runtime (libgcc / libstdc++ / winpthread) so the
+        # .exe runs on stock Windows without shipping those DLLs. Windows system
+        # DLLs (opengl32, gdi32, comdlg32, …) are still linked via their import
+        # libs, which is correct.
+        target_link_options(apollo_patcher_gui PRIVATE -static)
+    endif()
+
     if(APPLE)
         # Bundle the .icns so Finder/Dock/⌘-Tab show the app icon.
         set(APP_ICNS ${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.icns)
