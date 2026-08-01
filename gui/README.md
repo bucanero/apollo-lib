@@ -83,6 +83,14 @@ elsewhere). Turn those artifacts into installers with CPack when you're ready.
   the CLI's `patcher-bigendian`) rather than toggling at runtime.
 - **Linux dialogs:** portable-file-dialogs needs a dialog helper present at
   runtime (`zenity`, `kdialog`, `matedialog`, or `qarma`).
+- **OpenGL / GPU-less hosts:** the app uses Dear ImGui's fixed-function
+  `imgui_impl_opengl2` backend with a legacy (non-core) context **on all
+  platforms**, so it needs only **OpenGL 1.1**. That runs hardware-accelerated on
+  a real GPU's compatibility profile and on the software GL fallbacks present
+  everywhere — including the always-present Microsoft software GL 1.1 (Windows
+  RDP sessions, VMs, no-driver / old machines). No bundled renderer required.
+  It's the legacy ImGui backend, but this is a 2D tool with no need for modern
+  GL, so a single code path serves every platform.
 
 ## Credits / third-party
 

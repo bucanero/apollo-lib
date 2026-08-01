@@ -7,7 +7,8 @@
 //   - pick a target data file
 //   - Apply -> runs apply_cheat_patch_code() per selection, log panel shows progress
 //
-// Rendering backend: GLFW + OpenGL3 (portable across Win/Mac/Linux).
+// Rendering backend: GLFW + fixed-function OpenGL2 (needs only GL 1.1, portable
+// across Win/Mac/Linux and GPU-less hosts).
 #include <string>
 #include <vector>
 #include <cstdio>
@@ -17,10 +18,23 @@
 #include "imgui.h"
 #include "imgui_internal.h"   // PushItemFlag + ImGuiItemFlags_MixedValue (tri-state)
 #include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include "imgui_impl_opengl2.h"
 #include <GLFW/glfw3.h>
+
+// Renderer: Dear ImGui's fixed-function OpenGL2 backend on a legacy (non-core)
+// context. It needs only OpenGL 1.1 — the lowest common denominator available
+// on every platform: a real GPU's compatibility profile, macOS's 2.1 legacy
+// context, Mesa on Linux, and the always-present Microsoft software GL on
+// RDP / VMs / old Windows. This 2D tool has no use for modern GL, so one
+// backend and one code path serve all platforms.
 #include "portable-file-dialogs.h"   // header-only native dialogs (osascript/zenity/Win32)
 #include "apollo_ctrl.h"   // manages its own C linkage (and apollo.h is C++-safe)
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>   // MessageBox for visible startup errors (no console with -mwindows)
+#endif
 
 // Window icon (Windows/Linux only). Kept fully inside the guard so macOS pulls
 // in neither zlib nor the icon data.
@@ -498,17 +512,36 @@ static void set_window_icon(GLFWwindow* window) {
 #endif
 }
 
+// Last message from GLFW, shown to the user if startup fails (no console with
+// -mwindows, so failures would otherwise be silent).
+static std::string g_glfw_error;
+static void glfw_error_cb(int code, const char* desc) {
+    char buf[512];
+    snprintf(buf, sizeof buf, "GLFW error %d: %s", code, desc ? desc : "(unknown)");
+    g_glfw_error = buf;
+    fprintf(stderr, "%s\n", buf);
+}
+static void fatal(const std::string& msg) {
+#ifdef _WIN32
+    MessageBoxA(nullptr, msg.c_str(), "Apollo Patcher — startup error", MB_ICONERROR | MB_OK);
+#else
+    fprintf(stderr, "%s\n", msg.c_str());
+#endif
+}
+
 int main(int, char**) {
     apollo_set_log_sink(log_sink, &g_app);
 
-    if (!glfwInit()) return 1;
-    const char* glsl_version = "#version 150";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwSetErrorCallback(glfw_error_cb);
+    if (!glfwInit()) { fatal("Failed to initialize GLFW.\n\n" + g_glfw_error); return 1; }
+    // No context hints: GLFW's default legacy/compatibility context is what the
+    // fixed-function opengl2 backend needs, on every platform.
     GLFWwindow* window = glfwCreateWindow(860, 820, "Apollo Patcher", nullptr, nullptr);
-    if (!window) { glfwTerminate(); return 1; }
+    if (!window) {
+        fatal("Could not create the application window / OpenGL context.\n\n" + g_glfw_error);
+        glfwTerminate();
+        return 1;
+    }
     g_window = window;
     set_window_icon(window);   // Windows/Linux title-bar & taskbar icon
     glfwMakeContextCurrent(window);
@@ -524,12 +557,12 @@ int main(int, char**) {
     ImGui::StyleColorsDark();
     apply_style();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL2_Init();
 
     bool want_quit = false;
     while (!glfwWindowShouldClose(window) && !want_quit) {
         glfwPollEvents();
-        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplOpenGL2_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
@@ -545,7 +578,7 @@ int main(int, char**) {
         glViewport(0, 0, w, h);
         glClearColor(0.10f, 0.10f, 0.12f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
 
         // Open any requested native dialog now — outside the ImGui frame.
@@ -553,7 +586,7 @@ int main(int, char**) {
     }
 
     g_app.close();
-    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplOpenGL2_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     glfwDestroyWindow(window);

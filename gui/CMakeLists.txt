@@ -94,13 +94,17 @@ if(APOLLO_BUILD_GUI)
     # File dialogs: portable-file-dialogs is vendored as a single header at
     # src/portable-file-dialogs.h (found via main.cpp's own directory).
 
+    # Renderer backend: the fixed-function opengl2 backend everywhere — it needs
+    # only OpenGL 1.1, which runs on a real GPU's compat profile and on the
+    # software GL fallbacks present on every platform (see main.cpp). Must match
+    # the backend used in main.cpp.
     add_library(imgui STATIC
         ${imgui_SOURCE_DIR}/imgui.cpp
         ${imgui_SOURCE_DIR}/imgui_draw.cpp
         ${imgui_SOURCE_DIR}/imgui_tables.cpp
         ${imgui_SOURCE_DIR}/imgui_widgets.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp)
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl2.cpp)
     target_include_directories(imgui PUBLIC
         ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
     target_link_libraries(imgui PUBLIC glfw)
