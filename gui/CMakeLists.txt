@@ -111,11 +111,13 @@ if(APOLLO_BUILD_GUI)
     target_link_libraries(apollo_patcher_gui PRIVATE apollo_engine imgui OpenGL::GL)
 
     if(MINGW)
-        # Static-link the MinGW runtime (libgcc / libstdc++ / winpthread) so the
-        # .exe runs on stock Windows without shipping those DLLs. Windows system
-        # DLLs (opengl32, gdi32, comdlg32, …) are still linked via their import
-        # libs, which is correct.
-        target_link_options(apollo_patcher_gui PRIVATE -static)
+        # -static: statically link the MinGW runtime (libgcc / libstdc++ /
+        #   winpthread) so the .exe runs on stock Windows without shipping DLLs.
+        #   Windows system DLLs (opengl32, gdi32, comdlg32, …) are still linked
+        #   via their import libs, which is correct.
+        # -mwindows: build as a GUI-subsystem app so no console window opens
+        #   behind the GUI. MinGW's WinMain shim still calls our main().
+        target_link_options(apollo_patcher_gui PRIVATE -static -mwindows)
     endif()
 
     if(APPLE)
