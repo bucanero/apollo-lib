@@ -71,8 +71,11 @@ jobs:
           esac
           curl -sL -o mesa.7z \
             "https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-mingw.7z"
-          7z x -y -omesa mesa.7z "${ARCH}/opengl32.dll"
-          cp "mesa/${ARCH}/opengl32.dll" gui/dist/
+          # Mesa's opengl32.dll is a thin loader that needs libgallium_wgl.dll
+          # (the llvmpipe/LLVM driver) plus its sibling runtime DLLs — bundle the
+          # whole arch folder so every dependency is next to the .exe.
+          7z x -y -omesa mesa.7z
+          cp mesa/${ARCH}/*.dll gui/dist/
           ls -l gui/dist/
 
       - name: Get short SHA
