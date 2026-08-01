@@ -80,6 +80,11 @@ if(APOLLO_BUILD_GUI)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    # X11 only: GLFW 3.4 builds the Wayland backend too by default, which needs
+    # wayland-scanner + Wayland dev packages we don't install (and Wayland has no
+    # window-icon protocol anyway). Keeps the Linux build's deps to xorg-dev.
+    set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(glfw)
 
     # portable-file-dialogs: header-only native dialogs. On macOS/Linux it
