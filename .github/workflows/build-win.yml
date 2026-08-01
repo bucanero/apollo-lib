@@ -59,6 +59,22 @@ jobs:
           mkdir -p dist
           cp build/apollo_patcher_gui.exe dist/
 
+      - name: Bundle software OpenGL (Mesa llvmpipe) for RDP / GPU-less hosts
+        run: |
+          # RDP sessions expose no WGL OpenGL at all, so a self-contained
+          # software GL is required. Mesa 23.0.3 is the last series that still
+          # runs on Windows 7 (Mesa ~24 dropped it). Re-verify on Win7 if bumped.
+          MESA_VER=23.0.3
+          case "${{ matrix.mingw }}" in
+            MINGW64) ARCH=x64 ;;
+            MINGW32) ARCH=x86 ;;
+          esac
+          curl -sL -o mesa.7z \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-mingw.7z"
+          7z x -y -omesa mesa.7z "${ARCH}/opengl32.dll"
+          cp "mesa/${ARCH}/opengl32.dll" gui/dist/
+          ls -l gui/dist/
+
       - name: Get short SHA
         run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
 

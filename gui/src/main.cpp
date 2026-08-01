@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <cstdio>
+#include <cstdlib>   // _putenv_s (Windows software-GL selection)
 #include <fstream>
 #include <mutex>
 
@@ -531,6 +532,16 @@ static void fatal(const std::string& msg) {
 
 int main(int, char**) {
     apollo_set_log_sink(log_sink, &g_app);
+
+#ifdef _WIN32
+    // Use the bundled Mesa software renderer (llvmpipe). Over RDP and on GPU-less
+    // hosts the system OpenGL driver reports no OpenGL at all (WGL: "driver does
+    // not support OpenGL"), so GLFW can't create a context. GLFW loads
+    // opengl32.dll from the exe's own directory first, so the Mesa DLL shipped
+    // next to the .exe wins and renders in software (presented via GDI, which
+    // works over RDP). Harmless if a real system driver is used (it ignores it).
+    _putenv_s("GALLIUM_DRIVER", "llvmpipe");
+#endif
 
     glfwSetErrorCallback(glfw_error_cb);
     if (!glfwInit()) { fatal("Failed to initialize GLFW.\n\n" + g_glfw_error); return 1; }
