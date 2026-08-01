@@ -34,10 +34,7 @@ jobs:
         run: |
           uname
           echo "$GITHUB_WORKSPACE"
-          #pacman -S --noconfirm ${{ matrix.package }}-zlib-devel
           # GUI build toolchain: CMake + Ninja (mingw) and git for FetchContent.
-          #pacman -S --noconfirm --needed \
-          #  ${{ matrix.package }}-cmake ${{ matrix.package }}-ninja git
 
       - name: Install mbedTLS
         run: |
