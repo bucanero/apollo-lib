@@ -50,8 +50,11 @@ if(NOT MBEDCRYPTO_LIB)
                         "(see CI: cd mbedtls-2.16.12/library && make static).")
 endif()
 
-find_package(ZLIB REQUIRED)
-target_link_libraries(apollo_engine PUBLIC ${MBEDCRYPTO_LIB} ZLIB::ZLIB m)
+# Link zlib directly (-lz) like the CLI Makefile does, rather than via
+# find_package(ZLIB) — the latter fails under MSYS2/MinGW CI even though the
+# compiler links -lz fine (same as the working CLI build). zlib.h is on the
+# compiler's default include path everywhere the CLI builds.
+target_link_libraries(apollo_engine PUBLIC ${MBEDCRYPTO_LIB} z m)
 
 # ---------------------------------------------------------------------------
 # Headless parity/CLI-equivalent test (no GUI deps) — always buildable.
