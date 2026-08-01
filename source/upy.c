@@ -38564,7 +38564,7 @@ mp_obj_t micropy_mod_uhashlib_crc(struct _mp_state_ctx_t *mp_state, size_t n_arg
     };
     micropy_parse_uint64_from_obj(mp_state, args[2], buf, crc_opts.poly);
     micropy_parse_uint64_from_obj(mp_state, args[3], buf, crc_opts.init);
-    micropy_parse_uint64_from_obj(mp_state, args[4], buf, crc_opts.xor);
+    micropy_parse_uint64_from_obj(mp_state, args[4], buf, crc_opts.xorOut);
 
     switch (width)
     {
@@ -38605,7 +38605,7 @@ mp_obj_t micropy_mod_uhashlib_crc16(struct _mp_state_ctx_t *mp_state, mp_obj_t d
     custom_crc_t crc_opts = {
         .init = CRC_16_INIT_VALUE,
         .poly = CRC_16_POLYNOMIAL,
-        .xor = CRC_16_XOR_VALUE,
+        .xorOut = CRC_16_XOR_VALUE,
         .refIn = 0,
         .refOut = 0,
     };
@@ -38625,7 +38625,7 @@ mp_obj_t micropy_mod_uhashlib_crc32(struct _mp_state_ctx_t *mp_state, mp_obj_t d
     custom_crc_t crc_opts = {
         .init = CRC_32_INIT_VALUE,
         .poly = CRC_32_POLYNOMIAL,
-        .xor = CRC_32_XOR_VALUE,
+        .xorOut = CRC_32_XOR_VALUE,
         .refIn = 1,
         .refOut = 1,
     };
@@ -38645,7 +38645,7 @@ mp_obj_t micropy_mod_uhashlib_crc32big(struct _mp_state_ctx_t *mp_state, mp_obj_
     custom_crc_t crc_opts = {
         .init = CRC_32_INIT_VALUE,
         .poly = CRC_32_POLYNOMIAL,
-        .xor = CRC_32_XOR_VALUE,
+        .xorOut = CRC_32_XOR_VALUE,
         .refIn = 0,
         .refOut = 0,
     };
@@ -38665,7 +38665,7 @@ mp_obj_t micropy_mod_uhashlib_crc64_ecma(struct _mp_state_ctx_t *mp_state, mp_ob
     custom_crc_t crc_opts = {
         .init = CRC_64_ECMA182_INIT_VALUE,
         .poly = CRC_64_ECMA182_POLY,
-        .xor = CRC_64_ECMA182_XOR_VALUE,
+        .xorOut = CRC_64_ECMA182_XOR_VALUE,
         .refIn = 0,
         .refOut = 0,
     };
@@ -38685,7 +38685,7 @@ mp_obj_t micropy_mod_uhashlib_crc64_iso(struct _mp_state_ctx_t *mp_state, mp_obj
     custom_crc_t crc_opts = {
         .init = CRC_64_ISO_INIT_VALUE,
         .poly = CRC_64_ISO_POLY,
-        .xor = CRC_64_ISO_XOR_VALUE,
+        .xorOut = CRC_64_ISO_XOR_VALUE,
         .refIn = 0,
         .refOut = 0,
     };

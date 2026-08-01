@@ -22,6 +22,7 @@
 *.la
 *.lo
 oosdk_libraries/
+mbedtls-2.16.12/
 
 # Shared objects (inc. Windows DLLs)
 *.dll

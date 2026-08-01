@@ -20,15 +20,16 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         echo "Linux requirements"
-        #sudo apt-get update
-        #sudo apt-get -y install zlib
-    
+        sudo apt-get update
+        # zlib + GUI build deps: GLFW needs X11/GL headers. File dialogs use
+        # portable-file-dialogs (zenity at runtime — not a build dependency).
+        sudo apt-get -y install zlib1g-dev libgl1-mesa-dev xorg-dev
+
     - name: Install macOS requirements
       if: matrix.os == 'macos-latest'
       run: |
         echo "macOS requirements"
-        #brew update
-        #brew install zlib
+        # GLFW uses Cocoa; file dialogs use osascript. Both ship with the OS. Nothing to install.
 
     - name: Install mbedTLS
       run: |
@@ -45,6 +46,19 @@ jobs:
         mv patcher patcher-bigendian
         make clean && make
 
+    - name: Build Apollo Patcher GUI
+      run: |
+        cd gui
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build -j
+        # Normalise the output path across OSes for the upload step.
+        mkdir -p dist
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          cp -R build/apollo_patcher_gui.app dist/
+        else
+          cp build/apollo_patcher_gui dist/
+        fi
+
     - name: Get short SHA
       run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
 
@@ -55,3 +69,8 @@ jobs:
           tools/patcher
           tools/dumper
           tools/patcher-bigendian
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: apollo-gui-${{ env.sha_name }}-${{matrix.os}}
+        path: gui/dist
