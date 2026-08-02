@@ -534,12 +534,10 @@ int main(int, char**) {
     apollo_set_log_sink(log_sink, &g_app);
 
 #ifdef _WIN32
-    // Use the bundled Mesa software renderer (llvmpipe). Over RDP and on GPU-less
-    // hosts the system OpenGL driver reports no OpenGL at all (WGL: "driver does
-    // not support OpenGL"), so GLFW can't create a context. GLFW loads
-    // opengl32.dll from the exe's own directory first, so the Mesa DLL shipped
-    // next to the .exe wins and renders in software (presented via GDI, which
-    // works over RDP). Harmless if a real system driver is used (it ignores it).
+    // If a Mesa software opengl32.dll is placed next to the .exe, GLFW loads it
+    // (the exe's own directory is searched first) and this forces its software
+    // renderer. Ignored when the system GPU driver is used. See the README: drop
+    // the "software GL" DLLs beside the .exe if you hit an OpenGL error.
     _putenv_s("GALLIUM_DRIVER", "llvmpipe");
 #endif
 
@@ -549,7 +547,12 @@ int main(int, char**) {
     // fixed-function opengl2 backend needs, on every platform.
     GLFWwindow* window = glfwCreateWindow(860, 820, "Apollo Patcher", nullptr, nullptr);
     if (!window) {
-        fatal("Could not create the application window / OpenGL context.\n\n" + g_glfw_error);
+        fatal("Could not create an OpenGL context.\n\n"
+              "This machine's graphics driver may not support OpenGL — this is "
+              "common over Remote Desktop and in some virtual machines.\n\n"
+              "Fix: download the \"software GL\" DLLs and drop them next to this "
+              ".exe, then relaunch. See the README (\"OpenGL / GPU-less & RDP "
+              "hosts\") for details.\n\n" + g_glfw_error);
         glfwTerminate();
         return 1;
     }
