@@ -1302,11 +1302,19 @@ inline notify::notify(std::string const &title,
         /* case icon::info: */ default: nid->dwInfoFlags = NIIF_INFO; break;
     }
 
-    ENUMRESNAMEPROC icon_enum_callback = [](HMODULE, LPCTSTR, LPTSTR lpName, LONG_PTR lParam) -> BOOL
+    // LOCAL PATCH (32-bit): a capture-less lambda converts to a __cdecl function
+    // pointer, which won't bind to the __stdcall ENUMRESNAMEPROC on x86 (it's a
+    // no-op on x64). A static member function with CALLBACK (stdcall) binds on
+    // both. Re-apply if this vendored header is updated from upstream.
+    struct cb
     {
-        ((NOTIFYICONDATAW *)lParam)->hIcon = ::LoadIcon(GetModuleHandle(nullptr), lpName);
-        return false;
+        static BOOL CALLBACK icon_enum(HMODULE, LPCTSTR, LPTSTR lpName, LONG_PTR lParam)
+        {
+            ((NOTIFYICONDATAW *)lParam)->hIcon = ::LoadIcon(GetModuleHandle(nullptr), lpName);
+            return FALSE;
+        }
     };
+    ENUMRESNAMEPROC icon_enum_callback = &cb::icon_enum;
 
     nid->hIcon = ::LoadIcon(nullptr, IDI_APPLICATION);
     ::EnumResourceNames(nullptr, RT_GROUP_ICON, icon_enum_callback, (LONG_PTR)nid.get());
