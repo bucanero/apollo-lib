@@ -88,9 +88,4 @@ PCSF00728.savepatch#2	2	ok	2097152	161734c60cedd673
 PCSF00728.savepatch#3	2	ok	2097152	8d9179025c0084a7
 PCSF00728.savepatch#4	2	ok	2080768	f3ac6e29c4e73d66
 PCSF00728.savepatch#5	2	noop	0	-
-PCSG00594.savepatch#1	2	noop	0	-
-PCSG00594.savepatch#2	2	ok	2097152	161734c60cedd673
-PCSG00594.savepatch#3	2	ok	2097152	8d9179025c0084a7
-PCSG00594.savepatch#4	2	ok	2080768	f3ac6e29c4e73d66
-PCSG00594.savepatch#5	2	noop	0	-
 ULUS10041.savepatch#1	1	ok	2097152	c63646bbe348b396
