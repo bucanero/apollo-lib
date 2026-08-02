@@ -45,7 +45,7 @@
         /* The final remainder is the CRC result. */ \
         if (cfg->refOut) \
             crc = (UINT)reflect(crc, CRC_WIDTH); \
-        return (crc ^ (UINT)cfg->xor); \
+        return (crc ^ (UINT)cfg->xorOut); \
     }
 
 static uint64_t reflect(uint64_t data, uint8_t nBits)
@@ -174,7 +174,7 @@ int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t 
 	custom_crc_t cfg = {
 		.init = CRC_32_INIT_VALUE,
 		.poly = CRC_32_POLYNOMIAL,
-		.xor = CRC_32_XOR_VALUE,
+		.xorOut = CRC_32_XOR_VALUE,
 		.refIn = 1,
 		.refOut = 0,
 	};
