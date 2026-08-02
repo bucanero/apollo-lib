@@ -793,7 +793,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
     			    if (var->data)
     			    {
     			        free(var->data);
-    			        var->data = (uint8_t*) &old_val + PADDING(4 - var->len);
+    			        var->data = (uint8_t*) &old_val + HOST_LSB(4 - var->len);
     			    }
 
     			    LOG("Old value 0x%X", old_val);
@@ -1715,8 +1715,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
-    			    
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+
     			    LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
 
@@ -1740,8 +1740,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
-    			    
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+
     			    LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
 
@@ -1876,7 +1876,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue + PADDING(4 - rlen), var->len);
+					memcpy(var->data, (uint8_t*) &rvalue + HOST_LSB(4 - rlen), var->len);
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 			    }

@@ -1,0 +1,11 @@
+; ULUS-10041
+; Grand Theft Auto: Liberty City Stories
+; PSP
+; http://web.save-editor.com/bbs/patchcode/psp/bbs.cgi?list=pickup&num=3293#
+
+:*
+
+[Possession $ 99999999]
+
+20011B1C 05F5E0FF
+
