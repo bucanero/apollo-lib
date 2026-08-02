@@ -763,7 +763,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			    else if (wildcard_match_icase(line, "output_xor:*"))
 			    {
     			    line += strlen("output_xor:");
-    			    sscanf(line, "%" PRIx64, &custom_crc.xor);
+    			    sscanf(line, "%" PRIx64, &custom_crc.xorOut);
 			    }
 
 			    else if (wildcard_match_icase(line, "reflection_input:*"))
@@ -920,7 +920,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint32_t hash;
 			        custom_crc.init = CRC_32_INIT_VALUE;
 					custom_crc.poly = CRC_32_POLYNOMIAL;
-					custom_crc.xor = CRC_32_XOR_VALUE;
+					custom_crc.xorOut = CRC_32_XOR_VALUE;
 
     			    tmp = strchr(line, ':');
     			    if (tmp)
@@ -962,7 +962,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint16_t hash;
 			        custom_crc.init = CRC_16_INIT_VALUE;
 					custom_crc.poly = CRC_16_POLYNOMIAL;
-					custom_crc.xor = CRC_16_XOR_VALUE;
+					custom_crc.xorOut = CRC_16_XOR_VALUE;
 					custom_crc.refIn = 0;
 					custom_crc.refOut = 0;
 
@@ -992,7 +992,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 						// CRC-64 ECMA 182
 						custom_crc.poly = CRC_64_ECMA182_POLY;
 						custom_crc.init = CRC_64_ECMA182_INIT_VALUE;
-						custom_crc.xor = CRC_64_ECMA182_XOR_VALUE;
+						custom_crc.xorOut = CRC_64_ECMA182_XOR_VALUE;
 						custom_crc.refIn = 0;
 						custom_crc.refOut = 0;
 
@@ -1004,7 +1004,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 						// CRC-64 ISO
 						custom_crc.poly = CRC_64_ISO_POLY;
 						custom_crc.init = CRC_64_ISO_INIT_VALUE;
-						custom_crc.xor = CRC_64_ISO_XOR_VALUE;
+						custom_crc.xorOut = CRC_64_ISO_XOR_VALUE;
 						custom_crc.refIn = 1;
 						custom_crc.refOut = 1;
 
@@ -1025,7 +1025,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
     			    len = range_end - range_start;
 
                     LOG("CRC %d Poly %lX Init %lX", custom_crc.width, custom_crc.poly, custom_crc.init);
-                    LOG("Xor %lX RefIn %d RefOut %d", custom_crc.xor, custom_crc.refIn, custom_crc.refOut);
+                    LOG("Xor %lX RefIn %d RefOut %d", custom_crc.xorOut, custom_crc.refIn, custom_crc.refOut);
 
 			        if (custom_crc.width == CRC_16_RESULT_WIDTH)
 			        {

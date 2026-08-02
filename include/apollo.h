@@ -76,7 +76,7 @@ typedef struct
     uint8_t width;
     uint64_t poly;
     uint64_t init;
-    uint64_t xor;
+    uint64_t xorOut;   /* was 'xor' — renamed: 'xor' is a reserved token in C++ */
     uint8_t refIn;
     uint8_t refOut;
 } custom_crc_t;

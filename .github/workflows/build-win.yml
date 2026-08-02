@@ -7,14 +7,15 @@ on:
     types: [run_build]
 
 jobs:
+  # x64 Windows build via MSYS2. (32-bit is handled by the win32-cross job below,
+  # because MSYS2 no longer ships a working 32-bit toolchain — its MINGW32 target
+  # silently produced x86-64 binaries.)
   msys:
     runs-on: windows-2022
     strategy:
       matrix:
-        mingw: ["MINGW32", "MINGW64"]
+        mingw: ["MINGW64"]
         include:
-          - mingw: "MINGW32"
-            package: "mingw-w64-i686"
           - mingw: "MINGW64"
             package: "mingw-w64-x86_64"
     defaults:
@@ -34,8 +35,7 @@ jobs:
         run: |
           uname
           echo "$GITHUB_WORKSPACE"
-          #pacman -S --noconfirm ${{ matrix.package }}-zlib-devel
-          # build the project
+          # GUI build toolchain: CMake + Ninja (mingw) and git for FetchContent.
 
       - name: Install mbedTLS
         run: |
@@ -50,6 +50,29 @@ jobs:
           cd tools
           make clean && make
 
+      - name: Build Apollo Patcher GUI
+        run: |
+          cd gui
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          mkdir -p dist
+          cp build/apollo_patcher_gui.exe dist/
+
+      # Ship a self-contained Mesa software opengl32.dll in a softgl/ subfolder of
+      # the GUI artifact. It's NOT loaded by default (subfolder), so the app uses
+      # the system GPU driver; if a user hits an OpenGL error (RDP / GPU-less) they
+      # copy softgl\opengl32.dll next to the .exe to render in software. Mesa
+      # 17.2.6 is old enough to be a single self-contained DLL and works on both
+      # x86 and x64 / Windows 7.
+      - name: Bundle software OpenGL fallback (Mesa 17.2.6, x64) under softgl/
+        run: |
+          curl -sL -o mesa.exe \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/17.2.6.500-1/mesa-17.2.6.500-1-sfx.exe"
+          7z x -y -omesa mesa.exe
+          mkdir -p gui/dist/softgl
+          cp mesa/x64/opengl32.dll gui/dist/softgl/
+          ls -lR gui/dist/
+
       - name: Get short SHA
         run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
 
@@ -60,3 +83,83 @@ jobs:
             tools/patcher.exe
             tools/dumper.exe
             tools/patcher-bigendian.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apollo-gui-${{ env.sha_name }}-${{matrix.mingw}}
+          path: gui/dist
+
+  # Genuine 32-bit (x86) Windows build, cross-compiled on Linux with mingw-w64
+  # (MSYS2 no longer provides a working 32-bit toolchain). Produces both the CLI
+  # tools and the GUI as real x86 PE binaries.
+  win32-cross:
+    runs-on: ubuntu-latest
+    name: Windows x86 (Linux cross)
+    env:
+      TC: i686-w64-mingw32
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install i686 mingw cross toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-mingw-w64-i686 g++-mingw-w64-i686 \
+            libz-mingw-w64-dev cmake ninja-build p7zip-full
+
+      - name: Fetch mbedTLS
+        run: |
+          curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xz -C ./
+
+      - name: Cross-build mbedcrypto (i686)
+        run: |
+          cmake -S mbedtls-2.16.12 -B mbedtls-2.16.12/build \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/gui/cmake/mingw-i686.cmake" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF
+          cmake --build mbedtls-2.16.12/build --target mbedcrypto -j
+          ls -l mbedtls-2.16.12/build/library/libmbedcrypto.a
+
+      - name: Cross-build CLI tools (i686)
+        run: |
+          cd tools
+          make CC=${TC}-gcc BIGENDIAN=1
+          mv patcher.exe patcher-bigendian.exe
+          make CC=${TC}-gcc clean && make CC=${TC}-gcc
+          file patcher.exe dumper.exe patcher-bigendian.exe
+
+      - name: Cross-build Apollo Patcher GUI (i686)
+        run: |
+          cd gui
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/gui/cmake/mingw-i686.cmake"
+          cmake --build build
+          mkdir -p dist
+          cp build/apollo_patcher_gui.exe dist/
+          file dist/apollo_patcher_gui.exe
+
+      # Same self-contained Mesa 17.2.6 software opengl32.dll, x86, under softgl/.
+      - name: Bundle software OpenGL fallback (Mesa 17.2.6, x86) under softgl/
+        run: |
+          curl -sL -o mesa.exe \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/17.2.6.500-1/mesa-17.2.6.500-1-sfx.exe"
+          7z x -y -omesa mesa.exe
+          mkdir -p gui/dist/softgl
+          cp mesa/x86/opengl32.dll gui/dist/softgl/
+          ls -lR gui/dist/
+
+      - name: Get short SHA
+        run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apollo-cli-${{ env.sha_name }}-win32
+          path: |
+            tools/patcher.exe
+            tools/dumper.exe
+            tools/patcher-bigendian.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apollo-gui-${{ env.sha_name }}-win32
+          path: gui/dist
