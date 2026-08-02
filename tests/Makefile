@@ -5,12 +5,20 @@
 #   test_apollo_be  — big-endian behavior (-D__PS3_PC__, the BIGENDIAN path)
 #
 # Targets:
+#   make ci               self-contained gate for CI (portable across machines)
 #   make check            run the hand-authored opcode vectors (LE + BE)
+#   make bsd-invariance   assert BSD (type 2) output is identical LE vs BE
+#   make corpus-determinism  assert the corpus is reproducible run-to-run
 #   make golden           (re)generate golden corpus manifests from $(PATCHES)
 #   make check-corpus     re-run the corpus and diff against committed goldens
-#   make bsd-invariance   assert BSD (type 2) output is identical LE vs BE
 #   make sweep            convenience: check-corpus over the full patches repo
 #   make clean
+#
+# CI note: `check`, `bsd-invariance` and `corpus-determinism` only compare
+# outputs produced on the SAME machine, so they are portable across runners.
+# `check-corpus` diffs against committed goldens, which embed a platform-
+# specific crash signal number (SIGBUS vs SIGSEGV) — it is a LOCAL check for the
+# developer's machine, run before/after the endian refactor, not a CI gate.
 
 SHELL := /bin/bash
 
@@ -37,9 +45,13 @@ BE_OBJS := $(addprefix $(BE_DIR)/,$(addsuffix .o,$(LIB_SRCS) $(TST_SRCS)))
 # Point at the full patches repo for a broad sweep:  make check-corpus PATCHES=/path/to/apollo-patches
 PATCHES ?= fixtures
 
-.PHONY: all check golden check-corpus bsd-invariance sweep clean
+.PHONY: all ci check golden check-corpus bsd-invariance corpus-determinism sweep clean
 
 all: test_apollo_le test_apollo_be
+
+# Portable CI gate: everything here compares same-machine outputs only.
+ci: check bsd-invariance corpus-determinism
+	@echo "== CI checks passed =="
 
 $(LE_DIR)/%.o: %.c test_common.h | $(LE_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -74,13 +86,27 @@ check-corpus: all
 # BSD codes (type 2) are fully build-flag-invariant: BE* is unconditional and
 # host-integer truncation uses HOST_LSB (host byte order, identical in both
 # LE and __PS3_PC__ builds). Their manifest lines must match between the two
-# builds — this is a hard pass/fail gate.
-bsd-invariance: golden
+# builds — this is a hard pass/fail gate. Self-contained: compares fresh LE vs
+# BE output on this machine, so it is portable across CI runners.
+bsd-invariance: all
 	@mkdir -p build
-	@awk -F'\t' '$$2=="2"' golden/corpus_le.txt > build/bsd_le.txt
-	@awk -F'\t' '$$2=="2"' golden/corpus_be.txt > build/bsd_be.txt
+	@./test_apollo_le --corpus $(PATCHES) > build/corpus_le.now
+	@./test_apollo_be --corpus $(PATCHES) > build/corpus_be.now
+	@awk -F'\t' '$$2=="2"' build/corpus_le.now > build/bsd_le.txt
+	@awk -F'\t' '$$2=="2"' build/corpus_be.now > build/bsd_be.txt
 	@diff -u build/bsd_le.txt build/bsd_be.txt \
 	  && echo "BSD invariance: OK ($$(wc -l < build/bsd_le.txt | tr -d ' ') codes, LE == BE)"
+
+# The corpus must be reproducible: applying the same codes to the same fixed
+# buffer twice yields byte-identical manifests. Same-machine, so portable.
+corpus-determinism: all
+	@mkdir -p build
+	@./test_apollo_le --corpus $(PATCHES) > build/det_le_1.txt
+	@./test_apollo_le --corpus $(PATCHES) > build/det_le_2.txt
+	@diff build/det_le_1.txt build/det_le_2.txt && echo "corpus deterministic: LE OK"
+	@./test_apollo_be --corpus $(PATCHES) > build/det_be_1.txt
+	@./test_apollo_be --corpus $(PATCHES) > build/det_be_2.txt
+	@diff build/det_be_1.txt build/det_be_2.txt && echo "corpus deterministic: BE OK"
 
 sweep:
 	@$(MAKE) check-corpus PATCHES=$(APOLLO_ROOT)/../apollo-patches
