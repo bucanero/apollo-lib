@@ -59,9 +59,22 @@ Targets:
 | Linux   | `cpack -G AppImage` / `.deb`                         |
 
 CI is already wired: `.github/workflows/build.yml` (macOS + Linux) and
-`build-win.yml` (MSYS2 MINGW32/64) build the GUI after the CLI and upload it as
-an `apollo-gui-<sha>-<os>` artifact (`.app` on macOS, `apollo_patcher_gui[.exe]`
+`build-win.yml` build the GUI after the CLI and upload it as an
+`apollo-gui-<sha>-<os>` artifact (`.app` on macOS, `apollo_patcher_gui.exe`
 elsewhere). Turn those artifacts into installers with CPack when you're ready.
+
+**Windows architectures.** The `msys` job (MSYS2 MINGW64) produces the **x64**
+build. The **x86 (32-bit)** build is cross-compiled on Linux with mingw-w64
+(`win32-cross` job) using the toolchain file `gui/cmake/mingw-i686.cmake` —
+MSYS2 dropped its 32-bit toolchain, so its MINGW32 target silently emitted x64
+binaries. To reproduce the 32-bit build locally on Linux:
+
+```bash
+sudo apt-get install -y gcc-mingw-w64-i686 g++-mingw-w64-i686 libz-mingw-w64-dev ninja-build
+# build mbedcrypto into mbedtls-2.16.12/build/library with the same toolchain file, then:
+cmake -S . -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=$PWD/cmake/mingw-i686.cmake
+cmake --build build
+```
 
 ## Features
 
@@ -83,20 +96,33 @@ elsewhere). Turn those artifacts into installers with CPack when you're ready.
   the CLI's `patcher-bigendian`) rather than toggling at runtime.
 - **Linux dialogs:** portable-file-dialogs needs a dialog helper present at
   runtime (`zenity`, `kdialog`, `matedialog`, or `qarma`).
-- **OpenGL / GPU-less hosts:** the app uses Dear ImGui's fixed-function
-  `imgui_impl_opengl2` backend with a legacy (non-core) context **on all
-  platforms**, so it needs only **OpenGL 1.1**. That runs hardware-accelerated on
-  a real GPU's compatibility profile and on the software GL fallbacks present
-  everywhere — including the always-present Microsoft software GL 1.1 (Windows
-  RDP sessions, VMs, no-driver / old machines). No bundled renderer required.
-  It's the legacy ImGui backend, but this is a 2D tool with no need for modern
-  GL, so a single code path serves every platform.
+- **OpenGL / GPU-less & RDP hosts:** the app uses Dear ImGui's fixed-function
+  `imgui_impl_opengl2` backend with a legacy context **on all platforms** (needs
+  only OpenGL 1.1 — one code path everywhere; this 2D tool has no use for modern
+  GL). On **Windows** it uses the **system OpenGL driver** by default (hardware
+  when present). Some hosts have no usable OpenGL — **Remote Desktop exposes no
+  WGL OpenGL at all**, and so do some VMs / GPU-less machines — and there the
+  window can't be created (you'll get a message box saying so).
+
+  **Software-OpenGL fallback (drop-in).** The Windows build ships a self-contained
+  Mesa software renderer at **`softgl\opengl32.dll`** next to the exe. It is *not*
+  used by default (it's in a subfolder), so the app uses the system GPU driver. If
+  you hit the OpenGL error, **copy `softgl\opengl32.dll` up into the same folder
+  as `apollo_patcher_gui.exe`** and relaunch — GLFW loads `opengl32.dll` from the
+  exe's own directory first, so it then renders in software (presented via GDI,
+  which works over RDP); `GALLIUM_DRIVER=llvmpipe` is set in `main` to force it.
+  The bundled DLL is Mesa **17.2.6** — old enough to be a single self-contained
+  file, and verified working on Windows 7, both x86 and x64. macOS/Linux never
+  need this.
 
 ## Credits / third-party
 
 - [portable-file-dialogs](https://github.com/samhocevar/portable-file-dialogs)
   by Sam Hocevar — native file dialogs (WTFPL). Vendored at
   `src/portable-file-dialogs.h`; update by replacing that file from upstream.
+  Carries one **LOCAL PATCH** (search that string in the file): a 32-bit-only
+  fix in `pfd::notify` where a capture-less lambda wouldn't bind to the
+  `__stdcall ENUMRESNAMEPROC` on x86 — re-apply if you refresh the header.
 - [Dear ImGui](https://github.com/ocornut/imgui) and
   [GLFW](https://github.com/glfw/glfw) — fetched at configure time via CMake.
 
