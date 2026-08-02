@@ -534,10 +534,10 @@ int main(int, char**) {
     apollo_set_log_sink(log_sink, &g_app);
 
 #ifdef _WIN32
-    // If a Mesa software opengl32.dll is placed next to the .exe, GLFW loads it
-    // (the exe's own directory is searched first) and this forces its software
-    // renderer. Ignored when the system GPU driver is used. See the README: drop
-    // the "software GL" DLLs beside the .exe if you hit an OpenGL error.
+    // The app ships a Mesa software opengl32.dll in a "softgl" subfolder. If the
+    // user copies it next to the .exe, GLFW loads it (the exe's own directory is
+    // searched first) and this forces its software renderer. Ignored when the
+    // system GPU driver is used.
     _putenv_s("GALLIUM_DRIVER", "llvmpipe");
 #endif
 
@@ -550,9 +550,9 @@ int main(int, char**) {
         fatal("Could not create an OpenGL context.\n\n"
               "This machine's graphics driver may not support OpenGL — this is "
               "common over Remote Desktop and in some virtual machines.\n\n"
-              "Fix: download the \"software GL\" DLLs and drop them next to this "
-              ".exe, then relaunch. See the README (\"OpenGL / GPU-less & RDP "
-              "hosts\") for details.\n\n" + g_glfw_error);
+              "Fix: copy opengl32.dll from the \"softgl\" folder (shipped next to "
+              "this app) into the same folder as the .exe, then relaunch. See the "
+              "README for details.\n\n" + g_glfw_error);
         glfwTerminate();
         return 1;
     }

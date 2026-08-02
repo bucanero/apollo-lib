@@ -60,20 +60,20 @@ jobs:
           mkdir -p dist
           cp build/apollo_patcher_gui.exe dist/
 
-      # Software OpenGL is NOT bundled with the GUI — it ships as a SEPARATE,
-      # opt-in artifact. Users who get an OpenGL error (RDP / GPU-less hosts) drop
-      # these 3 DLLs next to apollo_patcher_gui.exe. x64 uses Mesa's mingw build.
-      - name: Package software OpenGL (Mesa llvmpipe, x64)
+      # Ship a self-contained Mesa software opengl32.dll in a softgl/ subfolder of
+      # the GUI artifact. It's NOT loaded by default (subfolder), so the app uses
+      # the system GPU driver; if a user hits an OpenGL error (RDP / GPU-less) they
+      # copy softgl\opengl32.dll next to the .exe to render in software. Mesa
+      # 17.2.6 is old enough to be a single self-contained DLL and works on both
+      # x86 and x64 / Windows 7.
+      - name: Bundle software OpenGL fallback (Mesa 17.2.6, x64) under softgl/
         run: |
-          MESA_VER=23.0.3
-          curl -sL -o mesa.7z \
-            "https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-mingw.7z"
-          7z x -y -omesa mesa.7z
-          mkdir -p softgl
-          for dll in opengl32.dll libgallium_wgl.dll libglapi.dll; do
-            cp "mesa/x64/${dll}" softgl/
-          done
-          ls -l softgl/
+          curl -sL -o mesa.exe \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/17.2.6.500-1/mesa-17.2.6.500-1-sfx.exe"
+          7z x -y -omesa mesa.exe
+          mkdir -p gui/dist/softgl
+          cp mesa/x64/opengl32.dll gui/dist/softgl/
+          ls -lR gui/dist/
 
       - name: Get short SHA
         run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
@@ -90,11 +90,6 @@ jobs:
         with:
           name: apollo-gui-${{ env.sha_name }}-${{matrix.mingw}}
           path: gui/dist
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apollo-softgl-${{ env.sha_name }}-${{matrix.mingw}}
-          path: softgl
 
   # Genuine 32-bit (x86) Windows build, cross-compiled on Linux with mingw-w64
   # (MSYS2 no longer provides a working 32-bit toolchain). Produces both the CLI
@@ -145,21 +140,15 @@ jobs:
           cp build/apollo_patcher_gui.exe dist/
           file dist/apollo_patcher_gui.exe
 
-      # Software OpenGL as a SEPARATE, opt-in artifact (not bundled with the GUI).
-      # For x86 we use Mesa's MSVC build: the mingw x86 llvmpipe crashes in
-      # libgallium_wgl.dll on 32-bit Win7, so this is the alternative to compare.
-      # NOTE: the MSVC DLLs may need the VC++ 2015–2022 x86 runtime on the target.
-      - name: Package software OpenGL (Mesa llvmpipe, x86 MSVC)
+      # Same self-contained Mesa 17.2.6 software opengl32.dll, x86, under softgl/.
+      - name: Bundle software OpenGL fallback (Mesa 17.2.6, x86) under softgl/
         run: |
-          MESA_VER=23.0.3
-          curl -sL -o mesa.7z \
-            "https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VER}/mesa3d-${MESA_VER}-release-msvc.7z"
-          7z x -y -omesa mesa.7z
-          mkdir -p softgl
-          for dll in opengl32.dll libgallium_wgl.dll libglapi.dll; do
-            cp "mesa/x86/${dll}" softgl/
-          done
-          ls -l softgl/
+          curl -sL -o mesa.exe \
+            "https://github.com/pal1000/mesa-dist-win/releases/download/17.2.6.500-1/mesa-17.2.6.500-1-sfx.exe"
+          7z x -y -omesa mesa.exe
+          mkdir -p gui/dist/softgl
+          cp mesa/x86/opengl32.dll gui/dist/softgl/
+          ls -lR gui/dist/
 
       - name: Get short SHA
         run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
@@ -176,8 +165,3 @@ jobs:
         with:
           name: apollo-gui-${{ env.sha_name }}-win32
           path: gui/dist
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: apollo-softgl-${{ env.sha_name }}-win32
-          path: softgl
