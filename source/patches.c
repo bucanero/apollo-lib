@@ -383,7 +383,7 @@ static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
 	}
 }
 
-static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t length, apollo_endianness_t data_endian)
+static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t length)
 {
 	int key_len;
 	char *key, *tmp;
