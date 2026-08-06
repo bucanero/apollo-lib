@@ -80,6 +80,18 @@
 #define HOST_LSB(X)		0
 #endif
 
+/*
+ * Offset to the MOST-significant bytes of a host-native integer — the
+ * complement of HOST_LSB(). On a big-endian host they sit at the front
+ * (offset 0); on a little-endian host at the back. Used by left(), which keeps
+ * the leftmost / most-significant bytes of a value regardless of host.
+ */
+#ifdef __PPU__
+#define HOST_MSB(X)		0
+#else
+#define HOST_MSB(X)		(X)
+#endif
+
 #if !defined(MAX_PATH)
 #	define MAX_PATH 260
 #endif

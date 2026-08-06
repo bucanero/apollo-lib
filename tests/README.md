@@ -17,6 +17,7 @@ same vectors and golden manifests must still reproduce identically.
 | File | Purpose |
 |------|---------|
 | `test_savewizard.c` | Hand-authored Save Wizard opcode vectors, expected bytes computed by hand from `docs/savewizard.rst`, with per-endian expectations where the `MEM*` flag matters. |
+| `test_sw_endian_gaps.c` | The endian-critical Save Wizard opcodes: type 3 (8-byte `MEM64` add + pointer-relative form), type 4 (32-bit `MEM32` multi-write), type 6 (pointer "mega code" — `MEM16` read and `MEM32` write), type 7 (conditional no-less/no-more-than, `MEM16`/`MEM32`), type 9 (pointer add/sub, end-pointer set), and type D's explicit 16-bit BE vs LE reads. |
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat (build-invariant) **plus** the one endian-sensitive BSD path (`carry`/`PADDING`, see below). |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`load_patch_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
@@ -115,6 +116,26 @@ All four fixed sites have dedicated regression guards (each verified to fail
 under the old semantics): `bsd_carry_padding_truncation` (wadd),
 `bsd_add_carry_truncation` (add), `bsd_right_truncation` (`right()`), and
 `bsd_update_existing_variable` (the existing-variable re-fetch at patches.c:796).
+
+### Companion fix: `left()` and `mid()` host-consistency
+
+The same class of bug affected the two other byte-extraction helpers:
+
+- `left(value,len)` copied from offset 0 with no host adjustment, so on a
+  little-endian host it returned the *low* bytes (identical to `right`) instead
+  of the leftmost/most-significant bytes. It now uses a new `HOST_MSB()` macro
+  (the complement of `HOST_LSB`), so `left(0x00012345,2)` yields `00 01` on every
+  build.
+- `mid(value,start,len)` extracts a slice of the value's big-endian byte view,
+  but for 2/4/8-byte slices the write path byte-swapped it on little-endian
+  builds. It now normalises the slice to host order (like `read()`), so the
+  substring is emitted verbatim on every host: `mid(0x00012345,0,2)` → `00 01`.
+
+Both are host-consistent (identical in the LE and BE builds) and match a real
+PS3 (`__PPU__`). `left()` has no real-world corpus usage; `mid()` is used as
+`mid([hash],n,4)` in three PS3 patch files (one, `NPUB31564`, is vendored as a
+fixture) — the fix makes the PC/CLI tools reproduce real-PS3 output for them.
+Guards: `bsd_left`, `bsd_mid`, `bsd_mid_offset`.
 
 **Refactor implication:** BSD and Save Wizard answer to *different* notions of
 endianness — Save Wizard `MEM*`/`PADDING` follow the target save-data order,

@@ -160,6 +160,61 @@ TEST(bsd_right_truncation)
 }
 
 /*
+ * left(value,len) — keeps the leftmost / MOST-significant `len` bytes of the
+ * value, host-consistently (via HOST_MSB), emitted big-endian by the write
+ * path. left(0x00012345,2) -> the top 2 bytes 0x0001 -> [00 01] in every build.
+ * Before the HOST_MSB fix the little-endian builds wrongly kept the low bytes
+ * (0x2345 -> [23 45], identical to right()).
+ */
+TEST(bsd_left)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [l]:left(0x00012345,2)\nwrite at 0:[l]");
+
+    uint8_t exp[16] = {0};
+    exp[0]=0x00; exp[1]=0x01;
+    CHECK_MEM("left(v,2) keeps leftmost bytes", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+/*
+ * mid(value,start,len) — extracts `len` bytes starting at `start` of the value's
+ * big-endian byte view, and (via the read()-style normalisation) emits them
+ * verbatim on every host. mid(0x00012345,0,2) -> [00 01], mid(...,2,2) -> [23 45].
+ * Before the fix the little-endian builds byte-swapped the 2-byte result
+ * ([00 01] -> [01 00]).
+ */
+TEST(bsd_mid)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [m]:mid(0x00012345,0,2)\nwrite at 0:[m]");
+
+    uint8_t exp[16] = {0};
+    exp[0]=0x00; exp[1]=0x01;
+    CHECK_MEM("mid(v,0,2) verbatim big-endian slice", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+/* mid at a non-zero offset, and a length (3) the write path never swaps —
+ * confirms the substring is verbatim for both swapped and non-swapped sizes. */
+TEST(bsd_mid_offset)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [m]:mid(0x00012345,1,3)\nwrite at 0:[m]");
+
+    uint8_t exp[16] = {0};
+    exp[0]=0x01; exp[1]=0x23; exp[2]=0x45;
+    CHECK_MEM("mid(v,1,3) verbatim substring", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+/*
  * Update of an already-existing variable — the fourth HOST_LSB site
  * (patches.c:796, where an existing var's value is re-fetched into old_val and
  * var->data is re-pointed at its low bytes). The var is created with read()
