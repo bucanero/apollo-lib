@@ -1881,7 +1881,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					default:
 						break;
 					}
-					
+
 					LOG("[%s]:read(0x%X , 0x%X)", var->name, read_s, read_l);
 					_log_dump("read()", (uint8_t*) read, var->len);
 			    }
