@@ -1,7 +1,8 @@
 #ifndef _APOLLO_LIB_H_
 #define _APOLLO_LIB_H_
 
-#include "types.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 #define APOLLO_LIB_VERSION         "2.0.4"
 
@@ -16,6 +17,11 @@
 #define APOLLO_CODE_FLAG_ALERT     8
 #define APOLLO_CODE_FLAG_EMPTY     16
 #define APOLLO_CODE_FLAG_DISABLED  32
+#define APOLLO_CODE_FLAG_ORDER_LE  64
+#define APOLLO_CODE_FLAG_ORDER_BE  128
+
+#define APOLLO_BYTE_ORDER_LITTLE    1
+#define APOLLO_BYTE_ORDER_BIG       2
 
 #ifdef __cplusplus
 extern "C" {
@@ -116,9 +122,6 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 
 //---  Apollo patch functions ---
 
-apollo_endianness_t apollo_get_default_endianness(void);
-void apollo_set_endianness(apollo_endianness_t endian);
-
 void free_patch_var_list(void);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
@@ -187,7 +190,6 @@ void mgspw_Decrypt(uint32_t* data, uint32_t len);
 
 // Metal Gear Solid 5 TPP save data encryption
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key);
-void mgs5tpp_encode_data_ex(uint32_t* data, uint32_t len, uint32_t key, apollo_endianness_t data_endian);
 
 // RGG Studio save data encryption
 void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len);

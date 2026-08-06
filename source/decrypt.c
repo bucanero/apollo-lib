@@ -986,11 +986,8 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
 {
-	mgs5tpp_encode_data_ex(data, len, key, apollo_get_default_endianness());
-}
+	apollo_endianness_t data_endian = apollo_get_host_endianness();
 
-void mgs5tpp_encode_data_ex(uint32_t* data, uint32_t len, uint32_t key, apollo_endianness_t data_endian)
-{
 	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
 
 	len /= 4;

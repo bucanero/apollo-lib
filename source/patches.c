@@ -100,20 +100,6 @@ static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_BIG;
 static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_LITTLE;
 #endif
 
-static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
-static size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian);
-static int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian);
-
-void apollo_set_endianness(apollo_endianness_t endian)
-{
-	_default_endianness = endian;
-}
-
-apollo_endianness_t apollo_get_default_endianness(void)
-{
-	return _default_endianness;
-}
-
 
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
@@ -157,7 +143,7 @@ static bsd_variable_t* _get_bsd_variable(const char* vname)
 	return NULL;
 }
 
-static void* _decode_variable_data(const char* line, int *data_len, apollo_endianness_t data_endian)
+static void* _decode_variable_data(const char* line, int *data_len)
 {
     int i, len = 0;
     char* output = NULL;
@@ -190,10 +176,19 @@ static void* _decode_variable_data(const char* line, int *data_len, apollo_endia
     		output = malloc(len);
 	        memcpy(output, var->data, len);
 
-			if (len == BSD_VAR_INT16 || len == BSD_VAR_INT32 || len == BSD_VAR_INT64)
+			switch (len)
 			{
-				uint64_t value = apollo_read_uint(output, len, data_endian);
-				apollo_write_uint(output, value, len, APOLLO_ENDIAN_BIG);
+			case BSD_VAR_INT16:
+				BE16(*((uint16_t*)output));
+				break;
+			case BSD_VAR_INT32:
+				BE32(*((uint32_t*)output));
+				break;
+			case BSD_VAR_INT64:
+				BE64(*((uint64_t*)output));
+				break;
+			default:
+				break;
 			}
 	    }
 	}
@@ -210,7 +205,7 @@ static void* _decode_variable_data(const char* line, int *data_len, apollo_endia
 	return output;
 }
 
-static int _parse_int_value(const char* line, const int ptrval, const int size, apollo_endianness_t data_endian)
+static int _parse_int_value(const char* line, const int ptrval, const int size)
 {
     int ret = 0, neg = 0;
 
@@ -231,7 +226,7 @@ static int _parse_int_value(const char* line, const int ptrval, const int size, 
 	    line += strlen("pointer");
 	    skip_spaces(line);
 
-	    ret = ptrval + _parse_int_value(line, ptrval, size, data_endian);
+	    ret = ptrval + _parse_int_value(line, ptrval, size);
 	}
 	else if (wildcard_match_icase(line, "eof*"))
 	{
@@ -239,7 +234,7 @@ static int _parse_int_value(const char* line, const int ptrval, const int size, 
 	    skip_spaces(line);
 
 //        sscanf(line, "%x", &ret);
-        ret += size - 1 + _parse_int_value(line, ptrval, size, data_endian);
+        ret += size - 1 + _parse_int_value(line, ptrval, size);
 	}
 	else if (wildcard_match(line, "[*]*"))
 	{
@@ -258,13 +253,13 @@ static int _parse_int_value(const char* line, const int ptrval, const int size, 
 	        switch (var->len)
 	        {
 	            case BSD_VAR_INT8:
-        	        ret = *((uint8_t*)var->data) + _parse_int_value(line, ptrval, size, data_endian);
+        	        ret = *((uint8_t*)var->data) + _parse_int_value(line, ptrval, size);
         	        break;
 	            case BSD_VAR_INT16:
-        	        ret = apollo_read_u16(var->data, data_endian) + _parse_int_value(line, ptrval, size, data_endian);
+        	        ret = apollo_read_u16(var->data, APOLLO_ENDIAN_BIG) + _parse_int_value(line, ptrval, size);
         	        break;
 	            case BSD_VAR_INT32:
-        	        ret = apollo_read_u32(var->data, data_endian) + _parse_int_value(line, ptrval, size, data_endian);
+        	        ret = apollo_read_u32(var->data, APOLLO_ENDIAN_BIG) + _parse_int_value(line, ptrval, size);
         	        break;
 	        }
 	    }
@@ -303,21 +298,21 @@ void free_patch_var_list(void)
 	}
 }
 
-static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val, apollo_endianness_t data_endian)
+static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
 {
 	char *tmp;
 
 	tmp = strchr(line, ',');
 	*tmp = 0;
 	
-	*start_val = _parse_int_value(line, pointer, dsize, data_endian);
+	*start_val = _parse_int_value(line, pointer, dsize);
 
 	line = tmp+1;
 	*tmp = ',';
 	tmp = strchr(line, ')');
 	*tmp = 0;
 
-	*end_val = _parse_int_value(line, pointer, dsize, data_endian);
+	*end_val = _parse_int_value(line, pointer, dsize);
 	*tmp = ')';
 }
 
@@ -397,7 +392,7 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
-	key = _decode_variable_data(line, &key_len, data_endian);
+	key = _decode_variable_data(line, &key_len);
 	*tmp = ')';
 
 	switch (type)
@@ -466,7 +461,7 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
-	key = _decode_variable_data(line, &key_len, data_endian);
+	key = _decode_variable_data(line, &key_len);
 	*tmp = ',';
 
 	line = tmp + 1;
@@ -474,7 +469,7 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	*tmp = 0;
 
 	LOG("Encryption IV=%s", line);
-	iv = _decode_variable_data(line, &iv_len, data_endian);
+	iv = _decode_variable_data(line, &iv_len);
 	*tmp = ')';
 
 	switch (type)
@@ -520,12 +515,12 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 	free(iv);
 }
 
-static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var, apollo_endianness_t data_endian)
+static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 {
 	skip_spaces(line);
 
 	int i, wlen;
-	char* bw_val = _decode_variable_data(line, &wlen, data_endian);
+	char* bw_val = _decode_variable_data(line, &wlen);
 
 	if (var->len != wlen)
 	{
@@ -533,7 +528,7 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var, a
 		LOG("[%s]:Bitwise error! var length doesn't match", var->name);
 		return 0;
 	}
-	if (data_endian == APOLLO_ENDIAN_LITTLE)
+	if (apollo_get_host_endianness() == APOLLO_ENDIAN_LITTLE)
 	{
 		// workaround: _decode_variable_data() returns data as big endian
 		// convert it to the configured data endianness to match the variable
@@ -570,11 +565,6 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var, a
 
 size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	return apply_bsd_patch_code_ex(src_data, dsize, code, apollo_get_default_endianness());
-}
-
-static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
-{
 	char *bsd_code;
 	uint8_t *data = *src_data;
 	long pointer = 0;
@@ -582,6 +572,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 	uint8_t carry = 0, eof = 0;
 	uint32_t old_val = 0;
 	custom_crc_t custom_crc = {0,0,0,0,0,0};
+	apollo_endianness_t data_endian = APOLLO_ENDIAN_BIG;
 
 	range_end = dsize;
 	if (!var_list)
@@ -695,7 +686,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
     			else if (wildcard_match_icase(line, "[*]*"))
     			{
     			    LOG("Getting value for %s", line);
-    			    pointer = _parse_int_value(line, pointer, dsize, data_endian);
+    			    pointer = _parse_int_value(line, pointer, dsize);
     			}
     			// set pointer:* (e.g. 0x00000000)
     			else
@@ -715,14 +706,14 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			    tmp = strchr(line, ',');
 			    *tmp = 0;
 			    
-			    range_start = _parse_int_value(line, pointer, dsize, data_endian);
+			    range_start = _parse_int_value(line, pointer, dsize);
 				if (range_start < 0)
 					range_start = 0;
 
 			    line = tmp+1;
 			    *tmp = ',';
 
-				range_end = _parse_int_value(line, pointer - eof, dsize, data_endian) + 1;
+				range_end = _parse_int_value(line, pointer - eof, dsize) + 1;
 				if (range_end > (long)dsize)
 					range_end = dsize;
 
@@ -751,7 +742,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			    else if (wildcard_match_icase(line, "initial_value:[*]*"))
 			    {
     			    line += strlen("initial_value:");
-    			    custom_crc.init = _parse_int_value(line, pointer, dsize, data_endian);
+    			    custom_crc.init = _parse_int_value(line, pointer, dsize);
 			    }
 
 				else if (wildcard_match_icase(line, "initial_value:*"))
@@ -838,7 +829,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				if (wildcard_match_icase(line, "xor:*"))
 				{
 					line += strlen("xor:");
-					if (!_bitwise_var_value(BITWISE_XOR, line, var, data_endian))
+					if (!_bitwise_var_value(BITWISE_XOR, line, var))
 					{
 						dsize = 0;
 						goto bsd_end;
@@ -850,7 +841,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				else if (wildcard_match_icase(line, "and:*"))
 				{
 					line += strlen("and:");
-					if (!_bitwise_var_value(BITWISE_AND, line, var, data_endian))
+					if (!_bitwise_var_value(BITWISE_AND, line, var))
 					{
 						dsize = 0;
 						goto bsd_end;
@@ -862,7 +853,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				else if (wildcard_match_icase(line, "or:*"))
 				{
 					line += strlen("or:");
-					if (!_bitwise_var_value(BITWISE_OR, line, var, data_endian))
+					if (!_bitwise_var_value(BITWISE_OR, line, var))
 					{
 						dsize = 0;
 						goto bsd_end;
@@ -894,7 +885,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				// set [*]:[*]*
 				else if (wildcard_match_icase(line, "[*]*"))
 				{
-					uint32_t val = _parse_int_value(line, pointer, dsize, data_endian);
+					uint32_t val = _parse_int_value(line, pointer, dsize);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -905,7 +896,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 				else if (wildcard_match_icase(line, "eof*"))
 				{
-					uint32_t val = _parse_int_value(line, pointer, dsize, data_endian);
+					uint32_t val = _parse_int_value(line, pointer, dsize);
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
@@ -1185,7 +1176,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					tmp = strchr(line, ':');
 					if (tmp)
 					{
-						hash = _parse_int_value(tmp+1, pointer, dsize, data_endian);
+						hash = _parse_int_value(tmp+1, pointer, dsize);
 					}
 
     			    hash = adler32(hash, start, len);
@@ -1220,7 +1211,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					len = range_end - range_start;
 
 					tmp = strchr(line, ':');
-					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize, data_endian) : 0;
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
 					hash = murmur3_32((uint8_t*)data + range_start, len, hash);
 
@@ -1238,7 +1229,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					len = range_end - range_start;
 
 					tmp = strchr(line, ':');
-					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize, data_endian) : 0;
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
 					hash = jhash((uint8_t*)data + range_start, len, hash);
 
@@ -1256,7 +1247,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					len = range_end - range_start;
 
 					tmp = strchr(line, ':');
-					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize, data_endian) : 0;
+					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
 					hash = jenkins_oaat_hash((uint8_t*)data + range_start, len, hash);
 
@@ -1281,7 +1272,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 					LOG("HMAC Key=%s", line);
 
-					key = _decode_variable_data(line, &key_len, data_endian);
+					key = _decode_variable_data(line, &key_len);
 					*tmp = ')';
 
 					var->len = BSD_VAR_SHA1;
@@ -1300,7 +1291,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					len = range_end - range_start;
 
 					line = strchr(line, ':')+1;
-					newcrc = _parse_int_value(line, pointer, dsize, data_endian);
+					newcrc = _parse_int_value(line, pointer, dsize);
 
 					hash = force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
 
@@ -1445,7 +1436,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					len = range_end - range_start;
 
 					line += strlen("lookup3_little2(");
-					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2, data_endian);
+					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2);
 					LOG("lookup3 init values %X %X", iv1, iv2);
 
 					lookup3_hashlittle2((uint8_t*)data + range_start, len, &iv1, &iv2);
@@ -1594,7 +1585,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					tmp = strchr(line, ':');
 					if (tmp)
 					{
-						init_val = _parse_int_value(tmp+1, pointer, dsize, data_endian);
+						init_val = _parse_int_value(tmp+1, pointer, dsize);
 					}
 
 					hash = sdbm_hash(start, len, init_val);
@@ -1631,7 +1622,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					tmp = strchr(line, ':');
 					if (tmp)
 					{
-						init_val = _parse_int_value(tmp+1, pointer, dsize, data_endian);
+						init_val = _parse_int_value(tmp+1, pointer, dsize);
 					}
 
 					hash = fnv1_hash(start, len, init_val);
@@ -1652,7 +1643,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					uint32_t add = old_val;
 
 					line += strlen("qwadd(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += qwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1);
 
@@ -1672,7 +1663,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint32_t add = old_val;
 
 			        line += strlen("dwadd(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
 
@@ -1693,7 +1684,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					uint32_t add = old_val;
 
 					line += strlen("wadd_le(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
 
@@ -1714,7 +1705,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					uint32_t add = old_val;
 
 					line += strlen("dwadd_le(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
 
@@ -1734,7 +1725,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint32_t add = old_val;
 
 			        line += strlen("wadd(");
-			        _parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+			        _parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
     			    
@@ -1759,7 +1750,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint32_t add = old_val;
 
 			        line += strlen("add(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e, data_endian);
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					add += add_hash((uint8_t*)data + add_s, add_e - add_s + 1);
 
@@ -1787,7 +1778,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			        uint32_t sub = old_val;
 
 			        line += strlen("wsub(");
-			        _parse_start_end(line, pointer, dsize, &sub_s, &sub_e, data_endian);
+			        _parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
 
 					sub += wsub_hash((uint8_t*)data + sub_s, sub_e - sub_s + 1);
 
@@ -1809,21 +1800,21 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
     			    tmp = strchr(line, ',');
     			    *tmp = 0;
     			    
-    			    xor_s = _parse_int_value(line, pointer, dsize, data_endian);
+    			    xor_s = _parse_int_value(line, pointer, dsize);
 
 			        line = tmp+1;
     			    *tmp = ',';
     			    tmp = strchr(line, ',');
     			    *tmp = 0;
 
-    			    xor_e = _parse_int_value(line, pointer, dsize, data_endian);
+    			    xor_e = _parse_int_value(line, pointer, dsize);
 
 			        line = tmp+1;
     			    *tmp = ',';
     			    tmp = strchr(line, ')');
     			    *tmp = 0;
 
-    			    xor_i = _parse_int_value(line, pointer, dsize, data_endian);
+    			    xor_i = _parse_int_value(line, pointer, dsize);
 
     			    *tmp = ')';
     			    uint8_t* read = data + xor_s;
@@ -1854,7 +1845,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					int read_s, read_l;
 
 					line += strlen("read(");
-					_parse_start_end(line, pointer, dsize, &read_s, &read_l, data_endian);
+					_parse_start_end(line, pointer, dsize, &read_s, &read_l);
 					uint8_t* read = data + read_s;
 
 					switch (read_l)
@@ -1887,7 +1878,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					int rvalue, rlen;
 
 					line += strlen("right(");
-					_parse_start_end(line, pointer, dsize, &rvalue, &rlen, data_endian);
+					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
 					var->len = rlen;
 					var->data = malloc(var->len);
@@ -1903,7 +1894,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					int rvalue, rlen;
 
 					line += strlen("left(");
-					_parse_start_end(line, pointer, dsize, &rvalue, &rlen, data_endian);
+					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
 					var->len = rlen;
 					var->data = malloc(var->len);
@@ -1922,21 +1913,21 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 					tmp = strchr(line, ',');
 					*tmp = 0;
 
-					char* mid_val = _decode_variable_data(line, &mlen, data_endian);
+					char* mid_val = _decode_variable_data(line, &mlen);
 
 					line = tmp+1;
 					*tmp = ',';
 					tmp = strchr(line, ',');
 					*tmp = 0;
 
-					mid_s = _parse_int_value(line, pointer, dsize, data_endian);
+					mid_s = _parse_int_value(line, pointer, dsize);
 
 					line = tmp+1;
 					*tmp = ',';
 					tmp = strchr(line, ')');
 					*tmp = 0;
 
-					mid_c = _parse_int_value(line, pointer, dsize, data_endian);
+					mid_c = _parse_int_value(line, pointer, dsize);
 
 					*tmp = ')';
 
@@ -2032,7 +2023,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				// set [*]:*
 				else
 				{
-					var->data = _decode_variable_data(line, &len, data_endian);
+					var->data = _decode_variable_data(line, &len);
 					var->len = len;
 					LOG("[%s] = %s", var->name, line);
 				}
@@ -2115,7 +2106,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			    line += strlen("xor:");
     		    skip_spaces(line);
 
-			    write_val = _decode_variable_data(line, &wlen, data_endian);
+			    write_val = _decode_variable_data(line, &wlen);
 			    
 			    for (int i=0; i < wlen; i++)
 			        write_val[i] ^= data[off + i];
@@ -2134,14 +2125,14 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				tmp = strchr(line, ',');
 				*tmp = 0;
 				
-				r_cnt = _parse_int_value(line, pointer, dsize, data_endian);
+				r_cnt = _parse_int_value(line, pointer, dsize);
 
 				line = tmp+1;
 				*tmp = ',';
 				tmp = strchr(line, ')');
 				*tmp = 0;
 
-				r_val = _decode_variable_data(line, &wlen, data_endian);
+				r_val = _decode_variable_data(line, &wlen);
 
 				*tmp = ')';
 				
@@ -2160,13 +2151,13 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			else if (wildcard_match(line, "[*]"))
 			{
 			    LOG("Getting value for %s", line);
-			    write_val = _decode_variable_data(line, &wlen, data_endian);
+			    write_val = _decode_variable_data(line, &wlen);
 			}
 
 		    // write at/next *:* (e.g. 0x00000000)
 			else
 			{
-			    write_val = _decode_variable_data(line, &wlen, data_endian);
+			    write_val = _decode_variable_data(line, &wlen);
 			}
 
 			if (!write_val)
@@ -2234,7 +2225,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 			skip_spaces(line);
 
-			char* idata = _decode_variable_data(line, &ilen, data_endian);
+			char* idata = _decode_variable_data(line, &ilen);
 			if (!idata)
 			{
 				LOG("Error: no data to insert");
@@ -2318,7 +2309,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
     		    skip_spaces(line);
 
 				int flen;
-			    uint8_t* find = _decode_variable_data(line, &flen, data_endian);
+			    uint8_t* find = _decode_variable_data(line, &flen);
 			    
 			    if (!find)
 			    {
@@ -2332,7 +2323,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			}
 			else
 			{
-			    dlen = _parse_int_value(line, pointer, dsize, data_endian);
+			    dlen = _parse_int_value(line, pointer, dsize);
 				if (dlen + off > (long)dsize)
 					dlen = dsize - off;
 			}
@@ -2376,7 +2367,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			    *tmp = 0;
 			}
 
-			find = _decode_variable_data(line, &len, data_endian);
+			find = _decode_variable_data(line, &len);
 
 			if (tmp)
 				*tmp = ':';
@@ -2416,17 +2407,17 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 			tmp = strchr(line, ':');
 			*tmp = 0;
-			from = _parse_int_value(line, pointer, dsize, data_endian);
+			from = _parse_int_value(line, pointer, dsize);
 			*tmp++ = ':';
 			line = tmp;
 
 			tmp = strchr(line, ':');
 			*tmp = 0;
-			off = _parse_int_value(line, pointer, dsize, data_endian);
+			off = _parse_int_value(line, pointer, dsize);
 			*tmp++ = ':';
 			line = tmp;
 
-			len = _parse_int_value(line, pointer, dsize, data_endian);
+			len = _parse_int_value(line, pointer, dsize);
 			memmove(data + off, data + from, len);
 
 			LOG("Copied %d bytes from 0x%X to 0x%X", len, from, off);
@@ -2440,7 +2431,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			line += strlen("msgbox");
 			skip_spaces(line);
 
-			buf = _decode_variable_data(line, &len, data_endian);
+			buf = _decode_variable_data(line, &len);
 			_log_dump(line, (uint8_t*) buf, len);
 			free(buf);
 		}
@@ -2455,7 +2446,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 			tmp = strrchr(line, ')');
 			*tmp = 0;
 
-			mode = _parse_int_value(line, pointer, dsize, data_endian);
+			mode = _parse_int_value(line, pointer, dsize);
 			*tmp = ')';
 
 			switch (mode)
@@ -2620,7 +2611,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				tmp = strrchr(line, ',');
 				*tmp = 0;
 
-				mode = _parse_int_value(line, pointer, dsize, data_endian);
+				mode = _parse_int_value(line, pointer, dsize);
 				*tmp = ',';
 
 				line = tmp + 1;
@@ -2629,7 +2620,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 				LOG("FFXIII Type=%d Encryption Key=%s", mode, line);
 
-				key = _decode_variable_data(line, &key_len, data_endian);
+				key = _decode_variable_data(line, &key_len);
 				*tmp = ')';
 
 				ff13_decrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
@@ -2651,7 +2642,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("Borderlands 3 Save Type=%s", line);
 
-				s_type = _parse_int_value(line, pointer, dsize, data_endian);
+				s_type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
 				borderlands3_Decrypt(start, (range_end - range_start), s_type);
@@ -2666,7 +2657,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("Monster Hunter PSP Save Type=%s", line);
 
-				type = _parse_int_value(line, pointer, dsize, data_endian);
+				type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
 				monsterhunter_decrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
@@ -2681,10 +2672,10 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("MGS 5 Key=%s", line);
 
-				xor_key = _parse_int_value(line, pointer, dsize, data_endian);
+				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data_ex((uint32_t*)(data + range_start), (range_end - range_start), xor_key, data_endian);
+				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
@@ -2782,7 +2773,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				tmp = strrchr(line, ',');
 				*tmp = 0;
 
-				mode = _parse_int_value(line, pointer, dsize, data_endian);
+				mode = _parse_int_value(line, pointer, dsize);
 				*tmp = ',';
 
 				line = tmp + 1;
@@ -2791,7 +2782,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 
 				LOG("FFXIII Type=%d Encryption Key=%s", mode, line);
 
-				key = _decode_variable_data(line, &key_len, data_endian);
+				key = _decode_variable_data(line, &key_len);
 				*tmp = ')';
 
 				ff13_encrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
@@ -2813,7 +2804,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("Borderlands 3 Save Type=%s", line);
 
-				s_type = _parse_int_value(line, pointer, dsize, data_endian);
+				s_type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
 				borderlands3_Encrypt(start, (range_end - range_start), s_type);
@@ -2828,7 +2819,7 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("Monster Hunter PSP Save Type=%s", line);
 
-				type = _parse_int_value(line, pointer, dsize, data_endian);
+				type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
 				monsterhunter_encrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
@@ -2843,10 +2834,10 @@ static size_t apply_bsd_patch_code_ex(uint8_t** src_data, size_t dsize, const co
 				*tmp = 0;
 				LOG("MGS 5 Key=%s", line);
 
-				xor_key = _parse_int_value(line, pointer, dsize, data_endian);
+				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data_ex((uint32_t*)(data + range_start), (range_end - range_start), xor_key, data_endian);
+				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
@@ -2918,15 +2909,11 @@ bsd_end:
 
 size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code)
 {
-	return apply_sw_patch_code_ex(data, dsize, code, apollo_get_default_endianness());
-}
-
-static size_t apply_sw_patch_code_ex(uint8_t *data, size_t dsize, const code_entry_t* code, apollo_endianness_t data_endian)
-{
 	char *gg_code;
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
+	apollo_endianness_t data_endian = apollo_get_host_endianness();
 
 	gg_code = strdup(code->codes);
 	apply_tag_opts(gg_code, code);
@@ -4012,11 +3999,6 @@ static void* dummy_host_callback(int id, uint32_t* size)
 
 int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
-	return apply_cheat_patch_code_ex(fpath, code, host_cb, apollo_get_default_endianness());
-}
-
-static int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb, apollo_endianness_t data_endian)
-{
 	uint8_t* data;
 	size_t dsize = 0;
 	bsd_variable_t *ozip_file = NULL;
@@ -4049,12 +4031,12 @@ static int apply_cheat_patch_code_ex(const char* fpath, const code_entry_t* code
 	{
 	case APOLLO_CODE_GAMEGENIE:
 		LOG("Save Wizard Code");
-		dsize = apply_sw_patch_code_ex(data, dsize, code, data_endian);
+		dsize = apply_sw_patch_code(data, dsize, code);
 		break;
 
 	case APOLLO_CODE_BSD:
 		LOG("BSD Script Code");
-		dsize = apply_bsd_patch_code_ex(&data, dsize, code, data_endian);
+		dsize = apply_bsd_patch_code(&data, dsize, code);
 		break;
 
 	case APOLLO_CODE_PYTHON:

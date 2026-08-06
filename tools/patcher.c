@@ -79,23 +79,9 @@ int is_active_code(const char* a, int id)
     return 0;
 }
 
-static const char* get_basename(const char* path)
+static const char* get_cli_version(int data_endian)
 {
-    const char* name = strrchr(path, '/');
-    if (!name)
-        name = strrchr(path, '\\');
-
-    return name ? name + 1 : path;
-}
-
-static apollo_endianness_t get_default_cli_endianness(const char* argv0)
-{
-    return strstr(get_basename(argv0), "bigendian") ? APOLLO_ENDIAN_BIG : apollo_get_default_endianness();
-}
-
-static const char* get_cli_version(apollo_endianness_t data_endian)
-{
-    return (data_endian == APOLLO_ENDIAN_BIG) ? APOLLO_LIB_VERSION " PS3/big-endian" : APOLLO_LIB_VERSION;
+    return (data_endian == APOLLO_BYTE_ORDER_BIG) ? APOLLO_LIB_VERSION " PS3/big-endian" : APOLLO_LIB_VERSION;
 }
 
 static void get_user_options(code_entry_t* entry)
@@ -177,17 +163,17 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
     const char* argv0 = argv[0];
-    apollo_endianness_t data_endian = get_default_cli_endianness(argv0);
+    int data_endian = 0;
 
     while (argc > 1)
     {
         if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
         {
-            data_endian = APOLLO_ENDIAN_BIG;
+            data_endian = APOLLO_BYTE_ORDER_BIG;
         }
         else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
         {
-            data_endian = APOLLO_ENDIAN_LITTLE;
+            data_endian = APOLLO_BYTE_ORDER_LITTLE;
         }
         else
         {
@@ -254,7 +240,7 @@ int main(int argc, char **argv)
 
     printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
-    apollo_set_endianness(data_endian);
+//    apollo_set_endianness(data_endian);
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         if (code->activated || is_active_code(argv[2], len))
