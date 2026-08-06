@@ -94,11 +94,7 @@ static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
-#if defined(__PPU__) || defined(__PS3_PC__)
-static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_BIG;
-#else
-static apollo_endianness_t _default_endianness = APOLLO_ENDIAN_LITTLE;
-#endif
+static apollo_endianness_t _default_endianness = 0;
 
 
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
@@ -813,7 +809,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
     			    if (var->data)
     			    {
     			        free(var->data);
-    			        var->data = (uint8_t*) &old_val + PADDING(4 - var->len);
+    			        var->data = (uint8_t*) &old_val + HOST_LSB(4 - var->len);
     			    }
 
     			    LOG("Old value 0x%X", old_val);
@@ -2929,6 +2925,14 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
 	apollo_endianness_t data_endian = apollo_get_host_endianness();
 
+	if (_default_endianness)
+		data_endian = _default_endianness;
+
+	if (code->flags & APOLLO_CODE_FLAG_ORDER_BE)
+		data_endian = APOLLO_ENDIAN_BIG;
+	else if (code->flags & APOLLO_CODE_FLAG_ORDER_LE)
+		data_endian = APOLLO_ENDIAN_LITTLE;
+
 	gg_code = strdup(code->codes);
 	apply_tag_opts(gg_code, code);
 	for (char *line = strtok(gg_code, "\n"); line != NULL;)
@@ -4019,6 +4023,7 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
 	save_file = fpath;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
+	_default_endianness = apollo_get_host_endianness();
 
 	LOG("Applying [%s] to '%s'...", code->name, fpath);
 

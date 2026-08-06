@@ -12,6 +12,12 @@
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
+#ifdef __PPU__
+#define HOST_LSB(X)		(X)
+#else
+#define HOST_LSB(X)		0
+#endif
+
 #if !defined(MAX_PATH)
 #	define MAX_PATH 260
 #endif
