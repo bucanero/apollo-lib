@@ -452,7 +452,7 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	free(key);
 }
 
-static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_t length, apollo_endianness_t data_endian)
+static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_t length)
 {
 	int key_len, iv_len;
 	char *key, *iv, *tmp;
@@ -2629,7 +2629,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
 				line += strlen("rgg_studio(");
-				_exec_encryption_key(DEC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2690,49 +2690,49 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
 				line += strlen("mgs(");
-				_exec_encryption_key(DEC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				line += strlen("aes_ecb(");
-				_exec_encryption_key(DEC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
 				line += strlen("aes_cbc(");
-				_exec_encryption_key_iv(DEC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(DEC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
 			{
 				line += strlen("aes_ctr(");
-				_exec_encryption_key_iv(DEC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(DEC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
 				line += strlen("camellia_ecb(");
-				_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
 				line += strlen("des3_ecb(");
-				_exec_encryption_key(DEC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
 				line += strlen("des3_cbc(");
-				_exec_encryption_key_iv(DEC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(DEC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
 				line += strlen("blowfish_ecb(");
-				_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
 			{
 				line += strlen("blowfish_cbc(");
-				_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 
 		}
@@ -2791,7 +2791,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
 				line += strlen("rgg_studio(");
-				_exec_encryption_key(ENC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2852,49 +2852,49 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
 				line += strlen("mgs(");
-				_exec_encryption_key(ENC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				line += strlen("aes_ecb(");
-				_exec_encryption_key(ENC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
 				line += strlen("aes_cbc(");
-				_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
 			{
 				line += strlen("aes_ctr(");
-				_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
 				line += strlen("camellia_ecb(");
-				_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
 				line += strlen("des3_ecb(");
-				_exec_encryption_key(ENC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
 				line += strlen("des3_cbc(");
-				_exec_encryption_key_iv(ENC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(ENC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
 				line += strlen("blowfish_ecb(");
-				_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
 			{
 				line += strlen("blowfish_cbc(");
-				_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start), data_endian);
+				_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 
 		}
