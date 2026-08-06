@@ -1867,6 +1867,21 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					var->data = malloc(var->len);
 					memcpy(var->data, (uint8_t*) read, var->len);
 
+					switch (var->len)
+					{
+					case BSD_VAR_INT16:
+						BE16(*((uint16_t*) var->data));
+						break;
+					case BSD_VAR_INT32:
+						BE32(*((uint32_t*) var->data));
+						break;
+					case BSD_VAR_INT64:
+						BE64(*((uint64_t*) var->data));
+						break;
+					default:
+						break;
+					}
+					
 					LOG("[%s]:read(0x%X , 0x%X)", var->name, read_s, read_l);
 					_log_dump("read()", (uint8_t*) read, var->len);
 			    }
