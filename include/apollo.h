@@ -20,8 +20,8 @@
 #define APOLLO_CODE_FLAG_ORDER_LE  64
 #define APOLLO_CODE_FLAG_ORDER_BE  128
 
-#define APOLLO_BYTE_ORDER_LITTLE    1
-#define APOLLO_BYTE_ORDER_BIG       2
+#define APOLLO_DATA_MODE_LITTLE    1
+#define APOLLO_DATA_MODE_BIG       2
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,6 +123,7 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 //---  Apollo patch functions ---
 
 void free_patch_var_list(void);
+void apollo_set_endianness(int endian);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);

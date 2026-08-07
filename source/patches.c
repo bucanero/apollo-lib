@@ -94,8 +94,13 @@ static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
-static apollo_endianness_t _default_endianness = 0;
+static int _default_endianness = APOLLO_ENDIAN_DEFAULT;
 
+
+void apollo_set_endianness(int endian)
+{
+	_default_endianness = endian;
+}
 
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
@@ -292,6 +297,8 @@ void free_patch_var_list(void)
 		free(upy);
 		upy = NULL;
 	}
+
+	_default_endianness = APOLLO_ENDIAN_DEFAULT;
 }
 
 static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
@@ -4045,7 +4052,6 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	bool is_ozip = strncmp(code->file, "~extracted\\", 11) == 0;
 	save_file = fpath;
 	host_callback = host_cb ? host_cb : dummy_host_callback;
-	_default_endianness = apollo_get_host_endianness();
 
 	LOG("Applying [%s] to '%s'...", code->name, fpath);
 

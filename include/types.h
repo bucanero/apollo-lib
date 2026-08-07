@@ -45,8 +45,9 @@
 
 typedef enum
 {
-	APOLLO_ENDIAN_LITTLE = 0,
-	APOLLO_ENDIAN_BIG = 1,
+	APOLLO_ENDIAN_DEFAULT = 0,
+	APOLLO_ENDIAN_LITTLE = 1,
+	APOLLO_ENDIAN_BIG = 2,
 } apollo_endianness_t;
 
 static inline apollo_endianness_t apollo_get_host_endianness(void)

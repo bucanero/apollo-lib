@@ -79,11 +79,6 @@ int is_active_code(const char* a, int id)
     return 0;
 }
 
-static const char* get_cli_version(int data_endian)
-{
-    return (data_endian == APOLLO_BYTE_ORDER_BIG) ? APOLLO_LIB_VERSION " PS3/big-endian" : APOLLO_LIB_VERSION;
-}
-
 static void get_user_options(code_entry_t* entry)
 {
     option_value_t* val;
@@ -162,34 +157,26 @@ int main(int argc, char **argv)
     size_t len;
     char *data;
     list_t* list_codes;
-    const char* argv0 = argv[0];
-    int data_endian = 0;
 
-    while (argc > 1)
-    {
-        if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
-        {
-            data_endian = APOLLO_BYTE_ORDER_BIG;
-        }
-        else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
-        {
-            data_endian = APOLLO_BYTE_ORDER_LITTLE;
-        }
-        else
-        {
-            break;
-        }
-
-        argc--;
-        argv++;
-    }
-
-    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", get_cli_version(data_endian));
+    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", APOLLO_LIB_VERSION);
 
     if (--argc < 1)
     {
-        print_usage(argv0);
+        print_usage(argv[0]);
         return -1;
+    }
+
+    if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
+    {
+        printf("[i] Using big-endian data mode\n");
+        apollo_set_endianness(APOLLO_DATA_MODE_BIG);
+        argv++;
+    }
+    else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
+    {
+        printf("[i] Using little-endian data mode\n");
+        apollo_set_endianness(APOLLO_DATA_MODE_LITTLE);
+        argv++;
     }
 
     if (strchr(argv[1], '\n') && strchr(argv[1], '[') && strchr(argv[1], ']'))
