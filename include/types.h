@@ -12,12 +12,6 @@
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
-#ifdef __PPU__
-#define HOST_LSB(X)		(X)
-#else
-#define HOST_LSB(X)		0
-#endif
-
 /*
  * Offset to the least-significant bytes of a HOST-native integer when
  * truncating it to fewer bytes (e.g. keeping the low 2 bytes of a uint32_t).
