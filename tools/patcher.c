@@ -227,7 +227,6 @@ int main(int argc, char **argv)
 
     printf("[i] Applying codes [%s] to %s...\n", argv[2], (argc == 2) ? "script target file" : argv[3]);
 
-//    apollo_set_endianness(data_endian);
     for (len=1, node = list_next(node); (code = list_get(node)); node = list_next(node), len++)
     {
         if (code->activated || is_active_code(argv[2], len))
