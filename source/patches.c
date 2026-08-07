@@ -793,7 +793,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
     			    if (var->data)
     			    {
     			        free(var->data);
-    			        var->data = (uint8_t*) &old_val + PADDING(4 - var->len);
+    			        var->data = (uint8_t*) &old_val + HOST_LSB(4 - var->len);
     			    }
 
     			    LOG("Old value 0x%X", old_val);
@@ -1715,8 +1715,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
-    			    
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+
     			    LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
 
@@ -1740,8 +1740,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add + PADDING(carry), var->len);
-    			    
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+
     			    LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
 
@@ -1876,7 +1876,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue + PADDING(4 - rlen), var->len);
+					memcpy(var->data, (uint8_t*) &rvalue + HOST_LSB(4 - rlen), var->len);
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 			    }
@@ -1892,7 +1892,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue, var->len);
+					/* keep the most-significant (leftmost) bytes of the value,
+					 * as a host-native integer; the write path emits it big-
+					 * endian. HOST_MSB makes this host-consistent. */
+					memcpy(var->data, (uint8_t*) &rvalue + HOST_MSB(BSD_VAR_INT32 - rlen), var->len);
 
 					LOG("[%s]:left(0x%X , %d)", var->name, rvalue, rlen);
 			    }
@@ -1929,6 +1932,25 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					var->data = malloc(var->len);
 					memcpy(var->data, (uint8_t*)mid_val + mid_s, var->len);
 					free(mid_val);
+
+					/* mid_val is a big-endian byte string; normalise the slice to
+					 * host order (like read()) so the write path re-emits the
+					 * exact substring big-endian on every host, instead of byte-
+					 * swapping 2/4/8-byte results on little-endian builds. */
+					switch (var->len)
+					{
+					case BSD_VAR_INT16:
+						BE16(*((uint16_t*) var->data));
+						break;
+					case BSD_VAR_INT32:
+						BE32(*((uint32_t*) var->data));
+						break;
+					case BSD_VAR_INT64:
+						BE64(*((uint64_t*) var->data));
+						break;
+					default:
+						break;
+					}
 
 					LOG("[%s]:mid(..%d.., %X, %d)", var->name, mlen, mid_s, mid_c);
 			    }
