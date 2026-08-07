@@ -1024,6 +1024,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						var->len = BSD_VAR_INT64;
 						var->data = malloc(var->len);
 						memcpy(var->data, (uint8_t*) &hash, var->len);
+
 						LOG("len %d Custom CRC64 HASH = %016" PRIX64, len, hash);
 					}
 			        else
@@ -1409,7 +1410,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &jhash, var->len);
+					memcpy(var->data, (uint8_t*) &chks, var->len);
 
 					LOG("len %d Rockstar CHKS %s", len, chks_len ? "OK" : "ERROR");
 				}
@@ -1510,7 +1511,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_MD5;
 					var->data = malloc(var->len);
-					memcpy(var->data, hash, var->len);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d SW4 HASH = %08X %08X %08X %08X", len, hash[0], hash[1], hash[2], hash[3]);
 				}
@@ -1722,7 +1723,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add, var->len);
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
     			    
     			    LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1747,7 +1748,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    memcpy(var->data, (uint8_t*) &add, var->len);
+                    memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
     			    
     			    LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1883,7 +1884,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue, var->len);
+					memcpy(var->data, (uint8_t*) &rvalue + HOST_LSB(4 - rlen), var->len);
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 			    }
