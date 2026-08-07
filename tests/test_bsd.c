@@ -255,3 +255,133 @@ TEST(bsd_delete)
     CHECK_MEM("delete at 4:2", buf, exp, sizeof(exp));
     free(buf);
 }
+
+/* ======================================================================== */
+/* read() of int16/int32/int64, and a few hash smoke tests                  */
+/* ======================================================================== */
+
+/*
+ * read(offset,len) loads `len` bytes and, for 2/4/8-byte sizes, normalises them
+ * from the file's big-endian order to a host-native value (via BE16/32/64). The
+ * write path converts back, so a read->write round-trip reproduces the source
+ * bytes verbatim on every build. These pin the int16/int32/int64 read widths.
+ */
+TEST(bsd_read_int16)
+{
+    uint8_t init[32] = {0};
+    init[0]=0xAA; init[1]=0xBB;
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [v]:read(0,2)\nwrite at 8:[v]");
+
+    uint8_t exp[32] = {0};
+    exp[0]=0xAA; exp[1]=0xBB;
+    exp[8]=0xAA; exp[9]=0xBB;
+    CHECK_MEM("read(0,2) int16 round-trip", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_read_int32)
+{
+    uint8_t init[32] = {0};
+    init[0]=0x11; init[1]=0x22; init[2]=0x33; init[3]=0x44;
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [v]:read(0,4)\nwrite at 8:[v]");
+
+    uint8_t exp[32] = {0};
+    memcpy(exp, init, 4);
+    memcpy(exp + 8, init, 4);
+    CHECK_MEM("read(0,4) int32 round-trip", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_read_int64)
+{
+    uint8_t init[32] = {0};
+    for (int i = 0; i < 8; i++) init[i] = (uint8_t)(0x01 + i);   /* 01..08 */
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init), "set [v]:read(0,8)\nwrite at 8:[v]");
+
+    uint8_t exp[32] = {0};
+    memcpy(exp, init, 8);
+    memcpy(exp + 8, init, 8);
+    CHECK_MEM("read(0,8) int64 round-trip", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+/*
+ * Hash smoke tests over the ASCII input "123456789" (the classic CRC check
+ * string). The 32-bit results are stored host-native and emitted big-endian, so
+ * the written bytes are the big-endian form of the hash; all are build-invariant.
+ *
+ *  - crc32big  -> CRC-32/BZIP2, independently known check value 0xFC891918
+ *  - sha1      -> independently known SHA-1("123456789") digest (20 bytes)
+ *  - jhash     -> Jenkins hash; value characterised from the library (regression)
+ */
+static uint8_t* hash_buf(void)
+{
+    uint8_t* b = calloc(1, 64);
+    memcpy(b, "123456789", 9);
+    return b;
+}
+
+TEST(bsd_hash_crc32big)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x8\nset [h]:crc32big\nwrite at 0x10:[h]");
+
+    uint8_t exp[4] = { 0xFC, 0x89, 0x19, 0x18 };   /* CRC-32/BZIP2 check value */
+    CHECK_MEM("crc32big(\"123456789\") = 0xFC891918", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_hash_sha1)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x8\nset [h]:sha1\nwrite at 0x20:[h]");
+
+    /* SHA-1("123456789") */
+    uint8_t exp[20] = {
+        0xF7,0xC3,0xBC,0x1D,0x80,0x8E,0x04,0x73,0x2A,0xDF,
+        0x67,0x99,0x65,0xCC,0xC3,0x4C,0xA7,0xAE,0x34,0x41
+    };
+    CHECK_MEM("sha1(\"123456789\")", buf + 0x20, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_hash_jhash)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x8\nset [h]:jhash\nwrite at 0x10:[h]");
+
+    uint8_t exp[4] = { 0x4B, 0xF8, 0x35, 0x26 };   /* characterised from the library */
+    CHECK_MEM("jhash(\"123456789\") regression", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
+/*
+ * md5_xor / sha1_xor64 — apollo-specific folded hashes (32- and 64-bit). Stored
+ * host-native and emitted big-endian, so build-invariant. Values characterised
+ * from the library over "123456789" (regression guards).
+ */
+TEST(bsd_hash_md5_xor)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x8\nset [h]:md5_xor\nwrite at 0x10:[h]");
+
+    uint8_t exp[4] = { 0xB8, 0xF7, 0x55, 0x89 };
+    CHECK_MEM("md5_xor(\"123456789\") regression", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_hash_sha1_xor64)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x8\nset [h]:sha1_xor64\nwrite at 0x10:[h]");
+
+    uint8_t exp[8] = { 0x7A, 0xB2, 0xEF, 0xC5, 0xE5, 0x42, 0xC7, 0x3F };
+    CHECK_MEM("sha1_xor64(\"123456789\") regression", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
