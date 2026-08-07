@@ -252,10 +252,10 @@ static int _parse_int_value(const char* line, const int ptrval, const int size)
         	        ret = *((uint8_t*)var->data) + _parse_int_value(line, ptrval, size);
         	        break;
 	            case BSD_VAR_INT16:
-        	        ret = apollo_read_u16(var->data, APOLLO_ENDIAN_BIG) + _parse_int_value(line, ptrval, size);
+        	        ret = *((uint16_t*)var->data) + _parse_int_value(line, ptrval, size);
         	        break;
 	            case BSD_VAR_INT32:
-        	        ret = apollo_read_u32(var->data, APOLLO_ENDIAN_BIG) + _parse_int_value(line, ptrval, size);
+        	        ret = *((uint32_t*)var->data) + _parse_int_value(line, ptrval, size);
         	        break;
 	        }
 	    }
@@ -351,13 +351,6 @@ static void swap_u64_data(uint64_t* data, int count)
 static void copy_uint_bytes(uint8_t* dst, uint64_t value, size_t len, apollo_endianness_t data_endian)
 {
 	apollo_write_uint(dst, value, len, data_endian);
-}
-
-static void copy_uint_prefix(uint8_t* dst, uint64_t value, size_t width, size_t len, apollo_endianness_t data_endian)
-{
-	uint8_t bytes[sizeof(uint64_t)] = {0};
-	apollo_write_uint(bytes, value, width, data_endian);
-	memcpy(dst, bytes, len);
 }
 
 static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
@@ -568,7 +561,6 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	uint8_t carry = 0, eof = 0;
 	uint32_t old_val = 0;
 	custom_crc_t custom_crc = {0,0,0,0,0,0};
-	apollo_endianness_t data_endian = APOLLO_ENDIAN_BIG;
 
 	range_end = dsize;
 	if (!var_list)
@@ -796,10 +788,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		        	        old_val = *((uint8_t*)var->data);
 		        	        break;
 			            case BSD_VAR_INT16:
-		        	        old_val = apollo_read_u16(var->data, data_endian);
+		        	        old_val = *((uint16_t*)var->data);
 		        	        break;
 			            case BSD_VAR_INT32:
-		        	        old_val = apollo_read_u32(var->data, data_endian);
+		        	        old_val = *((uint32_t*)var->data);
 		        	        break;
 		        	    default:
 		        	    	old_val = 0;
@@ -884,7 +876,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, val, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &val, var->len);
 
 					LOG("Var [%s]:%s = %08X", var->name, line, val);
 				}
@@ -895,7 +887,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, val, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &val, var->len);
 
 					LOG("Var [%s]:%s = %08X", var->name, line, val);
 				}
@@ -938,7 +930,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, hash, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &hash, var->len);
 			    }
 
 			    // set [*]:crc16*
@@ -959,7 +951,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT16;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, hash, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &hash, var->len);
 
     			    LOG("len %d CRC16 HASH = %04X", len, hash);
 			    }
@@ -1000,7 +992,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 			    }
 
 			    // set [*]:crc*
@@ -1020,7 +1012,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                         var->len = BSD_VAR_INT16;
                         var->data = malloc(var->len);
-                        copy_uint_bytes(var->data, hash, var->len, data_endian);
+                        memcpy(var->data, (uint8_t*) &hash, var->len);
 
         			    LOG("len %d Custom CRC16 HASH = %04X", len, hash);
 			        }
@@ -1031,8 +1023,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 						var->len = BSD_VAR_INT64;
 						var->data = malloc(var->len);
-						copy_uint_bytes(var->data, hash, var->len, data_endian);
-
+						memcpy(var->data, (uint8_t*) &hash, var->len);
 						LOG("len %d Custom CRC64 HASH = %016" PRIX64, len, hash);
 					}
 			        else
@@ -1042,7 +1033,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                         var->len = BSD_VAR_INT32;
                         var->data = malloc(var->len);
-                        copy_uint_bytes(var->data, hash, var->len, data_endian);
+                        memcpy(var->data, (uint8_t*) &hash, var->len);
 
         			    LOG("len %d Custom CRC32 HASH = %08X", len, hash);
 			        }
@@ -1058,7 +1049,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d MD5_XOR HASH = %08X", len, hash);
 				}
@@ -1100,7 +1091,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d SHA1_XOR64 HASH = %016" PRIX64, len, hash);
 				}
@@ -1178,7 +1169,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, hash, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &hash, var->len);
 
     			    LOG("len %d Adler32 HASH = %08X", len, hash);
 			    }
@@ -1194,7 +1185,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT16;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Adler16 HASH = %04X", len, hash);
 			    }
@@ -1212,7 +1203,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Murmur3-32 HASH = %08X", len, hash);
 				}
@@ -1230,7 +1221,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d JHASH = %08X", len, hash);
 				}
@@ -1248,7 +1239,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Jenkins OAAT HASH = %08X", len, hash);
 				}
@@ -1292,7 +1283,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Force-CRC32 (%08X) HASH = %08X", len, newcrc, hash);
 			    }
@@ -1308,7 +1299,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, hash, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &hash, var->len);
 
     			    LOG("len %d EA/MC02 HASH = %08X", len, hash);
 			    }
@@ -1326,7 +1317,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT16;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d FFX HASH = %04X", len, hash);
 				}
@@ -1344,7 +1335,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d FFXIII HASH = %08X", len, hash);
 				}
@@ -1361,7 +1352,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Castlevania HASH = %08X", len, hash);
 				}
@@ -1383,7 +1374,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d DBZ XV2 HASH = %016" PRIX64, dsize, hash);
 				}
@@ -1418,7 +1409,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, chks, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &jhash, var->len);
 
 					LOG("len %d Rockstar CHKS %s", len, chks_len ? "OK" : "ERROR");
 				}
@@ -1439,7 +1430,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT64;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d lookup3_little2 Hashes = %08X %08X", len, iv1, iv2);
 				}
@@ -1457,7 +1448,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d KH 2.5 HASH = %08X", len, hash);
 				}
@@ -1473,7 +1464,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d KH CoM HASH = %08X", len, hash);
 				}
@@ -1488,7 +1479,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d MGS2 HASH = %08X", len, hash);
 				}
@@ -1503,7 +1494,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d MGS PW HASH = %08X", len, hash);
 				}
@@ -1549,7 +1540,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Tiara2 HASH = %08X", len, hash);
 				}
@@ -1565,7 +1556,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d Checksum32 = %08X", len, hash);
 				}
@@ -1587,7 +1578,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d SDBM HASH = %08X", len, hash);
 				}
@@ -1602,7 +1593,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d DJB2 HASH = %08X", len, hash);
 				}
@@ -1624,7 +1615,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, hash, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &hash, var->len);
 
 					LOG("len %d FNV-1 HASH = %08X", len, hash);
 				}
@@ -1644,7 +1635,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, add, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &add, var->len);
 					
 					LOG("[%s]:qwadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1664,7 +1655,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, add, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &add, var->len);
     			    
     			    LOG("[%s]:dwadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1685,7 +1676,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, add, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &add, var->len);
 
 					LOG("[%s]:wadd_le(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1706,7 +1697,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = BSD_VAR_INT32;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, add, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &add, var->len);
 					
 					LOG("[%s]:dwadd_le(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1731,7 +1722,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, add, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &add, var->len);
     			    
     			    LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1756,7 +1747,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32 - carry;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, add, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &add, var->len);
     			    
     			    LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 			    }
@@ -1779,7 +1770,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, sub, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &sub, var->len);
     			    
     			    LOG("[%s]:wsub(0x%X , 0x%X) = %X", var->name, sub_s, sub_e, sub);
 			    }
@@ -1892,7 +1883,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					copy_uint_bytes(var->data, rvalue, var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &rvalue, var->len);
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 			    }
@@ -1908,7 +1899,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					var->len = rlen;
 					var->data = malloc(var->len);
-					copy_uint_prefix(var->data, rvalue, sizeof(uint32_t), var->len, data_endian);
+					memcpy(var->data, (uint8_t*) &rvalue, var->len);
 
 					LOG("[%s]:left(0x%X , %d)", var->name, rvalue, rlen);
 			    }
@@ -1953,6 +1944,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_lan_addr*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_LAN_ADDR, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_lan_addr not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1964,6 +1960,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_wlan_addr*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_WLAN_ADDR, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_wlan_addr not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1975,6 +1976,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_account_id*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_ACCOUNT_ID, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_account_id not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1986,6 +1992,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_psid*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_PSID, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_psid not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1997,6 +2008,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_username*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_USERNAME, NULL);
+					if (!rval)
+					{
+						LOG("ERROR: host_username not available");
+						continue;
+					}
 
 					var->len = strlen(rval);
 					var->data = malloc(var->len);
@@ -2009,6 +2025,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_sys_name*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_SYS_NAME, NULL);
+					if (!rval)
+					{
+						LOG("ERROR: host_sys_name not available");
+						continue;
+					}
 
 					var->len = strlen(rval);
 					var->data = malloc(var->len);
@@ -2025,7 +2046,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
                     var->len = BSD_VAR_INT32;
                     var->data = malloc(var->len);
-                    copy_uint_bytes(var->data, tval, var->len, data_endian);
+                    memcpy(var->data, (uint8_t*) &tval, var->len);
 
     			    LOG("[%s]:%s = %08X", var->name, line, tval);
 			    }
