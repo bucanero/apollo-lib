@@ -102,6 +102,11 @@ void apollo_set_endianness(int endian)
 	_default_endianness = endian;
 }
 
+int apollo_get_data_endianness(void)
+{
+	return (_default_endianness ? _default_endianness : apollo_get_host_endianness());
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;

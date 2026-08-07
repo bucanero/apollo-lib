@@ -124,6 +124,7 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 
 void free_patch_var_list(void);
 void apollo_set_endianness(int endian);
+int apollo_get_data_endianness(void);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
