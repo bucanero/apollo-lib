@@ -1,0 +1,39 @@
+name: Run tests
+
+on:
+  push:
+  pull_request:
+  repository_dispatch:
+    types: [run_build]
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    name: tests (${{ matrix.os }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ubuntu requirements
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          # zlib for -lz (offzip/packzip); gcc and make are preinstalled.
+          sudo apt-get -y install zlib1g-dev
+
+      - name: Install mbedTLS
+        run: |
+          curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xz -C ./
+          cd mbedtls-2.16.12
+          mkdir build && cd build
+          cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          make mbedcrypto
+
+      - name: Run test suite
+        run: |
+          cd tests
+          make ci

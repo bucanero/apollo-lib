@@ -18,6 +18,35 @@
 #define HOST_LSB(X)		0
 #endif
 
+/*
+ * Offset to the least-significant bytes of a HOST-native integer when
+ * truncating it to fewer bytes (e.g. keeping the low 2 bytes of a uint32_t).
+ *
+ * Unlike PADDING(), which follows the TARGET save-data byte order, this depends
+ * on the byte order of the machine actually running the code: only a real
+ * big-endian host (PS3/PPU) stores an integer's low-order bytes at the higher
+ * address. The PS3-on-PC build (__PS3_PC__) simulates big-endian save DATA but
+ * still runs on a little-endian host, so the offset must be 0 there — using
+ * PADDING() would slice the wrong (high-order) bytes of the accumulator.
+ */
+#ifdef __PPU__
+#define HOST_LSB(X)		(X)
+#else
+#define HOST_LSB(X)		0
+#endif
+
+/*
+ * Offset to the MOST-significant bytes of a host-native integer — the
+ * complement of HOST_LSB(). On a big-endian host they sit at the front
+ * (offset 0); on a little-endian host at the back. Used by left(), which keeps
+ * the leftmost / most-significant bytes of a value regardless of host.
+ */
+#ifdef __PPU__
+#define HOST_MSB(X)		0
+#else
+#define HOST_MSB(X)		(X)
+#endif
+
 #if !defined(MAX_PATH)
 #	define MAX_PATH 260
 #endif
