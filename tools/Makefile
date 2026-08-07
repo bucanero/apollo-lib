@@ -1,4 +1,4 @@
-TOOLS	=	patcher patcher-bigendian
+TOOLS	=	patcher
 DUMPER	=	dumper
 COMMON	=	../source/crc_util.o ../source/list.o ../source/offzip.o ../source/patches.o ../source/decrypt.o \
 			../source/loader.o ../source/packzip.o ../source/wildcard.o ../source/upy.o
@@ -15,17 +15,11 @@ all: $(TOOLS) $(DUMPER)
 $(TOOLS): %: %.o $(COMMON) $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(COMMON) $(LDFLAGS)
 
-patcher.o patcher-bigendian.o: patcher.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-dumper.o: dumper.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-../source/%.o: ../source/%.c $(DEPS)
-	$(CC) $(CFLAGS) -c -o $@ $<
-
 $(DUMPER): %: %.o $(DEPS)
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+$(OBJS): %.o: %.c $(DEPS)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
 	-rm -f $(OBJS) $(TOOLS) $(DUMPER)

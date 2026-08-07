@@ -32,13 +32,13 @@ void print_usage(const char* argv0)
 {
     printf("Patching:\n");
     printf(" USAGE: %s [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf("  -b,--big-endian:    Use big-endian data mode\n");
+    printf("  -l,--little-endian: Use little-endian data mode\n");
     printf("  file.savepatch: The cheat patch file to apply\n");
     printf("  1,2,7-10,18:    The list of codes to apply\n");
     printf("  data-file.bin:  The target file to patch\n\n");
     printf("Listing:\n");
-    printf(" USAGE: %s [-b|--big-endian] [-l|--little-endian] file.savepatch [-c 1,2,7-10,18]\n\n", argv0);
-    printf("  -b,--big-endian:    Use big-endian data mode\n");
-    printf("  -l,--little-endian: Use little-endian data mode\n");
+    printf(" USAGE: %s file.savepatch [-c 1,2,7-10,18]\n\n", argv0);
     printf("  file.savepatch: The cheat patch file to list\n");
     printf("  -c:             Display code details (Optional)\n");
     printf("  1,2,7-10,18:    The list of codes to display (Optional)\n\n");
