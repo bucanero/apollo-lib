@@ -47,6 +47,59 @@ make check-corpus PATCHES=/path/to/apollo-patches   # diff vs committed goldens 
 ./test_apollo_le --corpus /path/to/apollo-patches > /tmp/le.txt   # ad-hoc manifest
 ```
 
+## Coverage matrix (hand vectors)
+
+### Save Wizard opcodes
+
+| Type | Operation | Sub-cases covered | Tests |
+|------|-----------|-------------------|-------|
+| 0 | 8-bit write | normal; pointer-relative (`08…`) | `sw_write8`, (`08…` used across search tests) |
+| 1 | 16-bit write | normal | `sw_write16` |
+| 2 | 32-bit write | normal | `sw_write32` |
+| 3 | inc/dec write | add-32, sub-16, add-64, pointer-relative add-32 | `sw_add32`, `sw_sub16`, `sw3_add64`, `sw3_pointer_add32` |
+| 4 | multi-write | 16-bit incremental, 32-bit incremental | `sw_multiwrite16`, `sw4_multiwrite32` |
+| 5 | copy bytes | normal | `sw_copy` |
+| 6 | pointer mega code | READ (w=0, 16-bit), MOVE-from-obtained (w=1), MOVE pointer (w=2), WRITE (w=4, 32-bit) | `sw6_read16`, `sw6_move_write32` |
+| 7 | conditional write | no-less-than 16-bit, no-more-than 32-bit | `sw7_no_less_than16`, `sw7_no_more_than32` |
+| 8 | forward search | found, not-found→skip, skip→resume, occurrence count | `sw_search_then_write`, `sw8_forward_found`, `…_not_found_skips`, `…_skip_resumes_at_next_search`, `…_count_second` |
+| 9 | pointer manip | set BE (0), set LE (1), add (2), sub (3), eof−X (4), set X (5), end-ptr (D), end-ptr from ptr (E) | `sw_ptr_from_be_value`, `sw_ptr_from_le_value`, `sw9_pointer_add_sub`, `sw_ptr_from_eof`, `sw_ptr_set_direct`, `sw9_end_pointer_D`, `sw9_end_pointer_E` |
+| A | bulk write | normal | `sw_bulk_write` |
+| B | backward search | found (last), occurrence count, not-found→skip | `swB_backward_found_last`, `swB_backward_count_second`, `swB_backward_not_found_skips` |
+| C | address-byte search | forward found, not-found→skip | `swC_addr_search_found`, `swC_addr_search_not_found_skips` |
+| D | conditional skip | 8-bit equal (pass/skip), 16-bit BE (Z=0), 16-bit LE (Z=2) | `swD_test_pass_no_skip`, `swD_test_fail_skips`, `swD_test_16bit_be`, `swD_test_16bit_le` |
+
+### BSD commands / functions
+
+| Command / function | Coverage | Tests |
+|--------------------|----------|-------|
+| `carry(n)` | drives wadd/add truncation | `bsd_carry_padding_truncation`, `bsd_add_carry_truncation` |
+| `set pointer:` | absolute address | `bsd_write_next_pointer` |
+| `set range:` | range for hashes | `bsd_hash_*` |
+| `set [v]:read(o,n)` | int16 / int32 / int64 widths | `bsd_read_int16`, `bsd_read_int32`, `bsd_read_int64` |
+| `set [v]:wadd` | carry truncation (HOST_LSB) | `bsd_carry_padding_truncation` |
+| `set [v]:add` | carry truncation (HOST_LSB) | `bsd_add_carry_truncation` |
+| `set [v]:right` | rightmost bytes (HOST_LSB) | `bsd_right_truncation` |
+| `set [v]:left` | leftmost bytes (HOST_MSB) | `bsd_left` |
+| `set [v]:mid` | byte substring | `bsd_mid`, `bsd_mid_offset` |
+| `set [v]:endian_swap` | byte reversal (existing var) | `bsd_update_existing_variable` |
+| `set [v]:crc32big` | CRC-32/BZIP2 (known vector) | `bsd_hash_crc32big` |
+| `set [v]:sha1` | SHA-1 (known vector) | `bsd_hash_sha1` |
+| `set [v]:jhash` | Jenkins hash (characterised) | `bsd_hash_jhash` |
+| `set [v]:md5_xor` | folded MD5 (characterised) | `bsd_hash_md5_xor` |
+| `set [v]:sha1_xor64` | folded SHA-1 (characterised) | `bsd_hash_sha1_xor64` |
+| existing-variable update | re-fetch value (HOST_LSB @796) | `bsd_update_existing_variable` |
+| `write at` | verbatim hex | `bsd_write_hex` |
+| `write next` | pointer-relative | `bsd_write_next_pointer` |
+| `write …:repeat(c,v)` | repeated value | `bsd_write_repeat` |
+| `write …:[v]` | variable value | `bsd_carry_*`, `bsd_read_*` |
+| `insert` | grow buffer | `bsd_insert` |
+| `delete` | shrink buffer (length) | `bsd_delete` |
+| `search` | found, not-found→abort, occurrence count | `bsd_search_found`, `bsd_search_not_found_aborts`, `bsd_search_count_second` |
+
+(The golden corpus additionally exercises many other BSD functions — CRCs, other
+checksums, encryption — as characterization over the vendored fixtures, without
+per-function correctness assertions. See the gap list in the project history.)
+
 ## What the two layers guarantee
 
 **Hand vectors** are an independent spec: expected bytes are derived from the
