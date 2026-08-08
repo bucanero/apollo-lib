@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "2.0.4"
+#define APOLLO_LIB_VERSION         "2.1.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_SAVEWIZARD     1
@@ -17,6 +17,11 @@
 #define APOLLO_CODE_FLAG_ALERT     8
 #define APOLLO_CODE_FLAG_EMPTY     16
 #define APOLLO_CODE_FLAG_DISABLED  32
+#define APOLLO_CODE_FLAG_ORDER_LE  64
+#define APOLLO_CODE_FLAG_ORDER_BE  128
+
+#define APOLLO_DATA_MODE_LITTLE    1
+#define APOLLO_DATA_MODE_BIG       2
 
 #ifdef __cplusplus
 extern "C" {
@@ -118,6 +123,8 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 //---  Apollo patch functions ---
 
 void free_patch_var_list(void);
+void apollo_set_endianness(int endian);
+int apollo_get_data_endianness(void);
 size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
 size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
 size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);

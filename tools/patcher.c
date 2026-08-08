@@ -3,12 +3,6 @@
 #include <string.h>
 #include "apollo.h"
 
-#ifdef __PS3_PC__
-#define CLI_VERSION     APOLLO_LIB_VERSION " PS3/big-endian"
-#else
-#define CLI_VERSION     APOLLO_LIB_VERSION
-#endif
-
 static int log = 0;
 static const char* CODE_TYPES[] = {
     "Unknown",
@@ -37,7 +31,9 @@ const char* info_flags(int flag)
 void print_usage(const char* argv0)
 {
     printf("Patching:\n");
-    printf(" USAGE: %s file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf(" USAGE: %s [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]\n\n", argv0);
+    printf("  -b,--big-endian:    Use big-endian data mode\n");
+    printf("  -l,--little-endian: Use little-endian data mode\n");
     printf("  file.savepatch: The cheat patch file to apply\n");
     printf("  1,2,7-10,18:    The list of codes to apply\n");
     printf("  data-file.bin:  The target file to patch\n\n");
@@ -162,12 +158,27 @@ int main(int argc, char **argv)
     char *data;
     list_t* list_codes;
 
-    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", CLI_VERSION);
+    printf("\nApollo Cheat Patcher v%s - (c) 2022-2026 by Bucanero\n\n", APOLLO_LIB_VERSION);
 
     if (--argc < 1)
     {
         print_usage(argv[0]);
         return -1;
+    }
+
+    if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
+    {
+        printf(">>> Using big-endian data mode\n\n");
+        apollo_set_endianness(APOLLO_DATA_MODE_BIG);
+        argc--;
+        argv++;
+    }
+    else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
+    {
+        printf("<<< Using little-endian data mode\n\n");
+        apollo_set_endianness(APOLLO_DATA_MODE_LITTLE);
+        argc--;
+        argv++;
     }
 
     if (strchr(argv[1], '\n') && strchr(argv[1], '[') && strchr(argv[1], ']'))

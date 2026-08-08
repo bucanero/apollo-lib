@@ -12,22 +12,25 @@ scripts locally on a computer.
 
 -  `dumper <#dumper>`__
 -  `patcher <#patcher>`__
--  `patcher-bigendian <#patcher-bigendian>`__
 
 patcher
 ~~~~~~~
 
 The ``patcher`` command-line tool reads a ``.savepatch`` file and a
 comma-separated list of patches, and apply the selected cheat codes to
-the target file.
+the target file. It defaults to little-endian data mode and also
+supports ``-b/--big-endian`` and ``-l/--little-endian`` to select the
+mode at run-time.
 
 ::
 
-   Apollo Cheat Patcher v2.0.4 - (c) 2022-2026 by Bucanero
+   Apollo Cheat Patcher v2.1.0 - (c) 2022-2026 by Bucanero
 
    Patching:
-    USAGE: ./patcher file.savepatch 1,2,7-10,18 [data-file.bin]
+    USAGE: ./patcher [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]
 
+     -b,--big-endian:    Use big-endian data mode
+     -l,--little-endian: Use little-endian data mode
      file.savepatch: The cheat patch file to apply
      1,2,7-10,18:    The list of codes to apply
      data-file.bin:  The target file to patch
@@ -38,22 +41,6 @@ the target file.
      file.savepatch: The cheat patch file to list
      -c:             Display code details (Optional)
      1,2,7-10,18:    The list of codes to display (Optional)
-
-patcher-bigendian
-~~~~~~~~~~~~~~~~~
-
-``patcher-bigendian`` is provided to apply patches on PS3 (big-endian)
-save-game data files.
-
-::
-
-   Apollo Cheat Patcher v2.0.4 PS3/big-endian - (c) 2022-2026 by Bucanero
-
-   USAGE: ./patcher-bigendian file.savepatch 1,2,7-10,18 [data-file.bin]
-
-     file.savepatch: The cheat patch file to apply
-     1,2,7-10,18:    The list of codes to apply
-     data-file.bin:  The target file to patch
 
 dumper
 ~~~~~~

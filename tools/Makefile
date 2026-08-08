@@ -8,10 +8,6 @@ CC	=	gcc
 CFLAGS	=	-g -O3 -Wall -I../include -I../mbedtls-2.16.12/include -I. -D_GNU_SOURCE -D_USE_MBEDTLS -DAPOLLO_CLI
 LDFLAGS =	-lz -lm -lmbedcrypto -L../mbedtls-2.16.12/build/library
 
-ifdef BIGENDIAN
-CFLAGS	+=	-D__PS3_PC__
-endif
-
 OBJS	= $(COMMON) $(addsuffix .o, $(TOOLS)) $(addsuffix .o, $(DUMPER))
 
 all: $(TOOLS) $(DUMPER)
