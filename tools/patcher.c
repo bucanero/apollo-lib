@@ -168,14 +168,16 @@ int main(int argc, char **argv)
 
     if (strcmp(argv[1], "-b") == 0 || strcmp(argv[1], "--big-endian") == 0)
     {
-        printf("[i] Using big-endian data mode\n");
+        printf("[i] Using big-endian data mode\n\n");
         apollo_set_endianness(APOLLO_DATA_MODE_BIG);
+        argc--;
         argv++;
     }
     else if (strcmp(argv[1], "-l") == 0 || strcmp(argv[1], "--little-endian") == 0)
     {
-        printf("[i] Using little-endian data mode\n");
+        printf("[i] Using little-endian data mode\n\n");
         apollo_set_endianness(APOLLO_DATA_MODE_LITTLE);
+        argc--;
         argv++;
     }
 

@@ -434,13 +434,13 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			{
 				line += 6;
 				group = APOLLO_CODE_FLAG_PARENT;
-				LOG("GROUP: %s\n", line);
+				LOG("GROUP: %s\n", line+1);
 			}
 			else if (wildcard_match(line, "; --- * ---") || wildcard_match_icase(line, "GROUP:*"))
 			{
 				line += 5;
 				group = APOLLO_CODE_FLAG_PARENT;
-				LOG("GROUP: %s\n", line);
+				LOG("GROUP: %s\n", line+1);
 			}
 			line++;
 
