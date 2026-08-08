@@ -60,14 +60,13 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 
 - [dumper](#dumper)
 - [patcher](#patcher)
-- [patcher-bigendian](#patcher-bigendian)
 
 ### patcher
 
 The `patcher` command-line tool reads a `.savepatch` file and a comma-separated list of patches, and apply the selected cheat codes to the target file. It defaults to little-endian data mode and also supports `-b/--big-endian` and `-l/--little-endian` to select the mode at run-time.
 
 ```
-Apollo Cheat Patcher v2.0.4 - (c) 2022-2026 by Bucanero
+Apollo Cheat Patcher v2.1.0 - (c) 2022-2026 by Bucanero
 
 Patching:
  USAGE: ./patcher [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]
@@ -79,21 +78,11 @@ Patching:
   data-file.bin:  The target file to patch
 
 Listing:
- USAGE: ./patcher [-b|--big-endian] [-l|--little-endian] file.savepatch [-c 1,2,7-10,18]
+ USAGE: ./patcher file.savepatch [-c 1,2,7-10,18]
 
   file.savepatch: The cheat patch file to list
   -c:             Display code details (Optional)
   1,2,7-10,18:    The list of codes to display (Optional)
-```
-
-### patcher-bigendian
-
-`patcher-bigendian` is provided to apply patches on PS3 (big-endian) save-game data files. It is the same CLI with a big-endian default.
-
-```
-Apollo Cheat Patcher v2.0.4 PS3/big-endian - (c) 2022-2026 by Bucanero
-
-USAGE: ./patcher-bigendian [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]
 ```
 
 ### dumper
@@ -106,9 +95,9 @@ Apollo binary file SW dumper v1.4.0 - (c) 2023-2025 by Bucanero
 USAGE: ./dumper filename.ext
 ```
 
-### Apollo GUI
+### Apollo Patcher GUI
 
-Windows users that prefer a graphical interface can use [Apollo GUI](https://github.com/SkillerCMP/ApolloGUI/releases/latest) by [SkillerCMP](https://github.com/SkillerCMP). The GUI uses [Apollo CLI Tools](#cli-tools) to provide a user-friendly interface to apply save patches and scripts.
+Users that prefer a graphical interface can use [Apollo Patcher GUI](gui/README.md). The GUI uses the [Apollo Core library](https://bucanero.github.io/apollo-lib/) to provide a user-friendly interface to apply save patches and scripts.
 
 ## Credits
 
@@ -118,7 +107,7 @@ Windows users that prefer a graphical interface can use [Apollo GUI](https://git
 
 * [aldostools](https://aldostools.org/): [Bruteforce Save Data](https://bruteforcesavedata.forumms.net/)
 * [aluigi](http://aluigi.org): [offzip/packzip](http://aluigi.altervista.org/mytoolz.htm)
-* [SkillerCMP](https://github.com/SkillerCMP): [Apollo GUI](https://github.com/SkillerCMP/ApolloGUI)
+* [SkillerCMP](https://github.com/SkillerCMP): [CMPCodeDatabase](https://github.com/SkillerCMP/CMPCodeDatabase)
 
 ## Dependencies
 
