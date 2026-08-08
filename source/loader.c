@@ -414,6 +414,16 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 				line += 7;
 				code->type = APOLLO_CODE_PYTHON;
 			}
+			else if (wildcard_match_icase(line, "[LE:*"))
+			{
+				line += 3;
+				code->flags |= APOLLO_CODE_FLAG_ORDER_LE;
+			}
+			else if (wildcard_match_icase(line, "[BE:*"))
+			{
+				line += 3;
+				code->flags |= APOLLO_CODE_FLAG_ORDER_BE;
+			}
 			else if (wildcard_match_icase(line, "*GROUP:\\*"))
 			{
 				group = 0;
@@ -424,13 +434,13 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			{
 				line += 6;
 				group = APOLLO_CODE_FLAG_PARENT;
-				LOG("GROUP: %s\n", line);
+				LOG("GROUP: %s\n", line+1);
 			}
 			else if (wildcard_match(line, "; --- * ---") || wildcard_match_icase(line, "GROUP:*"))
 			{
 				line += 5;
 				group = APOLLO_CODE_FLAG_PARENT;
-				LOG("GROUP: %s\n", line);
+				LOG("GROUP: %s\n", line+1);
 			}
 			line++;
 

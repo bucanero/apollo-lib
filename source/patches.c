@@ -94,6 +94,18 @@ static list_t* var_list = NULL;
 static mp_state_ctx_t* upy = NULL;
 static apollo_host_cb_t host_callback = NULL;
 
+static int _default_endianness = APOLLO_ENDIAN_DEFAULT;
+
+
+void apollo_set_endianness(int endian)
+{
+	_default_endianness = endian;
+}
+
+int apollo_get_data_endianness(void)
+{
+	return (_default_endianness ? _default_endianness : apollo_get_host_endianness());
+}
 
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
@@ -290,6 +302,8 @@ void free_patch_var_list(void)
 		free(upy);
 		upy = NULL;
 	}
+
+	_default_endianness = APOLLO_ENDIAN_DEFAULT;
 }
 
 static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
@@ -344,6 +358,11 @@ static void swap_u64_data(uint64_t* data, int count)
 {
 	for (int i=0; i < count; i++)
 		data[i] = ES64(data[i]);
+}
+
+static void copy_uint_bytes(uint8_t* dst, uint64_t value, size_t len, apollo_endianness_t data_endian)
+{
+	apollo_write_uint(dst, value, len, data_endian);
 }
 
 static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
@@ -510,17 +529,18 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 		LOG("[%s]:Bitwise error! var length doesn't match", var->name);
 		return 0;
 	}
-#ifndef __PPU__
-	// workaround: _decode_variable_data() returns data as big endian
-	// if not PPU, we need to convert it to little endian to match the data
-	char* le_val = malloc(wlen);
-	
-	for (i=0; i < wlen; i++)
-		le_val[i] = bw_val[wlen - i - 1];
+	if (apollo_get_host_endianness() == APOLLO_ENDIAN_LITTLE)
+	{
+		// workaround: _decode_variable_data() returns data as big endian
+		// convert it to the configured data endianness to match the variable
+		char* le_val = malloc(wlen);
+		
+		for (i=0; i < wlen; i++)
+			le_val[i] = bw_val[wlen - i - 1];
 
-	memcpy(bw_val, le_val, wlen);
-	free(le_val);
-#endif
+		memcpy(bw_val, le_val, wlen);
+		free(le_val);
+	}
 	for (i=0; i < wlen; i++)
 		switch (type)
 		{
@@ -1959,6 +1979,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_lan_addr*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_LAN_ADDR, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_lan_addr not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1970,6 +1995,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_wlan_addr*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_WLAN_ADDR, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_wlan_addr not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1981,6 +2011,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_account_id*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_ACCOUNT_ID, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_account_id not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -1992,6 +2027,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_psid*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_PSID, &var->len);
+					if (!rval)
+					{
+						LOG("ERROR: host_psid not available");
+						continue;
+					}
 
 					var->data = malloc(var->len);
 					memcpy(var->data, rval, var->len);
@@ -2003,6 +2043,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_username*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_USERNAME, NULL);
+					if (!rval)
+					{
+						LOG("ERROR: host_username not available");
+						continue;
+					}
 
 					var->len = strlen(rval);
 					var->data = malloc(var->len);
@@ -2015,6 +2060,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				else if (wildcard_match_icase(line, "host_sys_name*"))
 				{
 					char* rval = host_callback(APOLLO_HOST_SYS_NAME, NULL);
+					if (!rval)
+					{
+						LOG("ERROR: host_sys_name not available");
+						continue;
+					}
 
 					var->len = strlen(rval);
 					var->data = malloc(var->len);
@@ -2929,6 +2979,12 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
+	apollo_endianness_t data_endian = apollo_get_data_endianness();
+
+	if (code->flags & APOLLO_CODE_FLAG_ORDER_BE)
+		data_endian = APOLLO_ENDIAN_BIG;
+	else if (code->flags & APOLLO_CODE_FLAG_ORDER_LE)
+		data_endian = APOLLO_ENDIAN_LITTLE;
 
 	gg_code = strdup(code->codes);
 	apply_tag_opts(gg_code, code);
@@ -2959,9 +3015,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
-				MEM32(val);
-
-    			memcpy(data + off, (char*) &val + PADDING(4 - bytes), bytes);
+				copy_uint_bytes(data + off, val, bytes, data_endian);
 
     			LOG("Wrote %d bytes (%s) to 0x%X", bytes, tmp8 + (8 - bytes*2), off);
     		}
@@ -3021,31 +3075,25 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 					case '1':
 					case '9':
-						wv16 = ((uint16_t*) write)[0];
-						MEM16(wv16);
+						wv16 = apollo_read_u16(write, data_endian);
 						wv16 += (val & 0x0000FFFF);
-						MEM16(wv16);
-						memcpy(write, &wv16, 2);
+						apollo_write_u16(write, wv16, data_endian);
 						LOG("Add-Write 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '2':
 					case 'A':
-						wv32 = ((uint32_t*) write)[0];
-						MEM32(wv32);
+						wv32 = apollo_read_u32(write, data_endian);
 						wv32 += val;
-						MEM32(wv32);
-						memcpy(write, &wv32, 4);
+						apollo_write_u32(write, wv32, data_endian);
 						LOG("Add-Write 4 bytes (%08X) to 0x%X", val, off);
 						break;
 
 					case '3':
 					case 'B':
-						wv64 = ((uint64_t*) write)[0];
-						MEM64(wv64);
+						wv64 = apollo_read_u64(write, data_endian);
 						wv64 += val;
-						MEM64(wv64);
-						memcpy(write, &wv64, 8);
+						apollo_write_u64(write, wv64, data_endian);
 						LOG("Add-Write 8 bytes (%08X) to 0x%X", val, off);
 						break;
 
@@ -3059,31 +3107,25 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 					case '5':
 					case 'D':
-						wv16 = ((uint16_t*) write)[0];
-						MEM16(wv16);
+						wv16 = apollo_read_u16(write, data_endian);
 						wv16 -= (val & 0x0000FFFF);
-						MEM16(wv16);
-						memcpy(write, &wv16, 2);
+						apollo_write_u16(write, wv16, data_endian);
 						LOG("Sub-Write 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '6':
 					case 'E':
-						wv32 = ((uint32_t*) write)[0];
-						MEM32(wv32);
+						wv32 = apollo_read_u32(write, data_endian);
 						wv32 -= val;
-						MEM32(wv32);
-						memcpy(write, &wv32, 4);
+						apollo_write_u32(write, wv32, data_endian);
 						LOG("Sub-Write 4 bytes (%08X) to 0x%X", val, off);
 						break;
 
 					case '7':
 					case 'F':
-						wv64 = ((uint64_t*) write)[0];
-						MEM64(wv64);
+						wv64 = apollo_read_u64(write, data_endian);
 						wv64 -= val;
-						MEM64(wv64);
-						memcpy(write, &wv64, 8);
+						apollo_write_u64(write, wv64, data_endian);
 						LOG("Sub-Write 8 bytes (%08X) to 0x%X", val, off);
 						break;
 				}
@@ -3111,11 +3153,10 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
     			//	6 = 4 Bytes (Only Writes XXXXXXXX)		E = Offset from Pointer; 4 Bytes (Only Writes XXXXXXXX)
     		{
     			int i, off, n, incoff;
-    			uint32_t val, incval, wv32;
+    			uint32_t val, incval;
     			char t = line[1];
     			uint8_t* write;
     			uint8_t wv8;
-    			uint16_t wv16;
 
     			sprintf(tmp6, "%.6s", line+2);
     			sscanf(tmp6, "%x", &off);
@@ -3162,9 +3203,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 						case '9':
 						case '5':
 						case 'D':
-							wv16 = val;
-							MEM16(wv16);
-							memcpy(write, &wv16, 2);
+							apollo_write_u16(write, (uint16_t) val, data_endian);
 							LOG("M-Wrote 2 bytes (%04X) to 0x%lX", val, write - data);
 							break;
 
@@ -3172,9 +3211,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 						case 'A':
 						case '6':
 						case 'E':
-							wv32 = val;
-							MEM32(wv32);
-							memcpy(write, &wv32, 4);
+							apollo_write_u32(write, val, data_endian);
 							LOG("M-Wrote 4 bytes (%08X) to 0x%lX", val, write - data);
 							break;
 					}
@@ -3270,8 +3307,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					case '9':
 						// Data size = 16 bits
 						// 0000VVVV
-						wv16 = ((uint16_t*) write)[0];
-						MEM16(wv16);
+						wv16 = apollo_read_u16(write, data_endian);
 						ptr_value = wv16;
 						break;
 
@@ -3279,8 +3315,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					case 'A':
 						// Data size = 32 bits
 						// VVVVVVVV
-						wv32 = ((uint32_t*) write)[0];
-						MEM32(wv32);
+						wv32 = apollo_read_u32(write, data_endian);
 						ptr_value = wv32;
 						break;
 					}
@@ -3355,17 +3390,13 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 						case '1':
 						case '9':
-							wv16 = val;
-							MEM16(wv16);
-							memcpy(write, &wv16, 2);
+							apollo_write_u16(write, (uint16_t) val, data_endian);
 							LOG("6-Wrote 2 bytes (%04X) to 0x%lX", val, pointer);
 							break;
 
 						case '2':
 						case 'A':
-							wv32 = val;
-							MEM32(wv32);
-							memcpy(write, &wv32, 4);
+							apollo_write_u32(write, val, data_endian);
 							LOG("6-Wrote 4 bytes (%08X) to 0x%lX", val, pointer);
 							break;
 					}
@@ -3425,21 +3456,17 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					case '1':
 					case '9':
 						val &= 0x0000FFFF;
-						wv16 = ((uint16_t*) write)[0];
-						MEM16(wv16);
+						wv16 = apollo_read_u16(write, data_endian);
 						if (val > wv16) wv16 = val;
-						MEM16(wv16);
-						memcpy(write, &wv16, 2);
+						apollo_write_u16(write, wv16, data_endian);
 						LOG("nlt-Wrote 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '2':
 					case 'A':
-						wv32 = ((uint32_t*) write)[0];
-						MEM32(wv32);
+						wv32 = apollo_read_u32(write, data_endian);
 						if (val > wv32) wv32 = val;
-						MEM32(wv32);
-						memcpy(write, &wv32, 4);
+						apollo_write_u32(write, wv32, data_endian);
 						LOG("nlt-Wrote 4 bytes (%08X) to 0x%X", val, off);
 						break;
 
@@ -3455,21 +3482,17 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					case '5':
 					case 'D':
 						val &= 0x0000FFFF;
-						wv16 = ((uint16_t*) write)[0];
-						MEM16(wv16);
+						wv16 = apollo_read_u16(write, data_endian);
 						if (val < wv16) wv16 = val;
-						MEM16(wv16);
-						memcpy(write, &wv16, 2);
+						apollo_write_u16(write, wv16, data_endian);
 						LOG("nmt-Wrote 2 bytes (%04X) to 0x%X", val, off);
 						break;
 
 					case '6':
 					case 'E':
-						wv32 = ((uint32_t*) write)[0];
-						MEM32(wv32);
+						wv32 = apollo_read_u32(write, data_endian);
 						if (val < wv32) wv32 = val;
-						MEM32(wv32);
-						memcpy(write, &wv32, 4);
+						apollo_write_u32(write, wv32, data_endian);
 						LOG("nmt-Wrote 4 bytes (%08X) to 0x%X", val, off);
 						break;
 				}

@@ -194,12 +194,26 @@ void apollo_opt_set_selected(apollo_code_t *c, int group, int idx)
     c->raw->options[group].sel = idx;
 }
 
+/* ---- data endianness ---- */
+static int g_big_endian = 0;
+
+void apollo_set_big_endian(int enabled)
+{
+    g_big_endian = enabled ? 1 : 0;
+    apollo_set_endianness(g_big_endian ? APOLLO_DATA_MODE_BIG : APOLLO_DATA_MODE_DEFAULT);
+}
+
+int apollo_get_big_endian(void) { return g_big_endian; }
+
 /* ---- apply ---- */
 int apollo_apply(apollo_session_t *s, apollo_code_t *c, const char *target_file)
 {
     (void)s;
     if (!c) return 0;
     const char *target = target_file ? target_file : c->raw->file;
+    /* free_patch_var_list() resets the engine to the host's byte order, and it
+     * can run between codes, so re-assert the mode on every apply. */
+    apollo_set_endianness(g_big_endian ? APOLLO_DATA_MODE_BIG : APOLLO_DATA_MODE_DEFAULT);
     return apply_cheat_patch_code(target, c->raw, NULL) ? 1 : 0;
 }
 

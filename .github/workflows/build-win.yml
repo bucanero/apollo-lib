@@ -48,8 +48,6 @@ jobs:
       - name: Build binaries
         run: |
           cd tools
-          make BIGENDIAN=1
-          mv patcher.exe patcher-bigendian.exe
           make clean && make
 
       - name: Build Apollo Patcher GUI

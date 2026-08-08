@@ -128,6 +128,9 @@ code_entry_t make_sw_code(const char* codes)
     code_entry_t c;
     memset(&c, 0, sizeof(c));
     c.type  = APOLLO_CODE_SAVEWIZARD;
+#if APOLLO_TEST_ENDIAN_BE
+    c.flags = APOLLO_CODE_FLAG_ORDER_BE;
+#endif
     c.name  = (char*)"vector";
     c.file  = (char*)"vector";
     c.codes = (char*)codes;   /* apply_sw_patch_code strdup()s this */
@@ -138,6 +141,9 @@ code_entry_t make_bsd_code(const char* codes)
 {
     code_entry_t c = make_sw_code(codes);
     c.type = APOLLO_CODE_BSD;
+#if APOLLO_TEST_ENDIAN_BE
+    c.flags = APOLLO_CODE_FLAG_ORDER_BE;
+#endif
     return c;
 }
 

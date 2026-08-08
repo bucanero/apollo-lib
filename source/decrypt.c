@@ -24,6 +24,8 @@
 #include "keys.h"
 #include "types.h"
 
+extern int apollo_get_data_endianness(void);
+
 
 void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
 {
@@ -983,6 +985,8 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 
 void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
 {
+	apollo_endianness_t data_endian = apollo_get_data_endianness();
+
 	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
 
 	len /= 4;
@@ -992,9 +996,9 @@ void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
 		key ^= (key >> 7);
 		key ^= (key << 5);
 
-		MEM32(data[i]);
-		data[i] ^= key;
-		MEM32(data[i]);
+		uint32_t value = apollo_read_u32(&data[i], data_endian);
+		value ^= key;
+		apollo_write_u32(&data[i], value, data_endian);
 	}
 
 	LOG("[*] Encoded File Successfully!");

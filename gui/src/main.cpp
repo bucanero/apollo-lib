@@ -58,6 +58,7 @@ struct AppState {
     std::string         log;
     std::mutex          log_mtx;
     bool                backup = true;    // copy target -> target.bak before patching
+    bool                big_endian = false; // engine data byte order (CLI's -b flag)
     bool                scroll_log = false;
     bool                show_log = false; // log pane collapsed by default
     bool                open_apply_popup = false;
@@ -189,6 +190,13 @@ static void apply_selected() {
             return;
         }
     }
+
+    // Byte order for save data — the engine's global setting, re-asserted by
+    // apollo_apply() for every code (free_patch_var_list() clears it).
+    apollo_set_big_endian(g_app.big_endian ? 1 : 0);
+    g_app.log.clear();
+    g_app.append_log(g_app.big_endian ? "=== Using big-endian data mode"
+                                      : "=== Using host (little-endian) data mode");
 
     int applied = 0, errors = 0;
     for (int i = 0; i < apollo_code_count(g_app.session); ++i) {
@@ -432,6 +440,15 @@ static void draw_main_window(bool* want_quit) {
     ImGui::TextUnformatted(g_app.target_path.empty() ? "(script uses patch's own target)"
                                                      : g_app.target_path.c_str());
     ImGui::Checkbox("Back up target (.bak) before patching", &g_app.backup);
+
+    // Data byte order — equivalent of the CLI's -b/--big-endian flag. Applied
+    // to the engine right before patching (see apply_selected).
+    if (ImGui::Checkbox("Big-endian mode", &g_app.big_endian))
+        apollo_set_big_endian(g_app.big_endian ? 1 : 0);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Read/write save data as big-endian (PS3, Xbox 360, Wii, ...).\n"
+                          "Leave off for little-endian saves (PS4, PS Vita, PC).\n"
+                          "Same as the patcher CLI's -b/--big-endian flag.");
 
     ImGui::Spacing();
     if (g_app.session)
