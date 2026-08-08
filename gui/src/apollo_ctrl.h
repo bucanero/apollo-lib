@@ -47,10 +47,7 @@ typedef struct {
 
 typedef struct apollo_session apollo_session_t;
 
-/* Parse a .savepatch. Returns NULL on read/parse failure.
- * `big_endian` is accepted for API symmetry; note the engine's endianness is a
- * COMPILE-TIME switch (__PS3_PC__), so a runtime value here only takes effect
- * if this wrapper was built with the big-endian engine. See README. */
+/* Parse a .savepatch. Returns NULL on read/parse failure. */
 apollo_session_t *apollo_open_file(const char *path);
 apollo_session_t *apollo_open_buffer(const char *buf, size_t len, const char *name);
 
@@ -69,6 +66,15 @@ int          apollo_opt_value_count(const apollo_code_t *c, int group);
 const char  *apollo_opt_value_name(const apollo_code_t *c, int group, int idx);
 int          apollo_opt_get_selected(const apollo_code_t *c, int group);
 void         apollo_opt_set_selected(apollo_code_t *c, int group, int idx);
+
+/* ---- Data endianness ---- */
+/* Select the byte order the engine uses for save DATA (the CLI's -b/-l flags).
+ * Non-zero selects big-endian (PS3/PPU saves), zero returns to the host's
+ * native order. The engine setting is global and is cleared by
+ * free_patch_var_list(), so apollo_apply() re-asserts it before every code —
+ * set this once and it stays in effect for the whole session. */
+void apollo_set_big_endian(int enabled);
+int  apollo_get_big_endian(void);
 
 /* Apply one code to `target_file`. Returns 1 on success, 0 on error.
  * Progress is emitted through the installed log sink. If the code has options,

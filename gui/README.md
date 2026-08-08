@@ -88,12 +88,13 @@ cmake --build build
 - **Apply is blocked** while any checked code has an unfilled required option:
   the offending combo boxes and an "(required)" tag turn red, and the button is
   disabled until every selection is made.
+- **Big-endian mode** checkbox: selects the byte order the engine uses for save
+  data (PS3 / Xbox 360 / Wii saves), the equivalent of the `patcher` CLI's
+  `-b`/`--big-endian` flag. It calls `apollo_set_endianness()` before each code
+  is applied, so a single build handles both byte orders — no separate
+  big-endian binary.
 
 ## Known caveats / TODO
-
-- **Big-endian (PS3):** endianness is a *compile-time* switch in the engine
-  (`__PS3_PC__`). Build a second variant with `-DAPOLLO_BIGENDIAN=ON` (mirrors
-  the CLI's `patcher-bigendian`) rather than toggling at runtime.
 - **Linux dialogs:** portable-file-dialogs needs a dialog helper present at
   runtime (`zenity`, `kdialog`, `matedialog`, or `qarma`).
 - **OpenGL / GPU-less & RDP hosts:** the app uses Dear ImGui's fixed-function

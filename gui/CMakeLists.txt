@@ -9,8 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(APOLLO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(MBEDTLS_DIR "${APOLLO_ROOT}/mbedtls-2.16.12")
 
-option(APOLLO_BIGENDIAN "Build the PS3 big-endian engine variant" OFF)
-
 # ---------------------------------------------------------------------------
 # libapollo engine (compiled from source/ so the GUI is self-contained).
 # ---------------------------------------------------------------------------
@@ -32,9 +30,6 @@ target_include_directories(apollo_engine PUBLIC
     ${MBEDTLS_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src)  # apollo_ctrl.h + app sources
 target_compile_definitions(apollo_engine PRIVATE _GNU_SOURCE _USE_MBEDTLS)
-if(APOLLO_BIGENDIAN)
-    target_compile_definitions(apollo_engine PRIVATE __PS3_PC__)
-endif()
 
 # mbedcrypto: prefer the prebuilt static lib (built by CI), else expect a
 # system/library target. Adjust to taste for your packaging.
