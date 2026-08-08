@@ -2979,10 +2979,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
-	apollo_endianness_t data_endian = apollo_get_host_endianness();
-
-	if (_default_endianness)
-		data_endian = _default_endianness;
+	apollo_endianness_t data_endian = apollo_get_data_endianness();
 
 	if (code->flags & APOLLO_CODE_FLAG_ORDER_BE)
 		data_endian = APOLLO_ENDIAN_BIG;
