@@ -107,6 +107,20 @@ int apollo_get_data_endianness(void)
 	return (_default_endianness ? _default_endianness : apollo_get_host_endianness());
 }
 
+/*
+ * Bounds guard for all save-buffer accesses driven by attacker-controlled
+ * offsets/lengths from a .savepatch. Returns 1 when the byte range
+ * [off, off+len) lies fully within [0, dsize]. Written to be overflow-safe:
+ * `off` is signed (pointer-relative offsets can go negative) and the
+ * `dsize - off` subtraction only happens after `off` is confirmed in range.
+ */
+static int _range_in_bounds(size_t dsize, long off, size_t len)
+{
+	if (off < 0 || (size_t) off > dsize)
+		return 0;
+	return (len <= dsize - (size_t) off);
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
@@ -676,7 +690,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
         			int raddr, rlen;
         			sscanf(line, "(%x,%x)", &raddr, &rlen);
 
-                    uint32_t rval = *((uint32_t*) &data[raddr]);
+                    uint32_t rval = _range_in_bounds(dsize, (long) raddr, 4) ? *((uint32_t*) &data[raddr]) : 0;
 					BE32(rval);
             	    LOG("address = %d len %d ", raddr, rlen);
             	    
@@ -709,6 +723,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			    range_start = _parse_int_value(line, pointer, dsize);
 				if (range_start < 0)
 					range_start = 0;
+				if (range_start > (long)dsize)
+					range_start = dsize;
 
 			    line = tmp+1;
 			    *tmp = ',';
@@ -716,6 +732,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				range_end = _parse_int_value(line, pointer - eof, dsize) + 1;
 				if (range_end > (long)dsize)
 					range_end = dsize;
+				if (range_end < range_start)
+					range_end = range_start;
 
                 LOG("RANGE = %ld (0x%lX) - %ld (0x%lX)", range_start, range_start, range_end, range_end);
 			}
@@ -1816,9 +1834,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
     			    xor_i = _parse_int_value(line, pointer, dsize);
 
     			    *tmp = ')';
+    			    if (xor_i < 1) xor_i = 1;      /* avoid infinite loop */
+    			    if (xor_i > 4) xor_i = 4;      /* xor[4] stack bound   */
+    			    if (xor_s < 0) xor_s = 0;
     			    uint8_t* read = data + xor_s;
     			    
-    			    while (read < data + xor_e)
+    			    while (read < data + xor_e && read + xor_i <= data + dsize)
     			    {
     			        for (j = 0; j < xor_i; j++)
     			            xor[j] ^= read[j];
@@ -1845,6 +1866,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					line += strlen("read(");
 					_parse_start_end(line, pointer, dsize, &read_s, &read_l);
+					if (read_l < 0 || !_range_in_bounds(dsize, read_s, read_l))
+					{
+						LOG("ERROR: read() out of bounds (off=0x%X len=%d)", read_s, read_l);
+						dsize = 0;
+						goto bsd_end;
+					}
 					uint8_t* read = data + read_s;
 
 					switch (read_l)
@@ -2238,7 +2265,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 //				LOG("%x", write_val[i]);
 
 			uint8_t* write = data + off;
-			memcpy(write, write_val, wlen);
+			if (_range_in_bounds(dsize, off, wlen))
+				memcpy(write, write_val, wlen);
+			else
+				LOG("SKIP out-of-bounds write (%d bytes) at 0x%X", wlen, off);
 			free(write_val);
 
             LOG("Wrote %d bytes (%s) to 0x%X", wlen, line, off);
@@ -2298,6 +2328,9 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				dsize = 0;
 				goto bsd_end;
 			}
+
+			if (off < 0) off = 0;
+			if ((size_t) off > dsize) off = dsize;
 
 			uint8_t* write = malloc(dsize + ilen);
 			if (!write)
@@ -2394,6 +2427,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					dlen = dsize - off;
 			}
 
+			if (off < 0) off = 0;
+			if ((size_t) off > dsize) off = dsize;
+			if (dlen < 0) dlen = 0;
+			if ((size_t) dlen > dsize - (size_t) off) dlen = dsize - off;
+
 			dsize -= dlen;
 			memmove(data + off, data + off + dlen, dsize - off);
 
@@ -2484,7 +2522,10 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			line = tmp;
 
 			len = _parse_int_value(line, pointer, dsize);
-			memmove(data + off, data + from, len);
+			if (len >= 0 && _range_in_bounds(dsize, from, len) && _range_in_bounds(dsize, off, len))
+				memmove(data + off, data + from, len);
+			else
+				LOG("SKIP out-of-bounds copy (%d bytes) 0x%X->0x%X", len, from, off);
 
 			LOG("Copied %d bytes from 0x%X to 0x%X", len, from, off);
 		}
@@ -3015,6 +3056,11 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
+				if (!_range_in_bounds(dsize, off, bytes))
+				{
+					LOG("SKIP out-of-bounds write (%d bytes) at 0x%X", bytes, off);
+					break;
+				}
 				copy_uint_bytes(data + off, val, bytes, data_endian);
 
     			LOG("Wrote %d bytes (%s) to 0x%X", bytes, tmp8 + (8 - bytes*2), off);
@@ -3060,6 +3106,13 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
+
+				int rmw_bytes = 1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3));
+				if (!_range_in_bounds(dsize, off, rmw_bytes))
+				{
+					LOG("SKIP out-of-bounds inc/dec write (%d bytes) at 0x%X", rmw_bytes, off);
+					break;
+				}
 
 				uint8_t* write = data + off;
 
@@ -3188,6 +3241,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				{
 	    			write = data + off + (incoff * i);
 
+					if (_range_in_bounds(dsize, off + (long) incoff * i, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
 					switch (t)
 					{
 						case '0':
@@ -3250,6 +3304,11 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
     			
     			uint8_t* dst = data + off_dst + (line[1] == '8' ? pointer : 0);
 
+    			if (!_range_in_bounds(dsize, (long)(src - data), val) || !_range_in_bounds(dsize, (long)(dst - data), val))
+    			{
+    				LOG("SKIP out-of-bounds copy of %u bytes", val);
+    				break;
+    			}
     			memcpy(dst, src, val);
 				LOG("Copied %d bytes from 0x%lX to 0x%lX", val, src - data, dst - data);
     		}
@@ -3294,6 +3353,11 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					if (y == '1')
 						pointer = val;
 
+					if (!_range_in_bounds(dsize, (long) val + off, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
+					{
+						LOG("SKIP out-of-bounds type6 read at 0x%X", val + off);
+						break;
+					}
 					switch (t)
 					{
 					case '0':
@@ -3379,6 +3443,11 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					// 4X = Write value: X=0 at read address, X=1 at pointer address
 					write += pointer;
 
+					if (!_range_in_bounds(dsize, pointer, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
+					{
+						LOG("SKIP out-of-bounds type6 write at 0x%lX", pointer);
+						break;
+					}
 					switch (t)
 					{
 						case '0':
@@ -3440,6 +3509,12 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
     			sprintf(tmp8, "%.8s", line+9);
     			sscanf(tmp8, "%" PRIx32, &val);
 
+    			int cw_bytes = 1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3));
+    			if (!_range_in_bounds(dsize, off, cw_bytes))
+    			{
+    				LOG("SKIP out-of-bounds conditional write (%d bytes) at 0x%X", cw_bytes, off);
+    				break;
+    			}
     			uint8_t* write = data + off;
 
 				switch (t)
@@ -3603,11 +3678,13 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				switch (line[1])
 				{
 					case '0':
+						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
 						val = *(uint32_t*)(data + off);
 						BE32(val);
 						pointer = val;
 						break;
 					case '1':
+						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
 						val = *(uint32_t*)(data + off);
 						LE32(val);
 						pointer = val;
@@ -3675,7 +3752,10 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				}
 
 				_log_dump("m-Write", (uint8_t*) write, size);
-				memcpy(data + off, write, size);
+				if (_range_in_bounds(dsize, off, size))
+					memcpy(data + off, write, size);
+				else
+					LOG("SKIP out-of-bounds bulk write (%u bytes) at 0x%X", size, off);
 				free(write);
 
 				LOG("m-Wrote %d bytes to 0x%X", size, off);
@@ -3795,6 +3875,15 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				find = data + addr;
 				if (!cnt) cnt = 1;
 
+				if (!_range_in_bounds(dsize, (long) addr, len))
+				{
+					do { line = strtok(NULL, "\n"); }
+					while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
+					pointer = 0;
+					LOG("Address search pattern out of bounds - SKIP");
+					continue;
+				}
+
 				LOG("Address Searching (len=%d count=%d) ...", len, cnt);
 				_log_dump("Search", (uint8_t*) find, len);
 
@@ -3855,6 +3944,9 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sprintf(tmp4, "%.4s", line+13);
 				sscanf(tmp4, "%x", &val);
 
+				if (!_range_in_bounds(dsize, off, (bit == '1') ? 1 : 2))
+					LOG("SKIP out-of-bounds byte-test read at 0x%X", off);
+				else
 				switch (bit)
 				{
 				case '0':
