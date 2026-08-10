@@ -32,7 +32,7 @@ CFLAGS  := -g -O2 -Wall -D_GNU_SOURCE -D_USE_MBEDTLS -DAPOLLO_CLI $(INC)
 LDFLAGS := -L$(MBED) -lmbedcrypto -lz -lm
 
 LIB_SRCS := crc_util list offzip patches decrypt loader packzip wildcard upy
-TST_SRCS := test_common test_savewizard test_sw_endian_gaps test_bsd test_search test_parse test_corpus test_main
+TST_SRCS := test_common test_savewizard test_sw_endian_gaps test_bsd test_search test_parse test_bounds test_corpus test_main
 
 vpath %.c $(SRC) .
 
