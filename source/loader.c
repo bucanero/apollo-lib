@@ -61,39 +61,39 @@ uint8_t * x_to_u8_buffer(const char *hex)
 }
 
 int read_buffer(const char *file_path, uint8_t **buf, size_t *size) {
-        FILE *fp;
-        uint8_t *file_buf;
-        size_t file_size;
+		FILE *fp;
+		uint8_t *file_buf;
+		size_t file_size;
 
-        if ((fp = fopen(file_path, "rb")) == NULL)
-                return -1;
-        fseek(fp, 0, SEEK_END);
-        file_size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        file_buf = (uint8_t *)malloc(file_size);
-        fread(file_buf, 1, file_size, fp);
-        fclose(fp);
+		if ((fp = fopen(file_path, "rb")) == NULL)
+				return -1;
+		fseek(fp, 0, SEEK_END);
+		file_size = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		file_buf = (uint8_t *)malloc(file_size);
+		fread(file_buf, 1, file_size, fp);
+		fclose(fp);
 
-        if (buf)
-                *buf = file_buf;
-        else
-                free(file_buf);
-        if (size)
-                *size = file_size;
+		if (buf)
+				*buf = file_buf;
+		else
+				free(file_buf);
+		if (size)
+				*size = file_size;
 
-        return 0;
+		return 0;
 }
 
 int write_buffer(const char *file_path, const uint8_t *buf, size_t size)
 {
-        FILE *fp;
+		FILE *fp;
 
-        if ((fp = fopen(file_path, "wb")) == NULL)
-                return -1;
-        fwrite(buf, 1, size, fp);
-        fclose(fp);
+		if ((fp = fopen(file_path, "wb")) == NULL)
+				return -1;
+		fwrite(buf, 1, size, fp);
+		fclose(fp);
 
-        return 0;
+		return 0;
 }
 
 static void clean_eol(char * str)
@@ -284,32 +284,32 @@ static int count_mod_tags(const char* line, const char* tag)
 static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_t* opts)
 {
 	int i=0;
-    char *tmp = NULL;
-    char *res = calloc(1, 1);
-    char *line = strtok(buffer, "\n");
+	char *tmp = NULL;
+	char *res = calloc(1, 1);
+	char *line = strtok(buffer, "\n");
 
-    while (line)
-    {
-    	if ((wildcard_match(line, "[*]") ||
+	while (line)
+	{
+		if ((wildcard_match(line, "[*]") ||
 			wildcard_match(line, "; --- * ---") ||
 			wildcard_match_icase(line, "GROUP:*")) && (i++ == code_id))
-    	{
+		{
 			LOG("Reading patch code for '%s'...", line);
 
-		    for (line = strtok(NULL, "\n"); line != NULL; line = strtok(NULL, "\n"))
-		    {
-		    	if ((wildcard_match(line, "; --- * ---")) 	||
-		    		(wildcard_match(line, ":*"))			||
-		    		(wildcard_match(line, "[*]"))			||
-		    		(wildcard_match(line, "{*}*{/*}"))		||
-		    		(wildcard_match_icase(line, "PATH:*"))	||
-		    		(wildcard_match_icase(line, "GROUP:*")))
-		    	{
+			for (line = strtok(NULL, "\n"); line != NULL; line = strtok(NULL, "\n"))
+			{
+				if ((wildcard_match(line, "; --- * ---")) 	||
+					(wildcard_match(line, ":*"))			||
+					(wildcard_match(line, "[*]"))			||
+					(wildcard_match(line, "{*}*{/*}"))		||
+					(wildcard_match_icase(line, "PATH:*"))	||
+					(wildcard_match_icase(line, "GROUP:*")))
+				{
 						break;
-			    }
+				}
 
-		    	if (!wildcard_match(line, ";*"))
-		    	{
+				if (!wildcard_match(line, ";*"))
+				{
 					asprintf(&tmp, "%s%s\n", res, line);
 					free(res);
 					res = tmp;
@@ -326,14 +326,14 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 						for (node = list_head(opts); (opt = list_get(node)); node = list_next(node))
 							entry->options_count += count_mod_tags(line, opt->line);
 					}
-			    }
-		    }
-    	}
+				}
+			}
+		}
 		if (i > code_id || !line)
 			break;
 
-    	line = strtok(NULL, "\n");
-    }
+		line = strtok(NULL, "\n");
+	}
 
 //	LOG("Result (%s)", res);
 	entry->codes = res;

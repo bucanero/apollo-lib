@@ -136,7 +136,7 @@ void list_bubbleSort(list_t *list, int (*compar)(const void *, const void *))
 	if (!list)
 		return;
 
- 	do
+	do
 	{
 		swapped = 0;
 		ptr1 = list_head(list);
