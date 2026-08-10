@@ -89,113 +89,113 @@ CREATE_CRC_FUNCTION(uint64_t, 64)
  
 // Returns polynomial x multiplied by polynomial y modulo the generator polynomial.
 static uint64_t multiply_mod(uint64_t x, uint64_t y) {
-	// Russian peasant multiplication algorithm
-	uint64_t z = 0;
-	while (y != 0) {
-		z ^= x * (y & 1);
-		y >>= 1;
-		x <<= 1;
-		if (((x >> 32) & 1) != 0)
-			x ^= (CRC_32_POLYNOMIAL + 0x100000000);
-	}
-	return z;
+    // Russian peasant multiplication algorithm
+    uint64_t z = 0;
+    while (y != 0) {
+        z ^= x * (y & 1);
+        y >>= 1;
+        x <<= 1;
+        if (((x >> 32) & 1) != 0)
+            x ^= (CRC_32_POLYNOMIAL + 0x100000000);
+    }
+    return z;
 }
 
 // Returns polynomial x to the power of natural number y modulo the generator polynomial.
 static uint64_t pow_mod(uint64_t x, uint64_t y) {
-	// Exponentiation by squaring
-	uint64_t z = 1;
-	while (y != 0) {
-		if ((y & 1) != 0)
-			z = multiply_mod(z, x);
-		x = multiply_mod(x, x);
-		y >>= 1;
-	}
-	return z;
+    // Exponentiation by squaring
+    uint64_t z = 1;
+    while (y != 0) {
+        if ((y & 1) != 0)
+            z = multiply_mod(z, x);
+        x = multiply_mod(x, x);
+        y >>= 1;
+    }
+    return z;
 }
 
 static int get_degree(uint64_t x) {
-	int result = -1;
-	for (; x != 0; x >>= 1)
-		result++;
-	return result;
+    int result = -1;
+    for (; x != 0; x >>= 1)
+        result++;
+    return result;
 }
 
 // Computes polynomial x divided by polynomial y, returning the quotient and remainder.
 static void divide_and_remainder(uint64_t x, uint64_t y, uint64_t* q, uint64_t* r) {
-	if (y == 0) {
-		// ERROR "Division by zero"
-		return;
-	}
-	if (x == 0) {
-		*q = 0;
-		*r = 0;
-		return;
-	}
+    if (y == 0) {
+        // ERROR "Division by zero"
+        return;
+    }
+    if (x == 0) {
+        *q = 0;
+        *r = 0;
+        return;
+    }
 
-	int ydeg = get_degree(y);
-	uint64_t z = 0;
-	for (int i = get_degree(x) - ydeg; i >= 0; i--) {
-		if (((x >> (i + ydeg)) & 1) != 0) {
-			x ^= y << i;
-			z |= (uint64_t)1 << i;
-		}
-	}
-	*q = z;
-	*r = x;
+    int ydeg = get_degree(y);
+    uint64_t z = 0;
+    for (int i = get_degree(x) - ydeg; i >= 0; i--) {
+        if (((x >> (i + ydeg)) & 1) != 0) {
+            x ^= y << i;
+            z |= (uint64_t)1 << i;
+        }
+    }
+    *q = z;
+    *r = x;
 }
 
 // Returns the reciprocal of polynomial x with respect to the generator polynomial.
 static uint64_t reciprocal_mod(uint64_t x) {
-	// Based on a simplification of the extended Euclidean algorithm
-	uint64_t y = x;
-	x = (CRC_32_POLYNOMIAL + 0x100000000);
-	uint64_t a = 0;
-	uint64_t b = 1;
-	while (y != 0) {
-		uint64_t q, r;
-		divide_and_remainder(x, y, &q, &r);
-		uint64_t c = a ^ multiply_mod(q, b);
-		x = y;
-		y = r;
-		a = b;
-		b = c;
-	}
-	if (x == 1)
-		return a;
-	else {
-		// ERROR "Reciprocal does not exist"
-		return 0;
-	}
+    // Based on a simplification of the extended Euclidean algorithm
+    uint64_t y = x;
+    x = (CRC_32_POLYNOMIAL + 0x100000000);
+    uint64_t a = 0;
+    uint64_t b = 1;
+    while (y != 0) {
+        uint64_t q, r;
+        divide_and_remainder(x, y, &q, &r);
+        uint64_t c = a ^ multiply_mod(q, b);
+        x = y;
+        y = r;
+        a = b;
+        b = c;
+    }
+    if (x == 1)
+        return a;
+    else {
+        // ERROR "Reciprocal does not exist"
+        return 0;
+    }
 }
 
 int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc) {
-	int ret = 0;
-	custom_crc_t cfg = {
-		.init = CRC_32_INIT_VALUE,
-		.poly = CRC_32_POLYNOMIAL,
-		.xorOut = CRC_32_XOR_VALUE,
-		.refIn = 1,
-		.refOut = 0,
-	};
+    int ret = 0;
+    custom_crc_t cfg = {
+        .init = CRC_32_INIT_VALUE,
+        .poly = CRC_32_POLYNOMIAL,
+        .xorOut = CRC_32_XOR_VALUE,
+        .refIn = 1,
+        .refOut = 0,
+    };
 
-	if (length < 4 || offset > length - 4) {
-		// Error: Byte offset plus 4 exceeds file length
-		return 0;
-	}
+    if (length < 4 || offset > length - 4) {
+        // Error: Byte offset plus 4 exceeds file length
+        return 0;
+    }
 
-	// Read entire file and calculate original CRC-32 value.
-	uint32_t delta = (uint32_t)reflect(newcrc, 32) ^ crc32_hash(data, length, &cfg);
-	// Compute the change to make
-	delta = (uint32_t)multiply_mod(reciprocal_mod(pow_mod(2, (length - offset) * 8)), delta);
-	delta = (uint32_t)reflect(delta, 32);
+    // Read entire file and calculate original CRC-32 value.
+    uint32_t delta = (uint32_t)reflect(newcrc, 32) ^ crc32_hash(data, length, &cfg);
+    // Compute the change to make
+    delta = (uint32_t)multiply_mod(reciprocal_mod(pow_mod(2, (length - offset) * 8)), delta);
+    delta = (uint32_t)reflect(delta, 32);
 
-	// Patch 4 bytes in the file
-	for (int i = 0; i < 4; i++) {
-		ret |= (data[offset + i] ^ ((delta >> (i * 8)) & 0xFF)) << (24 - i*8);
-	}
+    // Patch 4 bytes in the file
+    for (int i = 0; i < 4; i++) {
+        ret |= (data[offset + i] ^ ((delta >> (i * 8)) & 0xFF)) << (24 - i*8);
+    }
 
-	return ret;
+    return ret;
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,27 +288,27 @@ uint32_t kh_com_hash(const uint8_t* data, uint32_t len)
 // I just reversed it from Dead Space 3.
 uint32_t MC02_hash(const uint8_t *pb, uint32_t cb)
 {
-	uint32_t MC02_table[0x100];
-	generate_crc32_table(CRC_32_POLYNOMIAL, MC02_table);
+    uint32_t MC02_table[0x100];
+    generate_crc32_table(CRC_32_POLYNOMIAL, MC02_table);
 
-	if (cb < 4)
-		return 0;
+    if (cb < 4)
+        return 0;
 
-	uint32_t rotatedThird = (pb[2] << 8) | (pb[2] >> 24);
-	uint32_t ORedFirstPair = ((pb[0] << 24) | (pb[0] >> 8)) | ((pb[1] << 16) | (pb[1] >> 16));
+    uint32_t rotatedThird = (pb[2] << 8) | (pb[2] >> 24);
+    uint32_t ORedFirstPair = ((pb[0] << 24) | (pb[0] >> 8)) | ((pb[1] << 16) | (pb[1] >> 16));
 
-	uint32_t seedValue = ~((rotatedThird | ORedFirstPair) | pb[3]);
-	pb += 4;
-	cb -= 4;
+    uint32_t seedValue = ~((rotatedThird | ORedFirstPair) | pb[3]);
+    pb += 4;
+    cb -= 4;
 
-	for (uint32_t i = 0; i < cb; i++)
-	{
-		uint32_t lookedUpValue = MC02_table[((seedValue >> 22) & 0x3FC) >> 2];
-		uint32_t insertedNum = pb[i] | (seedValue << 8);
-		seedValue = lookedUpValue ^ insertedNum;
-	}
+    for (uint32_t i = 0; i < cb; i++)
+    {
+        uint32_t lookedUpValue = MC02_table[((seedValue >> 22) & 0x3FC) >> 2];
+        uint32_t insertedNum = pb[i] | (seedValue << 8);
+        seedValue = lookedUpValue ^ insertedNum;
+    }
 
-	return ~seedValue;
+    return ~seedValue;
 }
 
 // http://www.cse.yorku.ca/~oz/hash.html#djb2
@@ -461,37 +461,37 @@ void lookup3_hashlittle2(
 
 int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
 {
-	if (size < SW4_OFF_JP)
-	{
-		memset(crcs, 0, 4 * sizeof(uint32_t));
-		return 0;
-	}
+    if (size < SW4_OFF_JP)
+    {
+        memset(crcs, 0, 4 * sizeof(uint32_t));
+        return 0;
+    }
 
-	uint32_t num1, num2, num3, num4, num5, num6;
-	uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);
+    uint32_t num1, num2, num3, num4, num5, num6;
+    uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);
 
-	num2 = add_csum(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
-	num3 = add_csum(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
+    num2 = add_csum(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
+    num3 = add_csum(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
 
-	if (is_jp)
-	{
-		num1 = add_csum(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
-		num4 = add_csum(data + 33630, 361106 - 33630);
-		num5 = add_csum(data + 30294, 33631 - 30294);
-		num6 = add_csum(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
-	}
-	else
-	{
-		num1 = add_csum(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
-		num4 = add_csum(data + 34270, 361778 - 34270);
-		num5 = add_csum(data + 30934, 34271 - 30934);
-		num6 = add_csum(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
-	}
+    if (is_jp)
+    {
+        num1 = add_csum(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
+        num4 = add_csum(data + 33630, 361106 - 33630);
+        num5 = add_csum(data + 30294, 33631 - 30294);
+        num6 = add_csum(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
+    }
+    else
+    {
+        num1 = add_csum(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
+        num4 = add_csum(data + 34270, 361778 - 34270);
+        num5 = add_csum(data + 30934, 34271 - 30934);
+        num6 = add_csum(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
+    }
 
-	crcs[0] = 0x7FFFFFFF & (num5 + (num1 + num2) * num3);
-	crcs[1] = 0x7FFFFFFF & (num2 * (num1 + num3 + num4));
+    crcs[0] = 0x7FFFFFFF & (num5 + (num1 + num2) * num3);
+    crcs[1] = 0x7FFFFFFF & (num2 * (num1 + num3 + num4));
     crcs[2] = num6;
-	crcs[3] = 0x7FFFFFFF & (crcs[0] + crcs[1] + num6);
+    crcs[3] = 0x7FFFFFFF & (crcs[0] + crcs[1] + num6);
 
     return is_jp;
 }
@@ -518,16 +518,16 @@ int mgs2_hash(const uint8_t* data, uint32_t size)
 
 uint32_t tiara2_hash(const uint8_t* data, uint32_t len)
 {
-	uint32_t crc = 1;
-	uint32_t add = 0x3428;
+    uint32_t crc = 1;
+    uint32_t add = 0x3428;
 
-	while (len--)
-	{
-		add += *data++;
-		crc = (crc * add) + add;
-	}
+    while (len--)
+    {
+        add += *data++;
+        crc = (crc * add) + add;
+    }
 
-	return (crc);
+    return (crc);
 }
 
 static void _toz_sha1(const uint8_t* data, uint32_t length, const char* key, uint8_t* hash_out)
@@ -597,16 +597,16 @@ int deadrising_checksum(uint8_t* data, uint32_t size)
 
 int castlevania_hash(const uint8_t* Bytes, uint32_t length)
 {
-	int num = 0;
-	int num2 = 0;
+    int num = 0;
+    int num2 = 0;
 
-	for (uint32_t i = 0; i < length; i += 2)
-	{
-		num += ((int)Bytes[i] ^ (i & 255));
-		num2 += ((int)Bytes[i + 1] ^ ((i + 1) & 255));
-	}
+    for (uint32_t i = 0; i < length; i += 2)
+    {
+        num += ((int)Bytes[i] ^ (i & 255));
+        num2 += ((int)Bytes[i + 1] ^ ((i + 1) & 255));
+    }
 
-	return (num + num2);
+    return (num + num2);
 }
 
 uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
