@@ -356,22 +356,41 @@ static void _log_dump(const char* name, const uint8_t* buf, int size)
 	LOG("----- %s %d bytes -----", name, size);
 }
 
-static void swap_u16_data(uint16_t* data, int count)
+/* byte-wise swaps: `data` may be unaligned (it points into the save buffer) */
+static void swap_u16_data(uint8_t* data, int count)
 {
-	for (int i=0; i < count; i++)
-		data[i] = ES16(data[i]);
+	uint16_t v;
+
+	for (int i = 0; i < count; i++, data += sizeof(uint16_t))
+	{
+		memcpy(&v, data, sizeof(v));
+		v = ES16(v);
+		memcpy(data, &v, sizeof(v));
+	}
 }
 
-static void swap_u32_data(uint32_t* data, int count)
+static void swap_u32_data(uint8_t* data, int count)
 {
-	for (int i=0; i < count; i++)
-		data[i] = ES32(data[i]);
+	uint32_t v;
+
+	for (int i = 0; i < count; i++, data += sizeof(uint32_t))
+	{
+		memcpy(&v, data, sizeof(v));
+		v = ES32(v);
+		memcpy(data, &v, sizeof(v));
+	}
 }
 
-static void swap_u64_data(uint64_t* data, int count)
+static void swap_u64_data(uint8_t* data, int count)
 {
-	for (int i=0; i < count; i++)
-		data[i] = ES64(data[i]);
+	uint64_t v;
+
+	for (int i = 0; i < count; i++, data += sizeof(uint64_t))
+	{
+		memcpy(&v, data, sizeof(v));
+		v = ES64(v);
+		memcpy(data, &v, sizeof(v));
+	}
 }
 
 static void copy_uint_bytes(uint8_t* dst, uint64_t value, size_t len, apollo_endianness_t data_endian)
@@ -690,7 +709,9 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int raddr, rlen;
 					sscanf(line, "(%x,%x)", &raddr, &rlen);
 
-					uint32_t rval = _range_in_bounds(dsize, (long) raddr, 4) ? *((uint32_t*) &data[raddr]) : 0;
+					uint32_t rval = 0;
+					if (_range_in_bounds(dsize, (long) raddr, 4))
+						memcpy(&rval, &data[raddr], sizeof(rval));
 					BE32(rval);
 					LOG("address = %d len %d ", raddr, rlen);
             	    
@@ -1421,8 +1442,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					chks_off = search_data(data, len, range_start, (uint8_t*) "CHKS", 5, 1);
 					while (chks_off > 0)
 					{
-						chks     = (*(uint32_t*)(data + chks_off + 4));
-						chks_len = (*(uint32_t*)(data + chks_off + 8));
+						memcpy(&chks,     data + chks_off + 4, sizeof(chks));
+						memcpy(&chks_len, data + chks_off + 8, sizeof(chks_len));
 						BE32(chks);
 						BE32(chks_len);
 
@@ -2559,15 +2580,15 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			switch (mode)
 			{
 			case 2:
-				swap_u16_data((uint16_t*) start, (range_end - range_start)/2);
+				swap_u16_data(start, (range_end - range_start)/2);
 				break;
 
 			case 4:
-				swap_u32_data((uint32_t*) start, (range_end - range_start)/4);
+				swap_u32_data(start, (range_end - range_start)/4);
 				break;
 
 			case 8:
-				swap_u64_data((uint64_t*) start, (range_end - range_start)/8);
+				swap_u64_data(start, (range_end - range_start)/8);
 				break;
 
 			default:
@@ -3679,13 +3700,13 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				{
 					case '0':
 						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
-						val = *(uint32_t*)(data + off);
+						memcpy(&val, data + off, sizeof(val));
 						BE32(val);
 						pointer = val;
 						break;
 					case '1':
 						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
-						val = *(uint32_t*)(data + off);
+						memcpy(&val, data + off, sizeof(val));
 						LE32(val);
 						pointer = val;
 						break;

@@ -226,16 +226,6 @@ static void generate_crc32_table(uint32_t poly, uint32_t* crc_table)
     }
 }
 
-static uint32_t add_csum(const uint8_t* data, uint32_t len)
-{
-    uint32_t checksum = 0;
-
-    while (len--)
-        checksum += *data++;
-
-    return checksum;
-}
-
 // Custom CRC table for Kingdom Hearts 2.5
 static void kh25_crc32_table(uint32_t poly, uint32_t* crc_table)
 {
@@ -468,24 +458,24 @@ int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
     }
 
     uint32_t num1, num2, num3, num4, num5, num6;
-    uint8_t is_jp = (*(uint32_t*)(data + SW4_OFF_JP) != 0);
+    uint8_t is_jp = (memcmp(data + SW4_OFF_JP, "\0\0\0\0", 4) != 0);
 
-    num2 = add_csum(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
-    num3 = add_csum(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
+    num2 = add_hash(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
+    num3 = add_hash(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
 
     if (is_jp)
     {
-        num1 = add_csum(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
-        num4 = add_csum(data + 33630, 361106 - 33630);
-        num5 = add_csum(data + 30294, 33631 - 30294);
-        num6 = add_csum(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
+        num1 = add_hash(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
+        num4 = add_hash(data + 33630, 361106 - 33630);
+        num5 = add_hash(data + 30294, 33631 - 30294);
+        num6 = add_hash(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
     }
     else
     {
-        num1 = add_csum(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
-        num4 = add_csum(data + 34270, 361778 - 34270);
-        num5 = add_csum(data + 30934, 34271 - 30934);
-        num6 = add_csum(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
+        num1 = add_hash(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
+        num4 = add_hash(data + 34270, 361778 - 34270);
+        num5 = add_hash(data + 30934, 34271 - 30934);
+        num6 = add_hash(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
     }
 
     crcs[0] = 0x7FFFFFFF & (num5 + (num1 + num2) * num3);
@@ -614,6 +604,7 @@ uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
     int i;
     const uint8_t* header = data + 0x20;
     uint8_t out[8] = {0};
+    uint64_t ret;
 
     // Checksum 8 calculated over decrypted data
     if (memcmp(&header[0x14], out, sizeof(out)) == 0)
@@ -623,7 +614,8 @@ uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
         for (int i = 5; i < (int)(size / 0x20); i++)
             out[1] += data[i * 0x20];
 
-        return *(uint64_t*)out;
+        memcpy(&ret, out, sizeof(ret));
+        return ret;
     }
 
     // reload checksum 8
@@ -659,7 +651,8 @@ uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
     for (i = 0; i < 7; i++)
         out[7] += out[i];
 
-    return *(uint64_t*)out;
+    memcpy(&ret, out, sizeof(ret));
+    return ret;
 }
 
 // https://www.burtleburtle.net/bob/hash/doobs.html

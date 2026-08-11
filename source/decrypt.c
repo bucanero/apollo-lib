@@ -390,7 +390,7 @@ void sh3_decrypt_data(uint8_t* data, uint32_t size)
 
 	while (size--)
 	{
-		input = *(uint32_t*) data;
+		memcpy(&input, data, sizeof(input));
 		BE32(input);
 		out = (uint32_t)((input ^ (uint64_t)(key2 - SH3_KEY1)) & 0xFFFFFFFF);
 		BE32(out);
@@ -414,7 +414,7 @@ void sh3_encrypt_data(uint8_t* data, uint32_t size)
 
 	while (size--)
 	{
-		input = *(uint32_t*) data;
+		memcpy(&input, data, sizeof(input));
 		BE32(input);
 		out = (uint32_t)((input ^ (uint64_t)(key2 - SH3_KEY1)) & 0xFFFFFFFF);
 
@@ -427,14 +427,17 @@ void sh3_encrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* kdata)
+static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint8_t* kdata)
 {
 	uint32_t init[2];
 	uint64_t ff_key = FFXIII_KEY;
 
 	if (ff_game > 1)
 	{
-		ff_key = (kdata[0] ^ kdata[1]);
+		uint64_t k0, k1;
+		memcpy(&k0, kdata, sizeof(k0));
+		memcpy(&k1, kdata + 8, sizeof(k1));
+		ff_key = (k0 ^ k1);
 		BE64(ff_key);
 		ff_key |= 1L;
 		ff_key ^= (ff_game == 2) ? FFXIII_2_KEY : FFXIII_3_KEY;
@@ -457,7 +460,7 @@ static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint64_t* 
 
 	for (int j = 0; j < 31; j++)
 	{
-		ff_key = *(uint64_t*)(key_table + j*8);
+		memcpy(&ff_key, key_table + j*8, sizeof(ff_key));
 		LE64(ff_key);
 		ff_key = ff_key + (uint64_t)((ff_key << 2) & 0xFFFFFFFFFFFFFFFC);
 		LE64(ff_key);
@@ -483,7 +486,7 @@ uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len)
 void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const uint8_t* key, uint32_t key_len)
 {
 	uint8_t KeyBlocksArray[32][8];
-	uint32_t *csum, ff_csum;
+	uint32_t csum, ff_csum;
 
 	if (type != 1 && key_len != 16)
 		return;
@@ -491,7 +494,7 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
 	memset(KeyBlocksArray, 0, sizeof(KeyBlocksArray));
-	ff13_init_key(&KeyBlocksArray[0][0], type, (uint64_t*) key);
+	ff13_init_key(&KeyBlocksArray[0][0], type, key);
 
 	///DECODING THE ENCODED INFORMATION NOW IN MemBlock
 	uint32_t ByteCounter = 0, BlockCounter = 0, KeyBlockCtr = 0;
@@ -555,13 +558,13 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 		///RESUMING THE OUTER LOOP
 		ByteCounter -=8;
 
-		TBlockA = *(uint32_t*) &MemBlock[ByteCounter];
-		TBlockB = *(uint32_t*) &MemBlock[ByteCounter+4];
+		memcpy(&TBlockA, &MemBlock[ByteCounter], sizeof(TBlockA));
+		memcpy(&TBlockB, &MemBlock[ByteCounter+4], sizeof(TBlockB));
 		LE32(TBlockA);
 		LE32(TBlockB);
 
-		KBlockA = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0];
-		KBlockB = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4];
+		memcpy(&KBlockA, &KeyBlocksArray[KeyBlockCtr][0], sizeof(KBlockA));
+		memcpy(&KBlockB, &KeyBlocksArray[KeyBlockCtr][4], sizeof(KBlockB));
 		LE32(KBlockA);
 		LE32(KBlockB);
 
@@ -579,12 +582,12 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 
 	ff_csum = ff13_checksum(MemBlock, ByteCounter - 8);
 	LE32(ff_csum);
-	csum = (uint32_t*)(MemBlock + ByteCounter - 4);
+	memcpy(&csum, MemBlock + ByteCounter - 4, sizeof(csum));
 
-	if (*csum == ff_csum)
+	if (csum == ff_csum)
 		LOG("[*] Decrypted File Successfully!");
 	else
-		LOG("[!] Decrypted data did not pass file integrity check. (Expected: %08X Got: %08X)", *csum, ff_csum);
+		LOG("[!] Decrypted data did not pass file integrity check. (Expected: %08X Got: %08X)", csum, ff_csum);
 
 	return;
 }
@@ -599,7 +602,7 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
 	memset(KeyBlocksArray, 0, sizeof(KeyBlocksArray));
-	ff13_init_key(&KeyBlocksArray[0][0], type, (uint64_t*) key);
+	ff13_init_key(&KeyBlocksArray[0][0], type, key);
 
 	///ENCODE the file, now that all the changes have been made and the checksum has been updated.
 	uint32_t ByteCounter = 0, BlockCounter = 0, KeyBlockCtr = 0;
@@ -630,13 +633,13 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 		Gear1 = Gear1 + FFXIII_CONST;
 		Gear2 = (BlockCounter*2 | o.Cog32BArray[1]) + CarryFlag;
 
-		KBlockA = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][0];
-		KBlockB = *(uint32_t*) &KeyBlocksArray[KeyBlockCtr][4];
+		memcpy(&KBlockA, &KeyBlocksArray[KeyBlockCtr][0], sizeof(KBlockA));
+		memcpy(&KBlockB, &KeyBlocksArray[KeyBlockCtr][4], sizeof(KBlockB));
 		LE32(KBlockA);
 		LE32(KBlockB);
 
-		TBlockB = *(uint32_t*) &MemBlock[ByteCounter];
-		TBlockA = *(uint32_t*) &MemBlock[ByteCounter+4];
+		memcpy(&TBlockB, &MemBlock[ByteCounter], sizeof(TBlockB));
+		memcpy(&TBlockA, &MemBlock[ByteCounter+4], sizeof(TBlockA));
 		LE32(TBlockA);
 		LE32(TBlockB);
 
@@ -1037,18 +1040,21 @@ static void mh_buffer_translate(uint8_t* data, int len, const uint8_t* table)
 static void mh_xor_block(uint8_t* data, int len, int lba)
 {
 	uint32_t keys[2];
-	uint32_t* buff = (uint32_t*) data;
+	uint32_t buff;
 	len /= 4;
 
 	// Use the block address to seed the XOR cipher key
 	mh_init_key(keys, lba);
 
 	// Apply an XOR cipher to the data using a new key every 4 bytes
+	// (byte-wise copies keep this safe on strict-alignment targets)
 	for (int i=0; i < len; i++)
 	{
-		LE32(buff[i]);
-		buff[i] ^= mh_next_key(keys);
-		LE32(buff[i]);
+		memcpy(&buff, data + i*4, sizeof(buff));
+		LE32(buff);
+		buff ^= mh_next_key(keys);
+		LE32(buff);
+		memcpy(data + i*4, &buff, sizeof(buff));
 	}
 
 	return;
@@ -1066,7 +1072,7 @@ void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
 	mh_buffer_translate(&buff[size-4], 4, dec_table);
 	mh_buffer_translate(buff, size, dec_table);
 
-	seed = *((uint32_t*) &buff[size-4]);
+	memcpy(&seed, &buff[size-4], sizeof(seed));
 	LE32(seed);
 	LOG("[*] Encryption Seed: %08X", seed);
 
@@ -1094,7 +1100,7 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
 		enc_table[dec_table[i]] = i;
 
 	// Get a new seed for the XOR cipher
-	seed = *((uint32_t*) &buff[size-4]);
+	memcpy(&seed, &buff[size-4], sizeof(seed));
 	LE32(seed);
 	LOG("[*] Encryption Seed: %08X", seed);
 
