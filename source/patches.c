@@ -2803,12 +2803,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
+				mgs5tpp_encode_data(data + range_start, (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Decrypt MGS Peace Walker data");
-				mgspw_Decrypt((uint32_t*)(data + range_start), (range_end - range_start));
+				mgspw_Decrypt(data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs_base64*"))
 			{
@@ -2965,12 +2965,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data((uint32_t*)(data + range_start), (range_end - range_start), xor_key);
+				mgs5tpp_encode_data(data + range_start, (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Encrypt MGS Peace Walker data");
-				mgspw_Encrypt((uint32_t*)(data + range_start), (range_end - range_start));
+				mgspw_Encrypt(data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs_base64*"))
 			{

@@ -834,43 +834,55 @@ uint32_t mgspw_Checksum(const uint8_t* data, int size)
 	return ~csum;
 }
 
-static void mgspw_DeEncryptBlock(uint32_t* data, int size, uint32_t* pwSalts)
+static void mgspw_DeEncryptBlock(uint8_t* data, int size, uint32_t* pwSalts)
 {
+	uint32_t tmp;
+
 	for (int i = 0; i < size; i++)
 	{
-		BE32(data[i]);
-		data[i] ^= pwSalts[0];
-		BE32(data[i]);
+		memcpy(&tmp, &data[i*4], sizeof(tmp));
+		BE32(tmp);
+		tmp ^= pwSalts[0];
+		BE32(tmp);
+		memcpy(&data[i*4], &tmp, sizeof(tmp));
 		pwSalts[0] = pwSalts[0] * 0x2e90edd + pwSalts[1];
 	}
 }
 
-static void mgspw_SetSalts(uint32_t* pwSalts, const uint32_t *data)
+static void mgspw_SetSalts(uint32_t* pwSalts, const uint8_t *data)
 {
-	uint32_t offset, d0 = data[0], d1 = data[1];
+	uint32_t offset, d0, d1;
 
+	memcpy(&d0, data, sizeof(d0));
+	memcpy(&d1, data + 4, sizeof(d1));
 	BE32(d0);
 	BE32(d1);
 	offset = (d1 | 0xAD47DE8F) ^ d0;
-	d0 = data[offset + 2];
-	d1 = data[offset + 3];
+	memcpy(&d0, &data[(offset + 2)*4], sizeof(d0));
+	memcpy(&d1, &data[(offset + 3)*4], sizeof(d1));
 	BE32(d0);
 	BE32(d1);
 
 	pwSalts[0] = (d0 ^ 0x1327de73) ^ (d1 ^ 0x2d71d26c);
-	d1 = data[offset + 7];
+	memcpy(&d1, &data[(offset + 7)*4], sizeof(d1));
 	BE32(d1);
 	pwSalts[1] = pwSalts[0] * (d1 ^ 0xBC4DEFA2);
 	pwSalts[0] = (pwSalts[0] ^ 0x6576) << 16 | pwSalts[0];
 }
 
-static void mgspw_SwapBlock(uint32_t* data, int len)
+static void mgspw_SwapBlock(uint8_t* data, int len)
 {
+	uint32_t tmp;
+
 	for (int i = 0; i < len; i++)
-		data[i] = ES32(data[i]);
+	{
+		memcpy(&tmp, &data[i*4], sizeof(tmp));
+		tmp = ES32(tmp);
+		memcpy(&data[i*4], &tmp, sizeof(tmp));
+	}
 }
 
-void mgspw_Decrypt(uint32_t* data, uint32_t size)
+void mgspw_Decrypt(uint8_t* data, uint32_t size)
 {
 	uint32_t salts[2] = {0, 0};
 
@@ -881,37 +893,37 @@ void mgspw_Decrypt(uint32_t* data, uint32_t size)
 
 	mgspw_SwapBlock(data, 0xd676);
 	mgspw_SetSalts(salts, data);
-	mgspw_DeEncryptBlock(data + 16, 0xD666, salts);
+	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
 
-	mgspw_SetSalts(salts, data + 0xD676);
-	mgspw_DeEncryptBlock(data + 0xD686, 0x3C34, salts);
-	mgspw_SwapBlock(data + 17, 0xd665);
+	mgspw_SetSalts(salts, data + 0xD676 * 4);
+	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
+	mgspw_SwapBlock(data + 0x44, 0xd665);
 
-	salts[0] = mgspw_Checksum((uint8_t*)data + 68, 0x1af24);
+	salts[0] = mgspw_Checksum(data + 68, 0x1af24);
 	BE32(salts[0]);
-	if (salts[0] != data[14])
+	if (memcmp(&salts[0], &data[56], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 68);
 
-	salts[0] = mgspw_Checksum((uint8_t*)data + 0x1af68, 0x1c00);
+	salts[0] = mgspw_Checksum(data + 0x1af68, 0x1c00);
 	BE32(salts[0]);
-	if (salts[0] != data[15])
+	if (memcmp(&salts[0], &data[60], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x1af68);
 
-	salts[0] = mgspw_Checksum((uint8_t*)data + 0x1cb68, 0x18e68);
+	salts[0] = mgspw_Checksum(data + 0x1cb68, 0x18e68);
 	BE32(salts[0]);
-	if (salts[0] != data[12])
+	if (memcmp(&salts[0], &data[48], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x1cb68);
 
-	salts[0] = mgspw_Checksum((uint8_t*)data + 0x35a18, 0xf0d0);
+	salts[0] = mgspw_Checksum(data + 0x35a18, 0xf0d0);
 	BE32(salts[0]);
-	if (salts[0] != data[0xD683])
+	if (memcmp(&salts[0], &data[0xD683 * 4], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x35a18);
 
 	LOG("[*] Decrypted File Successfully!");
 	return;
 }
 
-void mgspw_Encrypt(uint32_t* data, uint32_t size)
+void mgspw_Encrypt(uint8_t* data, uint32_t size)
 {
 	uint32_t salts[2] = {0, 0};
 
@@ -920,12 +932,12 @@ void mgspw_Encrypt(uint32_t* data, uint32_t size)
 	if (size < 0x35998)
 		return;
 
-	mgspw_SwapBlock(data + 17, 0xd665);
-	mgspw_SetSalts(salts, data + 0xD676);
-	mgspw_DeEncryptBlock(data + 0xD686, 0x3C34, salts);
+	mgspw_SwapBlock(data + 0x44, 0xd665);
+	mgspw_SetSalts(salts, data + 0xD676 * 4);
+	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
 
 	mgspw_SetSalts(salts, data);
-	mgspw_DeEncryptBlock(data + 16, 0xD666, salts);
+	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
 	mgspw_SwapBlock(data, 0xD676);
 
 	LOG("[*] Encrypted File Successfully!");
@@ -986,14 +998,13 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 	return;
 }
 
-void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key)
+void mgs5tpp_encode_data(uint8_t* data, uint32_t len, uint32_t key)
 {
 	apollo_endianness_t data_endian = apollo_get_data_endianness();
 
 	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
 
-	len /= 4;
-	for (uint32_t i = 0; i < len; i++)
+	for (uint32_t i = 0; i < len; i += 4)
 	{
 		key ^= (key << 13);
 		key ^= (key >> 7);
