@@ -121,6 +121,18 @@ static int _range_in_bounds(size_t dsize, long off, size_t len)
 	return (len <= dsize - (size_t) off);
 }
 
+/*
+ * Byte width (1/2/4/8) of a Save Wizard value, encoded in the low two bits of
+ * the opcode's size/type nibble `t`: 0->1, 1->2, 2->4, 3->8. The high bits
+ * (pointer-relative and add/sub variants) are masked off, so e.g. '8' -> 1,
+ * 'A' -> 4. Used to size the bounds check for the multi-byte opcodes.
+ */
+static int sw_val_bytes(char t)
+{
+	int n = (t <= '9') ? (t - '0') : (t - 'A' + 10);
+	return 1 << (n & 3);
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
@@ -3128,7 +3140,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
 
-				int rmw_bytes = 1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3));
+				int rmw_bytes = sw_val_bytes(t);
 				if (!_range_in_bounds(dsize, off, rmw_bytes))
 				{
 					LOG("SKIP out-of-bounds inc/dec write (%d bytes) at 0x%X", rmw_bytes, off);
@@ -3262,7 +3274,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				{
 					write = data + off + (incoff * i);
 
-					if (_range_in_bounds(dsize, off + (long) incoff * i, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
+					if (_range_in_bounds(dsize, off + (long) incoff * i, (size_t)(sw_val_bytes(t))))
 					switch (t)
 					{
 						case '0':
@@ -3374,7 +3386,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					if (y == '1')
 						pointer = val;
 
-					if (!_range_in_bounds(dsize, (long) val + off, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
+					if (!_range_in_bounds(dsize, (long) val + off, (size_t)(sw_val_bytes(t))))
 					{
 						LOG("SKIP out-of-bounds type6 read at 0x%X", val + off);
 						break;
@@ -3464,7 +3476,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 					// 4X = Write value: X=0 at read address, X=1 at pointer address
 					write += pointer;
 
-					if (!_range_in_bounds(dsize, pointer, (size_t)(1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3)))))
+					if (!_range_in_bounds(dsize, pointer, (size_t)(sw_val_bytes(t))))
 					{
 						LOG("SKIP out-of-bounds type6 write at 0x%lX", pointer);
 						break;
@@ -3530,7 +3542,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &val);
 
-				int cw_bytes = 1 << ((((t <= '9') ? (t - '0') : (t - 'A' + 10)) & 3));
+				int cw_bytes = sw_val_bytes(t);
 				if (!_range_in_bounds(dsize, off, cw_bytes))
 				{
 					LOG("SKIP out-of-bounds conditional write (%d bytes) at 0x%X", cw_bytes, off);
@@ -3699,13 +3711,19 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				switch (line[1])
 				{
 					case '0':
-						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
+						if (!_range_in_bounds(dsize, (long) off, 4)) {
+							LOG("SKIP out-of-bounds pointer read at 0x%X", off);
+							break;
+						}
 						memcpy(&val, data + off, sizeof(val));
 						BE32(val);
 						pointer = val;
 						break;
 					case '1':
-						if (!_range_in_bounds(dsize, (long) off, 4)) { LOG("SKIP out-of-bounds pointer read at 0x%X", off); break; }
+						if (!_range_in_bounds(dsize, (long) off, 4)) {
+							LOG("SKIP out-of-bounds pointer read at 0x%X", off);
+							break;
+						}
 						memcpy(&val, data + off, sizeof(val));
 						LE32(val);
 						pointer = val;
@@ -3898,8 +3916,9 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 				if (!_range_in_bounds(dsize, (long) addr, len))
 				{
-					do { line = strtok(NULL, "\n"); }
-					while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
+					do {
+						line = strtok(NULL, "\n");
+					} while (line && ((line[0] != '8' && line[0] != 'B' && line[0] != 'C') || line[1] == '8'));
 					pointer = 0;
 					LOG("Address search pattern out of bounds - SKIP");
 					continue;
