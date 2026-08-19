@@ -66,7 +66,7 @@ int read_buffer(const char *file_path, uint8_t **buf, size_t *size) {
 	size_t file_size;
 
 	if ((fp = fopen(file_path, "rb")) == NULL)
-			return -1;
+		return -1;
 	fseek(fp, 0, SEEK_END);
 	file_size = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
@@ -75,11 +75,11 @@ int read_buffer(const char *file_path, uint8_t **buf, size_t *size) {
 	fclose(fp);
 
 	if (buf)
-			*buf = file_buf;
+		*buf = file_buf;
 	else
-			free(file_buf);
+		free(file_buf);
 	if (size)
-			*size = file_size;
+		*size = file_size;
 
 	return 0;
 }
@@ -89,7 +89,7 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size)
 	FILE *fp;
 
 	if ((fp = fopen(file_path, "wb")) == NULL)
-			return -1;
+		return -1;
 	fwrite(buf, 1, size, fp);
 	fclose(fp);
 
