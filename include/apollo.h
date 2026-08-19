@@ -188,11 +188,11 @@ void mgs_DecodeBase64(uint8_t* data, uint32_t size);
 void mgs_EncodeBase64(uint8_t* data, uint32_t size);
 
 // Metal Gear Solid Peace Walker save data encryption
-void mgspw_Encrypt(uint32_t* data, uint32_t len);
-void mgspw_Decrypt(uint32_t* data, uint32_t len);
+void mgspw_Encrypt(uint8_t* data, uint32_t len);
+void mgspw_Decrypt(uint8_t* data, uint32_t len);
 
 // Metal Gear Solid 5 TPP save data encryption
-void mgs5tpp_encode_data(uint32_t* data, uint32_t len, uint32_t key);
+void mgs5tpp_encode_data(uint8_t* data, uint32_t len, uint32_t key);
 
 // RGG Studio save data encryption
 void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len);

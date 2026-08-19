@@ -105,6 +105,9 @@ static void apply_one(const char* rel, int idx, code_entry_t* code,
         return;
     }
 
+#if APOLLO_TEST_ENDIAN_BE
+    code->flags = APOLLO_CODE_FLAG_ORDER_BE;
+#endif
     size_t out = apply_cheat_patch_code(g_tmp_path, code, apollo_test_host_cb);
     if (out == 0) {
         printf("%s#%d\t%d\tnoop\t0\t-\n", rel, idx, code->type);
