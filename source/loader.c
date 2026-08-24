@@ -43,11 +43,14 @@ uint8_t * x_to_u8_buffer(const char *hex)
 	uint32_t len;
 
 	len = strlen(hex);
-	if (len % 2 != 0)
+	if (!len || (len % 2 != 0))
 		return NULL;
 
 	len /= 2;
 	result = (uint8_t *)malloc(len);
+	if (!result)
+		return NULL;
+
 	memset(result, 0, len);
 	ptr = result;
 
@@ -63,15 +66,36 @@ uint8_t * x_to_u8_buffer(const char *hex)
 int read_buffer(const char *file_path, uint8_t **buf, size_t *size) {
 	FILE *fp;
 	uint8_t *file_buf;
+	long file_len;
 	size_t file_size;
 
 	if ((fp = fopen(file_path, "rb")) == NULL)
 		return -1;
-	fseek(fp, 0, SEEK_END);
-	file_size = ftell(fp);
+
+	/* a non-seekable file reports -1, which used to become malloc((size_t)-1) */
+	if (fseek(fp, 0, SEEK_END) != 0 || (file_len = ftell(fp)) < 0)
+	{
+		fclose(fp);
+		return -1;
+	}
+
 	fseek(fp, 0, SEEK_SET);
-	file_buf = (uint8_t *)malloc(file_size);
-	fread(file_buf, 1, file_size, fp);
+	file_size = (size_t) file_len;
+	file_buf = (uint8_t *)malloc(file_size ? file_size : 1);
+	if (!file_buf)
+	{
+		fclose(fp);
+		return -1;
+	}
+
+	/* a short read would otherwise leave the tail uninitialized */
+	if (fread(file_buf, 1, file_size, fp) != file_size)
+	{
+		free(file_buf);
+		fclose(fp);
+		return -1;
+	}
+
 	fclose(fp);
 
 	if (buf)
@@ -180,9 +204,20 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 	option_entry_t *options = (option_entry_t *)malloc(sizeof(option_entry_t));
 	int x = 0, len = strlen(line);
 
+	if (!options)
+		return NULL;
+
 	options->id = djb2_hash((uint8_t*)tag, strlen(tag));
 	options->line = strdup(tag);
 	options->opts = list_alloc();
+
+	if (!options->line || !options->opts)
+	{
+		free(options->line);
+		list_free(options->opts);
+		free(options);
+		return NULL;
+	}
 
 	LOG("Loading Option '%s' %08X", tag, options->id);
 
@@ -198,15 +233,40 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 		if (line[x] == '=')
 		{
 			line[x] = 0;
+
+			/* "A=B=C;" — the pending value never gets a name, don't leak it */
+			if (optval)
+			{
+				free(optval->value);
+				free(optval);
+			}
+
 			optval = (option_value_t *)malloc(sizeof(option_value_t));
+			if (!optval)
+				break;
+
 			optval->name = NULL;
 			optval->value = zero_pad_string(&line[oldX], strlen(tag));
+
+			if (!optval->value)
+			{
+				free(optval);
+				optval = NULL;
+			}
 		}
 		else if (optval)
 		{
 			line[x] = 0;
 			optval->name = strdup(&line[oldX]);
-			list_append(options->opts, optval);
+
+			if (!optval->name || !list_append(options->opts, optval))
+			{
+				free(optval->name);
+				free(optval->value);
+				free(optval);
+				optval = NULL;
+				break;
+			}
 
 			LOG("%s %s='%s'", tag, optval->value, optval->name);
 			optval = NULL;
@@ -214,7 +274,14 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 
 		x++;
 	}
-	
+
+	/* trailing "=value" with no closing ';' */
+	if (optval)
+	{
+		free(optval->value);
+		free(optval);
+	}
+
 	return options;
 }
 
@@ -229,6 +296,12 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 		return;
 
 	opt = calloc(entry->options_count, sizeof(option_entry_t));
+	if (!opt)
+	{
+		LOG("Error: unable to allocate %d options", entry->options_count);
+		return;
+	}
+
 	if (entry->options)
 	{
 		i++;
@@ -237,7 +310,10 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 	}
 	entry->options = opt;
 
-	for (char *end, *tag = strchr(entry->codes, '{'); tag; tag = strchr(tag, '{'))
+	/* `options_count` only counts the tags that resolve to a known option, so
+	 * `i` must be bounded: an unknown `{tag}` in the body would write past the
+	 * array otherwise */
+	for (char *end, *tag = strchr(entry->codes, '{'); tag && i < entry->options_count; tag = strchr(tag, '{'))
 	{
 		if ((end = strchr(tag, '}')) == NULL)
 			break;
@@ -259,9 +335,19 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 				for (node = list_head(opt->opts); (val = list_get(node)); node = list_next(node))
 				{
 					option_value_t* newval = (option_value_t*)malloc(sizeof(option_value_t));
+					if (!newval)
+						break;
+
 					newval->name = strdup(val->name);
 					newval->value = strdup(val->value);
-					list_append(entry->options[i].opts, newval);
+
+					if (!newval->name || !newval->value || !list_append(entry->options[i].opts, newval))
+					{
+						free(newval->name);
+						free(newval->value);
+						free(newval);
+						break;
+					}
 				}
 				break;
 			}
@@ -288,6 +374,13 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 	char *res = calloc(1, 1);
 	char *line = strtok(buffer, "\n");
 
+	if (!res)
+	{
+		LOG("Error: out of memory");
+		entry->codes = NULL;
+		return;
+	}
+
 	while (line)
 	{
 		if ((wildcard_match(line, "[*]") ||
@@ -310,7 +403,13 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 
 				if (!wildcard_match(line, ";*"))
 				{
-					asprintf(&tmp, "%s%s\n", res, line);
+					tmp = NULL;
+					if (asprintf(&tmp, "%s%s\n", res, line) < 0 || !tmp)
+					{
+						LOG("Error: out of memory");
+						break;
+					}
+
 					free(res);
 					res = tmp;
 
@@ -350,6 +449,12 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 	size_t bufferLen = strlen(buffer);
 	list_node_t* node = list_tail(list_codes);
 
+	if (!opt_list)
+	{
+		LOG("Error: out of memory");
+		return 0;
+	}
+
 	clean_eol(buffer);
 	for (char *line = strtok(buffer, "\n"); line != NULL; line = strtok(NULL, "\n"))
 	{
@@ -376,7 +481,15 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 		{
 			// options
 			char *tmp = strdup(line);
-			char *end = strchr(tmp, '}');
+			char *end = tmp ? strchr(tmp, '}') : NULL;
+			option_entry_t* opt = NULL;
+
+			if (!end)
+			{
+				LOG("Error: unable to parse option '%s'", line);
+				free(tmp);
+				continue;
+			}
 
 			line = tmp+1;
 			*end++ = 0;
@@ -385,7 +498,10 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			*end++ = 0;
 			*end = '{';
 
-			list_append(opt_list, parseOptionFromLine(line, end));
+			opt = parseOptionFromLine(line, end);
+			if (opt)
+				list_append(opt_list, opt);
+
 			free(tmp);
 		}
 		else if (wildcard_match_icase(line, "PATH:*"))
@@ -397,6 +513,12 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 				wildcard_match_icase(line, "GROUP:*"))
 		{
 			code = calloc(1, sizeof(code_entry_t));
+			if (!code)
+			{
+				LOG("Error: out of memory");
+				continue;
+			}
+
 			code->type = APOLLO_CODE_GAMEGENIE;
 
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
@@ -448,7 +570,15 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 			code->options_count = (file_opt ? 1 : 0);
 			code->file = strdup(filePath);
 			code->name = strdup(line);
-			list_append(list_codes, code);
+
+			if (!code->file || !code->name || !list_append(list_codes, code))
+			{
+				LOG("Error: out of memory");
+				free(code->file);
+				free(code->name);
+				free(code);
+				continue;
+			}
 
 			if (wildcard_match_icase(code->name, "*(REQUIRED)*"))
 				code->flags |= APOLLO_CODE_FLAG_REQUIRED;
@@ -480,7 +610,7 @@ int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t
 		remove_char(buffer, bufferLen, '\0');
 		get_patch_code(buffer, code_count++, code, opt_list);
 
-		if(!code->codes[0])
+		if(!code->codes || !code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
 		else if (code->options_count)
 			get_code_options(code, opt_list);
