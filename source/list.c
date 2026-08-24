@@ -105,7 +105,7 @@ void * list_get(list_node_t *node) {
 void * list_get_item(list_t *list, size_t item) {
 	list_node_t *node;
 
-	if (!list || (list_count(list) < item))
+	if (!list || (list_count(list) <= item))
 		return NULL;
 
 	node = list_head(list);
@@ -133,7 +133,7 @@ void list_bubbleSort(list_t *list, int (*compar)(const void *, const void *))
 	list_node_t *lptr = NULL; 
 
 	/* Checking for empty list */
-	if (!list)
+	if (!list || !list_head(list))
 		return;
 
 	do
