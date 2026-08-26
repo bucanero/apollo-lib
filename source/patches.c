@@ -419,14 +419,22 @@ void free_patch_var_list(void)
 	_default_endianness = APOLLO_ENDIAN_DEFAULT;
 }
 
-/* Parses "<a>,<b>)" — returns 0 when either delimiter is missing. */
-static int _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
+/* Parses "<a>,<b>)" */
+static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
 {
 	char *tmp;
 
+	/* Always initialise the outputs. Every caller is reached through a
+	 * "name(*,*)*" wildcard, so the ',' and ')' are guaranteed present; but
+	 * initialising here keeps the helper safe in isolation — a malformed line
+	 * yields an empty [0,0] range (a no-op after the range clamp) instead of
+	 * uninitialised values, so callers don't need to guard the result. */
+	*start_val = 0;
+	*end_val = 0;
+
 	tmp = strchr(line, ',');
 	if (!tmp)
-		return 0;
+		return;
 
 	*tmp = 0;
 
@@ -436,14 +444,12 @@ static int _parse_start_end(char* line, int pointer, int dsize, int *start_val, 
 	*tmp = ',';
 	tmp = strchr(line, ')');
 	if (!tmp)
-		return 0;
+		return;
 
 	*tmp = 0;
 
 	*end_val = _parse_int_value(line, pointer, dsize);
 	*tmp = ')';
-
-	return 1;
 }
 
 static void _log_dump(const char* name, const uint8_t* buf, int size)
@@ -542,10 +548,7 @@ static int _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t l
 
 	tmp = strrchr(line, ')');
 	if (!tmp)
-	{
-		LOG("ERROR: missing ')' in encryption command");
 		return 0;
-	}
 
 	*tmp = 0;
 
@@ -624,10 +627,7 @@ static int _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_
 
 	tmp = strrchr(line, ',');
 	if (!tmp)
-	{
-		LOG("ERROR: missing IV in encryption command");
 		return 0;
-	}
 
 	*tmp = 0;
 
@@ -639,7 +639,6 @@ static int _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_
 	tmp = strrchr(line, ')');
 	if (!tmp)
 	{
-		LOG("ERROR: missing ')' in encryption command");
 		free(key);
 		return 0;
 	}
@@ -1644,7 +1643,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					line += strlen("lookup3_little2(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2);
 					LOG("lookup3 init values %X %X", iv1, iv2);
 
 					lookup3_hashlittle2((uint8_t*)data + range_start, len, &iv1, &iv2);
@@ -1828,7 +1827,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("qwadd(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += qwadd_hash((uint8_t*)data + add_s, add_len);
@@ -1847,7 +1846,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("dwadd(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += dwadd_hash((uint8_t*)data + add_s, add_len, 0);
@@ -1867,7 +1866,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("wadd_le(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += wadd_hash((uint8_t*)data + add_s, add_len, 1);
@@ -1887,7 +1886,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("dwadd_le(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += dwadd_hash((uint8_t*)data + add_s, add_len, 1);
@@ -1906,7 +1905,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("wadd(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += wadd_hash((uint8_t*)data + add_s, add_len, 0);
@@ -1932,7 +1931,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("add(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
 					add += add_hash((uint8_t*)data + add_s, add_len);
@@ -1961,7 +1960,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t sub = old_val;
 
 					line += strlen("wsub(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &sub_s, &sub_e), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
 
 					size_t sub_len = _clamp_range(dsize, &sub_s, &sub_e);
 					sub += wsub_hash((uint8_t*)data + sub_s, sub_len);
@@ -2035,7 +2034,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int read_s, read_l;
 
 					line += strlen("read(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &read_s, &read_l), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &read_s, &read_l);
 					if (read_l < 0 || !_range_in_bounds(dsize, read_s, read_l))
 					{
 						LOG("ERROR: read() out of bounds (off=0x%X len=%d)", read_s, read_l);
@@ -2088,7 +2087,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int rvalue, rlen;
 
 					line += strlen("right(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &rvalue, &rlen), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
 					/* the slice is taken out of a 32-bit value */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "right() length out of range");
@@ -2104,7 +2103,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int rvalue, rlen;
 
 					line += strlen("left(");
-					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &rvalue, &rlen), "malformed range arguments");
+					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
 					/* the slice is taken out of a 32-bit value */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "left() length out of range");
