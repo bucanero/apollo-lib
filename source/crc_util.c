@@ -30,7 +30,7 @@
  **********************************************************************/
 
 #define CREATE_CRC_FUNCTION(UINT, CRC_WIDTH) \
-    UINT crc##CRC_WIDTH##_hash (const uint8_t* data, uint32_t len, custom_crc_t* cfg) \
+    UINT apollo_hash_crc##CRC_WIDTH (const uint8_t* data, uint32_t len, custom_crc_t* cfg) \
     { \
         UINT crc = (UINT)cfg->init; \
         /* Perform modulo-2 division, a byte at a time. */ \
@@ -70,13 +70,13 @@ static uint64_t reflect(uint64_t data, uint8_t nBits)
 
 }   /* reflect() */
 
-/* crc16_hash() */
+/* apollo_hash_crc16() */
 CREATE_CRC_FUNCTION(uint16_t, 16)
 
-/* crc32_hash() */
+/* apollo_hash_crc32() */
 CREATE_CRC_FUNCTION(uint32_t, 32)
 
-/* crc64_hash() */
+/* apollo_hash_crc64() */
 CREATE_CRC_FUNCTION(uint64_t, 64)
 
 /* 
@@ -169,7 +169,7 @@ static uint64_t reciprocal_mod(uint64_t x) {
     }
 }
 
-int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc) {
+int apollo_hash_force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc) {
     int ret = 0;
     custom_crc_t cfg = {
         .init = CRC_32_INIT_VALUE,
@@ -185,7 +185,7 @@ int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t 
     }
 
     // Read entire file and calculate original CRC-32 value.
-    uint32_t delta = (uint32_t)reflect(newcrc, 32) ^ crc32_hash(data, length, &cfg);
+    uint32_t delta = (uint32_t)reflect(newcrc, 32) ^ apollo_hash_crc32(data, length, &cfg);
     // Compute the change to make
     delta = (uint32_t)multiply_mod(reciprocal_mod(pow_mod(2, (length - offset) * 8)), delta);
     delta = (uint32_t)reflect(delta, 32);
@@ -239,7 +239,7 @@ static void kh25_crc32_table(uint32_t poly, uint32_t* crc_table)
     }
 }
 
-uint32_t kh25_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_kh25(const uint8_t* data, uint32_t len)
 {
     uint32_t crc32_table[256];
     uint32_t crc = CRC_32_INIT_VALUE;
@@ -259,7 +259,7 @@ uint32_t kh25_hash(const uint8_t* data, uint32_t len)
     return (~crc);
 }
 
-uint32_t kh_com_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_khcom(const uint8_t* data, uint32_t len)
 {
     int csum = CRC_32_INIT_VALUE;
 
@@ -276,7 +276,7 @@ uint32_t kh_com_hash(const uint8_t* data, uint32_t len)
 // https://gist.github.com/Experiment5X/5025310 / https://ideone.com/cy2rM7
 // I have no clue how this works and understand absolutely none of the math behind it.
 // I just reversed it from Dead Space 3.
-uint32_t MC02_hash(const uint8_t *pb, uint32_t cb)
+uint32_t apollo_hash_mc02(const uint8_t *pb, uint32_t cb)
 {
     uint32_t MC02_table[0x100];
     generate_crc32_table(CRC_32_POLYNOMIAL, MC02_table);
@@ -302,7 +302,7 @@ uint32_t MC02_hash(const uint8_t *pb, uint32_t cb)
 }
 
 // http://www.cse.yorku.ca/~oz/hash.html#djb2
-uint32_t djb2_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_djb2(const uint8_t* data, uint32_t len)
 {
     uint32_t hash = 5381;
 
@@ -313,7 +313,7 @@ uint32_t djb2_hash(const uint8_t* data, uint32_t len)
 }
 
 // http://www.cse.yorku.ca/~oz/hash.html#sdbm
-uint32_t sdbm_hash(const uint8_t* data, uint32_t len, uint32_t init)
+uint32_t apollo_hash_sdbm(const uint8_t* data, uint32_t len, uint32_t init)
 {
     uint32_t crc = init;
     
@@ -324,7 +324,7 @@ uint32_t sdbm_hash(const uint8_t* data, uint32_t len, uint32_t init)
 }
 
 // https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
-int fnv1_hash(const uint8_t* data, uint32_t size, int init)
+int apollo_hash_fnv1(const uint8_t* data, uint32_t size, int init)
 {
     int sum = init;
 
@@ -334,7 +334,7 @@ int fnv1_hash(const uint8_t* data, uint32_t size, int init)
     return (sum);
 }
 
-int Checksum32_hash(const uint8_t* data, uint32_t size)
+int apollo_hash_checksum32(const uint8_t* data, uint32_t size)
 {
     int sum = 0;
 
@@ -344,7 +344,7 @@ int Checksum32_hash(const uint8_t* data, uint32_t size)
     return sum;
 }
 
-uint16_t ffx_hash(const uint8_t* data, uint32_t len)
+uint16_t apollo_hash_ffx(const uint8_t* data, uint32_t len)
 {
     uint16_t crc16_table[0x100];
     uint16_t crc = CRC_16_INIT_CCITT;
@@ -394,7 +394,7 @@ uint16_t ffx_hash(const uint8_t* data, uint32_t len)
  * the key.  *pc is better mixed than *pb, so use *pc first.  If you want
  * a 64-bit value do something like "*pc + (((uint64_t)*pb)<<32)".
  */
-void lookup3_hashlittle2(
+void apollo_hash_lookup3_little2(
   const uint8_t *k,      /* the key to hash */
   size_t      length,    /* length of the key */
   uint32_t   *pc,        /* IN: primary initval, OUT: primary hash */
@@ -449,7 +449,7 @@ void lookup3_hashlittle2(
     *pc=c; *pb=b;
 }
 
-int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
+int apollo_hash_sw4(const uint8_t* data, uint32_t size, uint32_t* crcs)
 {
     if (size < SW4_OFF_JP)
     {
@@ -460,22 +460,22 @@ int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
     uint32_t num1, num2, num3, num4, num5, num6;
     uint8_t is_jp = (memcmp(data + SW4_OFF_JP, "\0\0\0\0", 4) != 0);
 
-    num2 = add_hash(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
-    num3 = add_hash(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
+    num2 = apollo_hash_add(data + SW4_OFF_1 + 4, SW4_OFF_2 - (SW4_OFF_1 + 4));
+    num3 = apollo_hash_add(data + SW4_OFF_2 + 4, 2284 - (SW4_OFF_2 + 4));
 
     if (is_jp)
     {
-        num1 = add_hash(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
-        num4 = add_hash(data + 33630, 361106 - 33630);
-        num5 = add_hash(data + 30294, 33631 - 30294);
-        num6 = add_hash(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
+        num1 = apollo_hash_add(data + SW4_OFF_3 + 4, 30294 - (SW4_OFF_3 + 4));
+        num4 = apollo_hash_add(data + 33630, 361106 - 33630);
+        num5 = apollo_hash_add(data + 30294, 33631 - 30294);
+        num6 = apollo_hash_add(data + SW4_OFF_1 + 4, 30294 - (SW4_OFF_1 + 4));
     }
     else
     {
-        num1 = add_hash(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
-        num4 = add_hash(data + 34270, 361778 - 34270);
-        num5 = add_hash(data + 30934, 34271 - 30934);
-        num6 = add_hash(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
+        num1 = apollo_hash_add(data + SW4_OFF_3 + 4, 30934 - (SW4_OFF_3 + 4));
+        num4 = apollo_hash_add(data + 34270, 361778 - 34270);
+        num5 = apollo_hash_add(data + 30934, 34271 - 30934);
+        num6 = apollo_hash_add(data + SW4_OFF_1 + 4, 30934 - (SW4_OFF_1 + 4));
     }
 
     crcs[0] = 0x7FFFFFFF & (num5 + (num1 + num2) * num3);
@@ -486,7 +486,7 @@ int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs)
     return is_jp;
 }
 
-int mgs2_hash(const uint8_t* data, uint32_t size)
+int apollo_hash_mgs2(const uint8_t* data, uint32_t size)
 {
     int num, crc = -1;
 
@@ -506,7 +506,7 @@ int mgs2_hash(const uint8_t* data, uint32_t size)
     return ~crc;
 }
 
-uint32_t tiara2_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_tiara2(const uint8_t* data, uint32_t len)
 {
     uint32_t crc = 1;
     uint32_t add = 0x3428;
@@ -532,7 +532,7 @@ static void _toz_sha1(const uint8_t* data, uint32_t length, const char* key, uin
 }
 
 // https://github.com/bucanero/ps3-save-decrypters/blob/master/toz-checksum-fixer/samples/Crypto.txt
-void toz_hash(const uint8_t* data, uint32_t len, uint8_t* hash)
+void apollo_hash_toz(const uint8_t* data, uint32_t len, uint8_t* hash)
 {
     const char array[8][4] = {"SRA", "ROS", "MIC", "LAI", "EDN", "DEZ", "ZAB", "ALI"};
 
@@ -544,7 +544,7 @@ void toz_hash(const uint8_t* data, uint32_t len, uint8_t* hash)
     return;
 }
 
-uint16_t adler16(const uint8_t *data, size_t len)
+uint16_t apollo_hash_adler16(const uint8_t *data, size_t len)
 /* 
     where data is the location of the data in physical memory and 
     len is the length of the data in bytes 
@@ -562,7 +562,7 @@ uint16_t adler16(const uint8_t *data, size_t len)
     return ((b << 8) | a);
 }
 
-int deadrising_checksum(uint8_t* data, uint32_t size)
+int apollo_hash_deadrising(uint8_t* data, uint32_t size)
 {
     uint16_t sumL, sumH;
     uint8_t* e = data + size;
@@ -585,7 +585,7 @@ int deadrising_checksum(uint8_t* data, uint32_t size)
     return (size/4);
 }
 
-int castlevania_hash(const uint8_t* Bytes, uint32_t length)
+int apollo_hash_castlevania(const uint8_t* Bytes, uint32_t length)
 {
     int num = 0;
     int num2 = 0;
@@ -599,7 +599,7 @@ int castlevania_hash(const uint8_t* Bytes, uint32_t length)
     return (num + num2);
 }
 
-uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
+uint64_t apollo_hash_dbzxv2(const uint8_t* data, uint32_t size)
 {
     int i;
     const uint8_t* header = data + 0x20;
@@ -656,7 +656,7 @@ uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size)
 }
 
 // https://www.burtleburtle.net/bob/hash/doobs.html
-uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t hash)
+uint32_t apollo_hash_jenkins_oaat(const uint8_t* data, size_t length, uint32_t hash)
 {
     while (length--)
     {
@@ -681,7 +681,7 @@ static inline uint32_t murmur_32_scramble(uint32_t k)
     return k;
 }
 
-uint32_t murmur3_32(const uint8_t* key, size_t len, uint32_t h)
+uint32_t apollo_hash_murmur3_32(const uint8_t* key, size_t len, uint32_t h)
 {
     uint32_t k;
     /* Read in groups of 4. */
@@ -731,9 +731,9 @@ uint32_t murmur3_32(const uint8_t* key, size_t len, uint32_t h)
 /* The most generic version, hashes an arbitrary sequence
  * of bytes.  No alignment or length assumptions are made about
  * the input key.
- * https://kernel.googlesource.com/pub/scm/linux/kernel/git/klassert/ipsec/+/refs/tags/v2.6.19-rc3/include/linux/jhash.h
+ * https://kernel.googlesource.com/pub/scm/linux/kernel/git/klassert/ipsec/+/refs/tags/v2.6.19-rc3/include/linux/apollo_hash_jhash.h
  */
-uint32_t jhash(const uint8_t *k, uint32_t length, uint32_t initval)
+uint32_t apollo_hash_jhash(const uint8_t *k, uint32_t length, uint32_t initval)
 {
     uint32_t a, b, c, len;
     len = length;
@@ -768,7 +768,7 @@ uint32_t jhash(const uint8_t *k, uint32_t length, uint32_t initval)
     return c;
 }
 
-uint32_t md5_xor_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_md5_xor(const uint8_t* data, uint32_t len)
 {
     uint32_t hash[4];
 
@@ -779,7 +779,7 @@ uint32_t md5_xor_hash(const uint8_t* data, uint32_t len)
     return hash[0];
 }
 
-uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len)
+uint64_t apollo_hash_sha1_xor64(const uint8_t* data, uint32_t len)
 {
     uint64_t sha[3] = {0, 0, 0};
 
@@ -790,7 +790,7 @@ uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len)
     return sha[0];
 }
 
-int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
+int apollo_hash_pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
                 unsigned int count, uint8_t *DK, size_t dkLen)
 {
     md_context_t sha1_ctx;
@@ -799,7 +799,7 @@ int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
     return pkcs5_pbkdf2_hmac(&sha1_ctx, Pwd, Plen, Salt, Slen, count, dkLen, DK);
 }
 
-int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
+int apollo_hash_pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
                 unsigned int count, uint8_t *DK, size_t dkLen)
 {
     md_context_t sha2_ctx;
@@ -808,7 +808,7 @@ int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen,
     return pkcs5_pbkdf2_hmac(&sha2_ctx, Pwd, Plen, Salt, Slen, count, dkLen, DK);
 }
 
-uint32_t add_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_add(const uint8_t* data, uint32_t len)
 {
     uint32_t checksum = 0;
 
@@ -818,7 +818,7 @@ uint32_t add_hash(const uint8_t* data, uint32_t len)
     return checksum;
 }
 
-uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le)
+uint32_t apollo_hash_wadd(const uint8_t* data, uint32_t len, int is_le)
 {
     uint32_t checksum = 0;
     len /= 2;
@@ -832,7 +832,7 @@ uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le)
     return checksum;
 }
 
-uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le)
+uint32_t apollo_hash_dwadd(const uint8_t* data, uint32_t len, int is_le)
 {
     uint32_t checksum = 0;
     len /= 4;
@@ -846,7 +846,7 @@ uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le)
     return checksum;
 }
 
-uint32_t qwadd_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_qwadd(const uint8_t* data, uint32_t len)
 {
     uint32_t checksum = 0;
     len /= 8;
@@ -861,7 +861,7 @@ uint32_t qwadd_hash(const uint8_t* data, uint32_t len)
     return checksum;
 }
 
-uint32_t wsub_hash(const uint8_t* data, uint32_t len)
+uint32_t apollo_hash_wsub(const uint8_t* data, uint32_t len)
 {
     uint32_t checksum = 0;
     len /= 2;

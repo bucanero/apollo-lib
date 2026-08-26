@@ -21,9 +21,9 @@
 /* returns new size; *buf may be realloc'd by insert/delete */
 static size_t apply_bsd(uint8_t** buf, size_t len, const char* codes)
 {
-    free_patch_var_list();               /* isolate variable state per test */
+    apollo_free_var_list();               /* isolate variable state per test */
     code_entry_t c = make_bsd_code(codes);
-    return apply_bsd_patch_code(buf, len, &c);
+    return apollo_apply_bsd_code(buf, len, &c);
 }
 
 static uint8_t* dup_bytes(const uint8_t* src, size_t len)
@@ -318,7 +318,7 @@ TEST(bsd_read_int64)
  *
  *  - crc32big  -> CRC-32/BZIP2, independently known check value 0xFC891918
  *  - sha1      -> independently known SHA-1("123456789") digest (20 bytes)
- *  - jhash     -> Jenkins hash; value characterised from the library (regression)
+ *  - apollo_hash_jhash     -> Jenkins hash; value characterised from the library (regression)
  */
 static uint8_t* hash_buf(void)
 {

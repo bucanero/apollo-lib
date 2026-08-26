@@ -21,47 +21,33 @@
 #include <polarssl/blowfish.h>
 #include <polarssl/camellia.h>
 #endif
+#include "apollo.h"
 #include "keys.h"
 #include "types.h"
 
-extern int apollo_get_data_endianness(void);
 
 
-void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void apollo_crypt_blowfish_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len)
 {
 	blowfish_context ctx;
+	int op = (mode == APOLLO_ENCRYPT) ? BLOWFISH_ENCRYPT : BLOWFISH_DECRYPT;
 
 	blowfish_init(&ctx);
 	blowfish_setkey(&ctx, key, key_len * 8);
 
 	for (len /= BLOWFISH_BLOCKSIZE; len > 0; len--)
 	{
-		blowfish_crypt_ecb(&ctx, BLOWFISH_DECRYPT, data, data);
+		blowfish_crypt_ecb(&ctx, op, data, data);
 		data += BLOWFISH_BLOCKSIZE;
 	}
 
 	return;
 }
 
-void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void apollo_crypt_blowfish_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
 	blowfish_context ctx;
-
-	blowfish_init(&ctx);
-	blowfish_setkey(&ctx, key, key_len * 8);
-
-	for (len /= BLOWFISH_BLOCKSIZE; len > 0; len--)
-	{
-		blowfish_crypt_ecb(&ctx, BLOWFISH_ENCRYPT, data, data);
-		data += BLOWFISH_BLOCKSIZE;
-	}
-
-	return;
-}
-
-void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
-{
-	blowfish_context ctx;
+	int op = (mode == APOLLO_ENCRYPT) ? BLOWFISH_ENCRYPT : BLOWFISH_DECRYPT;
 
 	key_len *= 8;
 	if (iv_len != BLOWFISH_BLOCKSIZE)
@@ -71,65 +57,34 @@ void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint3
 	blowfish_setkey(&ctx, key, key_len);
 	len &= 0xFFFFFFF8;
 
-	blowfish_crypt_cbc(&ctx, BLOWFISH_DECRYPT, len, iv, data, data);
+	blowfish_crypt_cbc(&ctx, op, len, iv, data, data);
 
 	return;
 }
 
-void blowfish_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
-{
-	blowfish_context ctx;
-
-	key_len *= 8;
-	if (iv_len != BLOWFISH_BLOCKSIZE)
-		return;
-
-	blowfish_init(&ctx);
-	blowfish_setkey(&ctx, key, key_len);
-	len &= 0xFFFFFFF8;
-
-	blowfish_crypt_cbc(&ctx, BLOWFISH_ENCRYPT, len, iv, data, data);
-
-	return;
-}
-
-void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void apollo_crypt_camellia_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len)
 {
 	camellia_context ctx;
+	int enc = (mode == APOLLO_ENCRYPT);
 
 	key_len *= 8;
 
 	camellia_init(&ctx);
-	camellia_setkey_dec(&ctx, key, key_len);
+	if (enc)
+		camellia_setkey_enc(&ctx, key, key_len);
+	else
+		camellia_setkey_dec(&ctx, key, key_len);
 
 	for (len /= CAMELLIA_BLOCK_SIZE; len > 0; len--)
 	{
-		camellia_crypt_ecb(&ctx, CAMELLIA_DECRYPT, data, data);
+		camellia_crypt_ecb(&ctx, enc ? CAMELLIA_ENCRYPT : CAMELLIA_DECRYPT, data, data);
 		data += CAMELLIA_BLOCK_SIZE;
 	}
 
 	return;
 }
 
-void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
-{
-	camellia_context ctx;
-
-	key_len *= 8;
-
-	camellia_init(&ctx);
-	camellia_setkey_enc(&ctx, key, key_len);
-
-	for (len /= CAMELLIA_BLOCK_SIZE; len > 0; len--)
-	{
-		camellia_crypt_ecb(&ctx, CAMELLIA_ENCRYPT, data, data);
-		data += CAMELLIA_BLOCK_SIZE;
-	}
-
-	return;
-}
-
-void aes_ctr_xcrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+void apollo_crypt_aes_ctr(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
 	aes_context ctx;
 	size_t nc_off = 0;
@@ -149,75 +104,49 @@ void aes_ctr_xcrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t ke
 	return;
 }
 
-void aes_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+void apollo_crypt_aes_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
 	aes_context ctx;
+	int enc = (mode == APOLLO_ENCRYPT);
 
 	key_len *= 8;
 	if (iv_len != AES_BLOCK_SIZE)
 		return;
 
 	aes_init(&ctx);
-	aes_setkey_dec(&ctx, key, key_len);
+	if (enc)
+		aes_setkey_enc(&ctx, key, key_len);
+	else
+		aes_setkey_dec(&ctx, key, key_len);
 	len &= 0xFFFFFFF0;
 
-	aes_crypt_cbc(&ctx, AES_DECRYPT, len, iv, data, data);
+	aes_crypt_cbc(&ctx, enc ? AES_ENCRYPT : AES_DECRYPT, len, iv, data, data);
 
 	return;
 }
 
-void aes_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
+void apollo_crypt_aes_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len)
 {
 	aes_context ctx;
-
-	key_len *= 8;
-	if (iv_len != AES_BLOCK_SIZE)
-		return;
-
-	aes_init(&ctx);
-	aes_setkey_enc(&ctx, key, key_len);
-	len &= 0xFFFFFFF0;
-
-	aes_crypt_cbc(&ctx, AES_ENCRYPT, len, iv, data, data);
-
-	return;
-}
-
-void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
-{
-	aes_context ctx;
+	int enc = (mode == APOLLO_ENCRYPT);
 
 	key_len *= 8;
 	aes_init(&ctx);
-	aes_setkey_dec(&ctx, key, key_len);
+	if (enc)
+		aes_setkey_enc(&ctx, key, key_len);
+	else
+		aes_setkey_dec(&ctx, key, key_len);
 
 	for (len /= AES_BLOCK_SIZE; len > 0; len--)
 	{
-		aes_crypt_ecb(&ctx, AES_DECRYPT, data, data);
+		aes_crypt_ecb(&ctx, enc ? AES_ENCRYPT : AES_DECRYPT, data, data);
 		data += AES_BLOCK_SIZE;
 	}
 
 	return;
 }
 
-void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
-{
-	aes_context ctx;
-
-	key_len *= 8;
-	aes_init(&ctx);
-	aes_setkey_enc(&ctx, key, key_len);
-
-	for (len /= AES_BLOCK_SIZE; len > 0; len--)
-	{
-		aes_crypt_ecb(&ctx, AES_ENCRYPT, data, data);
-		data += AES_BLOCK_SIZE;
-	}
-
-	return;
-}
-
-void des3_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void apollo_crypt_des3_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len)
 {
 	des3_context ctx;
 
@@ -225,7 +154,10 @@ void des3_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_le
 		return;
 
 	des3_init(&ctx);
-	des3_set3key_dec(&ctx, key);
+	if (mode == APOLLO_ENCRYPT)
+		des3_set3key_enc(&ctx, key);
+	else
+		des3_set3key_dec(&ctx, key);
 
 	for (len /= DES_BLOCK_SIZE; len > 0; len--)
 	{
@@ -236,54 +168,25 @@ void des3_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_le
 	return;
 }
 
-void des3_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len)
+void apollo_crypt_des3_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
 {
 	des3_context ctx;
-
-	if (key_len != DES_KEY_SIZE * 3)
-		return;
-
-	des3_init(&ctx);
-	des3_set3key_enc(&ctx, key);
-
-	for (len /= DES_BLOCK_SIZE; len > 0; len--)
-	{
-		des3_crypt_ecb(&ctx, data, data);
-		data += DES_BLOCK_SIZE;
-	}
-
-	return;
-}
-
-void des3_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
-{
-	des3_context ctx;
+	int enc = (mode == APOLLO_ENCRYPT);
 
 	if (key_len != DES_KEY_SIZE*3 || iv_len != DES_KEY_SIZE)
 		return;
 
 	des3_init(&ctx);
-	des3_set3key_dec(&ctx, key);
-	des3_crypt_cbc(&ctx, DES_DECRYPT, len, iv, data, data);
+	if (enc)
+		des3_set3key_enc(&ctx, key);
+	else
+		des3_set3key_dec(&ctx, key);
+	des3_crypt_cbc(&ctx, enc ? DES_ENCRYPT : DES_DECRYPT, len, iv, data, data);
 
 	return;
 }
 
-void des3_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len)
-{
-	des3_context ctx;
-
-	if (key_len != DES_KEY_SIZE*3 || iv_len != DES_KEY_SIZE)
-		return;
-
-	des3_init(&ctx);
-	des3_set3key_enc(&ctx, key);
-	des3_crypt_cbc(&ctx, DES_ENCRYPT, len, iv, data, data);
-
-	return;
-}
-
-void diablo_decrypt_data(uint8_t* data, uint32_t size)
+static void diablo_decrypt_data(uint8_t* data, uint32_t size)
 {
 	uint32_t xor_key1 = DIABLO3_KEY1;
 	uint32_t xor_key2 = DIABLO3_KEY2;
@@ -303,7 +206,7 @@ void diablo_decrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void diablo_encrypt_data(uint8_t* data, uint32_t size)
+static void diablo_encrypt_data(uint8_t* data, uint32_t size)
 {
 	uint32_t xor_key1 = DIABLO3_KEY1;
 	uint32_t xor_key2 = DIABLO3_KEY2;
@@ -323,13 +226,21 @@ void diablo_encrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
+void apollo_crypt_diablo3(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size)
+{
+	if (mode == APOLLO_ENCRYPT)
+		diablo_encrypt_data(data, size);
+	else
+		diablo_decrypt_data(data, size);
+}
+
 static void xor_block(const uint8_t* in, uint8_t* out)
 {
 	for (int i = 0; i < XOR_BLOCK_SIZE; i++)
 		out[i] ^= in[i];
 }
 
-void nfsu_decrypt_data(uint8_t* data, uint32_t size)
+static void nfsu_decrypt_data(uint8_t* data, uint32_t size)
 {
 	uint8_t xor_key[XOR_BLOCK_SIZE];
 	uint8_t tmp[XOR_BLOCK_SIZE];
@@ -355,7 +266,7 @@ void nfsu_decrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void nfsu_encrypt_data(uint8_t* data, uint32_t size)
+static void nfsu_encrypt_data(uint8_t* data, uint32_t size)
 {
 	uint8_t xor_key[XOR_BLOCK_SIZE];
 
@@ -379,7 +290,15 @@ void nfsu_encrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void sh3_decrypt_data(uint8_t* data, uint32_t size)
+void apollo_crypt_nfs_undercover(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size)
+{
+	if (mode == APOLLO_ENCRYPT)
+		nfsu_encrypt_data(data, size);
+	else
+		nfsu_decrypt_data(data, size);
+}
+
+static void sh3_decrypt_data(uint8_t* data, uint32_t size)
 {
 	uint32_t input, out;
 	uint64_t key2 = SH3_KEY2;
@@ -403,7 +322,7 @@ void sh3_decrypt_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void sh3_encrypt_data(uint8_t* data, uint32_t size)
+static void sh3_encrypt_data(uint8_t* data, uint32_t size)
 {
 	uint32_t input, out;
 	uint64_t key2 = SH3_KEY2;
@@ -425,6 +344,14 @@ void sh3_encrypt_data(uint8_t* data, uint32_t size)
 	}
 
 	return;
+}
+
+void apollo_crypt_silent_hill3(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size)
+{
+	if (mode == APOLLO_ENCRYPT)
+		sh3_encrypt_data(data, size);
+	else
+		sh3_decrypt_data(data, size);
 }
 
 static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint8_t* kdata)
@@ -469,7 +396,7 @@ static void ff13_init_key(uint8_t* key_table, uint32_t ff_game, const uint8_t* k
 	}
 }
 
-uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len)
+uint32_t apollo_hash_ff13(const uint8_t* bytes, uint32_t len)
 {
 	uint32_t ff_csum = 0;
 	len /= 4;
@@ -483,7 +410,7 @@ uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len)
 	return (ff_csum);
 }
 
-void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const uint8_t* key, uint32_t key_len)
+static void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const uint8_t* key, uint32_t key_len)
 {
 	uint8_t KeyBlocksArray[32][8];
 	uint32_t csum, ff_csum;
@@ -580,7 +507,7 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	}
 	///EXITING THE OUTER LOOP. FILE HAS NOW BEEN FULLY DECODED.
 
-	ff_csum = ff13_checksum(MemBlock, ByteCounter - 8);
+	ff_csum = apollo_hash_ff13(MemBlock, ByteCounter - 8);
 	LE32(ff_csum);
 	memcpy(&csum, MemBlock + ByteCounter - 4, sizeof(csum));
 
@@ -592,7 +519,7 @@ void ff13_decrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	return;
 }
 
-void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const uint8_t* key, uint32_t key_len)
+static void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const uint8_t* key, uint32_t key_len)
 {
 	uint8_t KeyBlocksArray[32][8];
 
@@ -691,7 +618,15 @@ void ff13_encrypt_data(uint32_t type, uint8_t* MemBlock, uint32_t size, const ui
 	return;
 }
 
-void mgs_Decrypt(uint8_t* data, int size, const char* key, int keylen)
+void apollo_crypt_final_fantasy13(apollo_crypt_mode_t mode, uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len)
+{
+	if (mode == APOLLO_ENCRYPT)
+		ff13_encrypt_data(game, data, len, key, key_len);
+	else
+		ff13_decrypt_data(game, data, len, key, key_len);
+}
+
+static void mgs_Decrypt(uint8_t* data, int size, const char* key, int keylen)
 {
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
@@ -702,7 +637,7 @@ void mgs_Decrypt(uint8_t* data, int size, const char* key, int keylen)
 	return;
 }
 
-void mgs_Encrypt(uint8_t* data, int size, const char* key, int keylen)
+static void mgs_Encrypt(uint8_t* data, int size, const char* key, int keylen)
 {
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
@@ -714,7 +649,15 @@ void mgs_Encrypt(uint8_t* data, int size, const char* key, int keylen)
 	return;
 }
 
-void mgs_EncodeBase64(uint8_t* data, uint32_t size)
+void apollo_crypt_mgs(apollo_crypt_mode_t mode, uint8_t* data, int size, const char* key, int keylen)
+{
+	if (mode == APOLLO_ENCRYPT)
+		mgs_Encrypt(data, size, key, keylen);
+	else
+		mgs_Decrypt(data, size, key, keylen);
+}
+
+static void mgs_EncodeBase64(uint8_t* data, uint32_t size)
 {
 	int i, j, k;
 	const char *chars;
@@ -759,7 +702,7 @@ void mgs_EncodeBase64(uint8_t* data, uint32_t size)
 	return;
 }
 
-void mgs_DecodeBase64(uint8_t* data, uint32_t size)
+static void mgs_DecodeBase64(uint8_t* data, uint32_t size)
 {
 	int i, j, k, m;
 	const char *chars;
@@ -824,7 +767,15 @@ void mgs_DecodeBase64(uint8_t* data, uint32_t size)
 	return;
 }
 
-uint32_t mgspw_Checksum(const uint8_t* data, int size)
+void apollo_crypt_mgs_base64(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size)
+{
+	if (mode == APOLLO_ENCRYPT)
+		mgs_EncodeBase64(data, size);
+	else
+		mgs_DecodeBase64(data, size);
+}
+
+uint32_t apollo_hash_mgspw(const uint8_t* data, int size)
 {
 	uint32_t csum = -1;
 
@@ -882,7 +833,7 @@ static void mgspw_SwapBlock(uint8_t* data, int len)
 	}
 }
 
-void mgspw_Decrypt(uint8_t* data, uint32_t size)
+static void mgspw_Decrypt(uint8_t* data, uint32_t size)
 {
 	uint32_t salts[2] = {0, 0};
 
@@ -899,22 +850,22 @@ void mgspw_Decrypt(uint8_t* data, uint32_t size)
 	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
 	mgspw_SwapBlock(data + 0x44, 0xd665);
 
-	salts[0] = mgspw_Checksum(data + 68, 0x1af24);
+	salts[0] = apollo_hash_mgspw(data + 68, 0x1af24);
 	BE32(salts[0]);
 	if (memcmp(&salts[0], &data[56], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 68);
 
-	salts[0] = mgspw_Checksum(data + 0x1af68, 0x1c00);
+	salts[0] = apollo_hash_mgspw(data + 0x1af68, 0x1c00);
 	BE32(salts[0]);
 	if (memcmp(&salts[0], &data[60], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x1af68);
 
-	salts[0] = mgspw_Checksum(data + 0x1cb68, 0x18e68);
+	salts[0] = apollo_hash_mgspw(data + 0x1cb68, 0x18e68);
 	BE32(salts[0]);
 	if (memcmp(&salts[0], &data[48], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x1cb68);
 
-	salts[0] = mgspw_Checksum(data + 0x35a18, 0xf0d0);
+	salts[0] = apollo_hash_mgspw(data + 0x35a18, 0xf0d0);
 	BE32(salts[0]);
 	if (memcmp(&salts[0], &data[0xD683 * 4], sizeof(uint32_t)) != 0)
 		LOG("[!] Checksum error (%x)", 0x35a18);
@@ -923,7 +874,7 @@ void mgspw_Decrypt(uint8_t* data, uint32_t size)
 	return;
 }
 
-void mgspw_Encrypt(uint8_t* data, uint32_t size)
+static void mgspw_Encrypt(uint8_t* data, uint32_t size)
 {
 	uint32_t salts[2] = {0, 0};
 
@@ -944,7 +895,15 @@ void mgspw_Encrypt(uint8_t* data, uint32_t size)
 	return;
 }
 
-void dw8xl_encode_data(uint8_t* data, uint32_t size)
+void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len)
+{
+	if (mode == APOLLO_ENCRYPT)
+		mgspw_Encrypt(data, len);
+	else
+		mgspw_Decrypt(data, len);
+}
+
+void apollo_crypt_dw8xl(uint8_t* data, uint32_t size)
 {
 	uint32_t xor_key = DW8XL_KEY1;
 
@@ -960,11 +919,11 @@ void dw8xl_encode_data(uint8_t* data, uint32_t size)
 	return;
 }
 
-void borderlands3_Decrypt(uint8_t* buffer, int length, int mode)
+static void borderlands3_Decrypt(uint8_t* buffer, int length, int is_data)
 {
 	char b;
-	const char* XorMagic = mode ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
-	const char* PrefixMagic = mode ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
+	const char* XorMagic = is_data ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
+	const char* PrefixMagic = is_data ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
 
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", length, length);
 
@@ -979,11 +938,11 @@ void borderlands3_Decrypt(uint8_t* buffer, int length, int mode)
 	return;
 }
 
-void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
+static void borderlands3_Encrypt(uint8_t* buffer, int length, int is_data)
 {
 	char b;
-	const char* XorMagic = mode ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
-	const char* PrefixMagic = mode ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
+	const char* XorMagic = is_data ? BL3_DATA_XOR_PS4 : BL3_PROFILE_XOR_PS4;
+	const char* PrefixMagic = is_data ? BL3_DATA_PREFIX_PS4 : BL3_PROFILE_PREFIX_PS4;
 
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", length, length);
 
@@ -998,9 +957,17 @@ void borderlands3_Encrypt(uint8_t* buffer, int length, int mode)
 	return;
 }
 
-void mgs5tpp_encode_data(uint8_t* data, uint32_t len, uint32_t key)
+void apollo_crypt_borderlands3(apollo_crypt_mode_t mode, uint8_t* buffer, int length, int is_data)
 {
-	apollo_endianness_t data_endian = apollo_get_data_endianness();
+	if (mode == APOLLO_ENCRYPT)
+		borderlands3_Encrypt(buffer, length, is_data);
+	else
+		borderlands3_Decrypt(buffer, length, is_data);
+}
+
+void apollo_crypt_mgs5_tpp(uint8_t* data, uint32_t len, uint32_t key)
+{
+	apollo_endianness_t data_endian = apollo_get_endianness();
 
 	LOG("[*] Total Encoded Size: 0x%X (%d bytes)", len, len);
 
@@ -1071,7 +1038,7 @@ static void mh_xor_block(uint8_t* data, int len, int lba)
 	return;
 }
 
-void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
+static void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
 {
 	uint32_t seed;
 	const uint8_t* dec_table = (ver == 3) ? MH3_DEC_TABLE : MH2_DEC_TABLE;
@@ -1098,7 +1065,7 @@ void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver)
 	return;
 }
 
-void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
+static void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
 {
 	uint32_t seed;
 	uint8_t enc_table[256];
@@ -1127,7 +1094,15 @@ void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver)
 	return;
 }
 
-void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len)
+void apollo_crypt_monster_hunter(apollo_crypt_mode_t mode, uint8_t* buff, uint32_t size, int ver)
+{
+	if (mode == APOLLO_ENCRYPT)
+		monsterhunter_encrypt_data(buff, size, ver);
+	else
+		monsterhunter_decrypt_data(buff, size, ver);
+}
+
+void apollo_crypt_rgg_studio(uint8_t* data, uint32_t size, const char* key, int key_len)
 {
 	LOG("[*] Total Data Size: 0x%X (%d bytes)", size, size);
 

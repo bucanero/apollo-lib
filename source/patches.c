@@ -30,7 +30,7 @@
  * run out of lines in the middle of a multi-line code, or ask for an allocation
  * the host can't satisfy. Every such site rejects the code instead of
  * dereferencing NULL: `dsize = 0` is the engine's existing "produced nothing,
- * don't write the file" signal (see apply_cheat_patch_code).
+ * don't write the file" signal (see apollo_apply_code).
  */
 #define BSD_REQUIRE(cond, msg)  do { if (!(cond)) { LOG("ERROR: %s", msg); dsize = 0; goto bsd_end; } } while (0)
 #define SW_REQUIRE(cond, msg)   do { if (!(cond)) { LOG("ERROR: %s", msg); dsize = 0; goto sw_end; } } while (0)
@@ -116,7 +116,7 @@ void apollo_set_endianness(int endian)
 	_default_endianness = endian;
 }
 
-int apollo_get_data_endianness(void)
+int apollo_get_endianness(void)
 {
 	return (_default_endianness ? _default_endianness : apollo_get_host_endianness());
 }
@@ -391,7 +391,7 @@ static int _parse_int_value(const char* line, const int ptrval, const int size)
 	return (neg ? -ret : ret);
 }
 
-void free_patch_var_list(void)
+void apollo_free_var_list(void)
 {
 	list_node_t *node;
 	bsd_variable_t* bv;
@@ -562,54 +562,43 @@ static int _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t l
 		return 0;
 	}
 
+	apollo_crypt_mode_t mode = (type < DEC_AES_ECB) ? APOLLO_ENCRYPT : APOLLO_DECRYPT;
+	const char* dir = (mode == APOLLO_ENCRYPT) ? "En" : "De";
+
 	switch (type)
 	{
 	case ENC_AES_ECB:
-		LOG("Encrypting AES ECB %d data (%d bytes)", key_len*8, length);
-		aes_ecb_encrypt(start, length, (uint8_t*) key, key_len);
-		break;
 	case DEC_AES_ECB:
-		LOG("Decrypting AES ECB %d data (%d bytes)", key_len*8, length);
-		aes_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		LOG("%scrypting AES ECB %d data (%d bytes)", dir, key_len*8, length);
+		apollo_crypt_aes_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case ENC_BLOWFISH_ECB:
-		LOG("Encrypting Blowfish ECB data (%d bytes)", length);
-		blowfish_ecb_encrypt(start, length, (uint8_t*) key, key_len);
-		break;
 	case DEC_BLOWFISH_ECB:
-		LOG("Decrypting Blowfish ECB data (%d bytes)", length);
-		blowfish_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		LOG("%scrypting Blowfish ECB data (%d bytes)", dir, length);
+		apollo_crypt_blowfish_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case ENC_3DES_ECB:
-		LOG("Encrypting 3-DES ECB data (%d bytes)", length);
-		des3_ecb_encrypt(start, length, (uint8_t*) key, key_len);
-		break;
 	case DEC_3DES_ECB:
-		LOG("Decrypting 3-DES ECB data (%d bytes)", length);
-		des3_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		LOG("%scrypting 3-DES ECB data (%d bytes)", dir, length);
+		apollo_crypt_des3_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case ENC_CAMELLIA_ECB:
-		LOG("Encrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
-		camellia_ecb_encrypt(start, length, (uint8_t*) key, key_len);
-		break;
 	case DEC_CAMELLIA_ECB:
-		LOG("Decrypting Camellia ECB %d data (%d bytes)", key_len*8, length);
-		camellia_ecb_decrypt(start, length, (uint8_t*) key, key_len);
+		LOG("%scrypting Camellia ECB %d data (%d bytes)", dir, key_len*8, length);
+		apollo_crypt_camellia_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case ENC_MGS_HD:
-		mgs_Encrypt(start, length, key, key_len);
-		break;
 	case DEC_MGS_HD:
-		mgs_Decrypt(start, length, key, key_len);
+		apollo_crypt_mgs(mode, start, length, key, key_len);
 		break;
 
 	case ENC_RGG_STUDIO:
 	case DEC_RGG_STUDIO:
-		rgg_xor_data(start, length, key, key_len);
+		apollo_crypt_rgg_studio(start, length, key, key_len);
 		break;
 
 	default:
@@ -657,39 +646,33 @@ static int _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_
 		return 0;
 	}
 
+	apollo_crypt_mode_t mode = (type < DEC_AES_ECB) ? APOLLO_ENCRYPT : APOLLO_DECRYPT;
+	const char* dir = (mode == APOLLO_ENCRYPT) ? "En" : "De";
+
 	switch (type)
 	{
 	case ENC_AES_CTR:
 	case DEC_AES_CTR:
 		LOG("Xcrypting AES CTR %d data (%d bytes)", key_len*8, length);
-		aes_ctr_xcrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		apollo_crypt_aes_ctr(start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_AES_CBC:
-		LOG("Encrypting AES CBC %d data (%d bytes)", key_len*8, length);
-		aes_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-		break;
 	case DEC_AES_CBC:
-		LOG("Decrypting AES CBC %d data (%d bytes)", key_len*8, length);
-		aes_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		LOG("%scrypting AES CBC %d data (%d bytes)", dir, key_len*8, length);
+		apollo_crypt_aes_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_BLOWFISH_CBC:
-		LOG("Encrypting Blowfish CBC data (%d bytes)", length);
-		blowfish_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-		break;
 	case DEC_BLOWFISH_CBC:
-		LOG("Decrypting Blowfish CBC data (%d bytes)", length);
-		blowfish_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		LOG("%scrypting Blowfish CBC data (%d bytes)", dir, length);
+		apollo_crypt_blowfish_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case ENC_3DES_CBC:
-		LOG("Encrypting 3-DES CBC data (%d bytes)", length);
-		des3_cbc_encrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
-		break;
 	case DEC_3DES_CBC:
-		LOG("Decrypting 3-DES CBC data (%d bytes)", length);
-		des3_cbc_decrypt(start, length, (uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
+		LOG("%scrypting 3-DES CBC data (%d bytes)", dir, length);
+		apollo_crypt_des3_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	default:
@@ -763,7 +746,7 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 	return 1;
 }
 
-size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
+size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	char *bsd_code;
 	uint8_t *data = *src_data;
@@ -831,13 +814,13 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			// set *:param = "wadd(*,*)", "[dq]wadd(*,*)", "sub(*,*)", "wsub(*,*)", "[dq]wsub(*,*)", "repeat(*,*)*",
 			// set *:param = "mid(*,*)", "left(*,*)", "right(*,*)"
 			// UNUSED: "userid*", "titleid*", "psid*", "account*", "profile*",
-			// UNUSED: crc16, adler16, md4, sha384, sha512, left, not
+			// UNUSED: crc16, apollo_hash_adler16, md4, sha384, sha512, left, not
 			//
 			// "set range:*,*", "set crc_*:*", "set md5:*", "set md2:*", "set sha1:*", "set crc32:*", "set crc32big:*",
 			// "set crc32little:*", "set crc16:*", "set adler16:*", "set adler32:*",
 			// "set ""*"":*", "set pointer:*"
 			// UNUSED: "set psid:*", "set userid:*", "set titleid:*", "set *account*:*", "set *profile*:*",
-			// UNUSED: crc16, adler16, md4, sha384, sha512,
+			// UNUSED: crc16, apollo_hash_adler16, md4, sha384, sha512,
 
 			int ptr_off, len;
 			char* tmp = NULL;
@@ -1038,7 +1021,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					{
 						/* Keep the previous value reachable for the bitwise /
 						 * endian_swap ops below, but as a heap copy: every
-						 * branch (and free_patch_var_list) owns var->data, so
+						 * branch (and apollo_free_var_list) owns var->data, so
 						 * it must never point at this function's stack. */
 						free(var->data);
 						var->data = NULL;
@@ -1157,7 +1140,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						custom_crc.refIn = 0;
 						custom_crc.refOut = 0;
 
-						hash = crc32_hash(start, len, &custom_crc);
+						hash = apollo_hash_crc32(start, len, &custom_crc);
 						LOG("len %d CRC32Big HASH = %08X", len, hash);
 					}
 					else
@@ -1166,7 +1149,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						custom_crc.refIn = 1;
 						custom_crc.refOut = 1;
 
-						hash = crc32_hash(start, len, &custom_crc);
+						hash = apollo_hash_crc32(start, len, &custom_crc);
 						LOG("len %d CRC32 HASH = %08X", len, hash);
 					}
 
@@ -1187,7 +1170,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = crc16_hash(start, len, &custom_crc);
+					hash = apollo_hash_crc16(start, len, &custom_crc);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
@@ -1212,7 +1195,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						custom_crc.refIn = 0;
 						custom_crc.refOut = 0;
 
-						hash = crc64_hash(start, len, &custom_crc);
+						hash = apollo_hash_crc64(start, len, &custom_crc);
 						LOG("len %d CRC64 ECMA HASH = %016" PRIX64, len, hash);
 					}
 					else
@@ -1224,7 +1207,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						custom_crc.refIn = 1;
 						custom_crc.refOut = 1;
 
-						hash = crc64_hash(start, len, &custom_crc);
+						hash = apollo_hash_crc64(start, len, &custom_crc);
 						LOG("len %d CRC64 ISO HASH = %016" PRIX64, len, hash);
 					}
 
@@ -1244,7 +1227,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					if (custom_crc.width == CRC_16_RESULT_WIDTH)
 					{
 						// Custom CRC-16
-						uint16_t hash = crc16_hash(start, len, &custom_crc);
+						uint16_t hash = apollo_hash_crc16(start, len, &custom_crc);
 
 						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
@@ -1253,7 +1236,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					else if (custom_crc.width == CRC_64_RESULT_WIDTH)
 					{
 						// Custom CRC-64
-						uint64_t hash = crc64_hash(start, len, &custom_crc);
+						uint64_t hash = apollo_hash_crc64(start, len, &custom_crc);
 
 						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
@@ -1262,7 +1245,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					else
 					{
 						// Custom CRC-32
-						uint32_t hash = crc32_hash(start, len, &custom_crc);
+						uint32_t hash = apollo_hash_crc32(start, len, &custom_crc);
 
 						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1276,7 +1259,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t hash;
 					len = range_end - range_start;
 
-					hash = md5_xor_hash((uint8_t*)data + range_start, len);
+					hash = apollo_hash_md5_xor((uint8_t*)data + range_start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1315,7 +1298,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint64_t hash;
 					len = range_end - range_start;
 
-					hash = sha1_xor64_hash((uint8_t*)data + range_start, len);
+					hash = apollo_hash_sha1_xor64((uint8_t*)data + range_start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
@@ -1395,21 +1378,21 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					LOG("len %d Adler32 HASH = %08X", len, hash);
 				}
 
-				// set [*]:adler16*
+				// set [*]:apollo_hash_adler16*
 				else if (wildcard_match_icase(line, "adler16*"))
 				{
 					uint16_t hash;
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = adler16(start, len);
+					hash = apollo_hash_adler16(start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
 					LOG("len %d Adler16 HASH = %04X", len, hash);
 				}
 
-				// set [*]:murmur3_32*
+				// set [*]:apollo_hash_murmur3_32*
 				else if (wildcard_match_icase(line, "murmur3_32*"))
 				{
 					uint32_t hash;
@@ -1418,14 +1401,14 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					tmp = strchr(line, ':');
 					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
-					hash = murmur3_32((uint8_t*)data + range_start, len, hash);
+					hash = apollo_hash_murmur3_32((uint8_t*)data + range_start, len, hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Murmur3-32 HASH = %08X", len, hash);
 				}
 
-				// set [*]:jhash*
+				// set [*]:apollo_hash_jhash*
 				else if (wildcard_match_icase(line, "jhash*"))
 				{
 					uint32_t hash;
@@ -1434,7 +1417,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					tmp = strchr(line, ':');
 					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
-					hash = jhash((uint8_t*)data + range_start, len, hash);
+					hash = apollo_hash_jhash((uint8_t*)data + range_start, len, hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1450,7 +1433,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					tmp = strchr(line, ':');
 					hash = tmp ? _parse_int_value(tmp+1, pointer, dsize) : 0;
 
-					hash = jenkins_oaat_hash((uint8_t*)data + range_start, len, hash);
+					hash = apollo_hash_jenkins_oaat((uint8_t*)data + range_start, len, hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1487,7 +1470,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_log_dump("SHA1/HMAC HASH", var->data, var->len);
 				}
 
-				// set [*]:force_crc32:*
+				// set [*]:apollo_hash_force_crc32:*
 				else if (wildcard_match_icase(line, "force_crc32:*"))
 				{
 					uint32_t hash, newcrc;
@@ -1496,7 +1479,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					line = strchr(line, ':')+1;
 					newcrc = _parse_int_value(line, pointer, dsize);
 
-					hash = force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
+					hash = apollo_hash_force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1510,7 +1493,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = MC02_hash(start, len);
+					hash = apollo_hash_mc02(start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1525,7 +1508,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					// FFX hash is stored in little-endian
-					hash = ffx_hash(start, len);
+					hash = apollo_hash_ffx(start, len);
 					hash = ES16(hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
@@ -1533,7 +1516,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					LOG("len %d FFX HASH = %04X", len, hash);
 				}
 
-				// set [*]:ff13_checksum*
+				// set [*]:apollo_hash_ff13*
 				else if (wildcard_match_icase(line, "ff13_checksum*"))
 				{
 					uint32_t hash;
@@ -1541,7 +1524,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					// FFXIII hash is stored in little-endian
-					hash = ff13_checksum(start, len);
+					hash = apollo_hash_ff13(start, len);
 					hash = ES32(hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
@@ -1556,7 +1539,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					// Castlevania LOS hash is stored in little-endian
-					hash = castlevania_hash((uint8_t*)data + range_start, len);
+					hash = apollo_hash_castlevania((uint8_t*)data + range_start, len);
 					hash = ES32(hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
@@ -1564,20 +1547,20 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					LOG("len %d Castlevania HASH = %08X", len, hash);
 				}
 
-				// set [*]:deadrising_checksum*
+				// set [*]:apollo_hash_deadrising*
 				else if (wildcard_match_icase(line, "deadrising_checksum*"))
 				{
 					int blocks;
 					len = range_end - range_start;
 
-					blocks = deadrising_checksum((uint8_t*)data + range_start, len);
+					blocks = apollo_hash_deadrising((uint8_t*)data + range_start, len);
 					LOG("len %d Dead Rising checksum: %d blocks updated", len, blocks);
 				}
 
-				// set [*]:dbzxv2_checksum*
+				// set [*]:apollo_hash_dbzxv2*
 				else if (wildcard_match_icase(line, "dbzxv2_checksum*"))
 				{
-					uint64_t hash = dbzxv2_checksum((uint8_t*)data, dsize);
+					uint64_t hash = apollo_hash_dbzxv2((uint8_t*)data, dsize);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
@@ -1619,7 +1602,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						}
 
 						memset(data + chks_off + 8, 0, 8);
-						chks = jenkins_oaat_hash(data + blk, chks_len, 0x3FAC7125);
+						chks = apollo_hash_jenkins_oaat(data + blk, chks_len, 0x3FAC7125);
 						LOG(" + CHKS Size: 0x%X Offset: 0x%X - Wrote Checksum: %08X", chks_len, chks_off, chks);
 
 						BE32(chks);
@@ -1646,7 +1629,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2);
 					LOG("lookup3 init values %X %X", iv1, iv2);
 
-					lookup3_hashlittle2((uint8_t*)data + range_start, len, &iv1, &iv2);
+					apollo_hash_lookup3_little2((uint8_t*)data + range_start, len, &iv1, &iv2);
 					hash = iv2 + (((uint64_t) iv1) << 32);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
@@ -1662,7 +1645,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					// Kingdom Hearts 2.5 hash is stored in little-endian
-					hash = kh25_hash(start, len);
+					hash = apollo_hash_kh25(start, len);
 					hash = ES32(hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
@@ -1677,7 +1660,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = kh_com_hash(start, len);
+					hash = apollo_hash_khcom(start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1690,7 +1673,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t hash;
 					len = range_end - range_start;
 
-					hash = mgs2_hash((uint8_t*)data + range_start, len);
+					hash = apollo_hash_mgs2((uint8_t*)data + range_start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1703,7 +1686,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t hash;
 					len = range_end - range_start;
 
-					hash = mgspw_Checksum((uint8_t*)data + range_start, len);
+					hash = apollo_hash_mgspw((uint8_t*)data + range_start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1717,7 +1700,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					sw4_hash(start, len, hash);
+					apollo_hash_sw4(start, len, hash);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
 
@@ -1731,7 +1714,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA1), "out of memory");
-					toz_hash(start, len, var->data);
+					apollo_hash_toz(start, len, var->data);
 
 					LOG("len %d TOZ SHA1", len);
 					_log_dump("TOZ SHA1 HASH", var->data, var->len);
@@ -1744,7 +1727,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = tiara2_hash(start, len);
+					hash = apollo_hash_tiara2(start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1758,7 +1741,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					hash = Checksum32_hash(start, len);
+					hash = apollo_hash_checksum32(start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1778,7 +1761,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						init_val = _parse_int_value(tmp+1, pointer, dsize);
 					}
 
-					hash = sdbm_hash(start, len, init_val);
+					hash = apollo_hash_sdbm(start, len, init_val);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1791,7 +1774,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t hash;
 					len = range_end - range_start;
 
-					hash = djb2_hash((uint8_t*)data + range_start, len);
+					hash = apollo_hash_djb2((uint8_t*)data + range_start, len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1811,7 +1794,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						init_val = _parse_int_value(tmp+1, pointer, dsize);
 					}
 
-					hash = fnv1_hash(start, len, init_val);
+					hash = apollo_hash_fnv1(start, len, init_val);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
@@ -1830,7 +1813,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += qwadd_hash((uint8_t*)data + add_s, add_len);
+					add += apollo_hash_qwadd((uint8_t*)data + add_s, add_len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 					
@@ -1849,7 +1832,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += dwadd_hash((uint8_t*)data + add_s, add_len, 0);
+					add += apollo_hash_dwadd((uint8_t*)data + add_s, add_len, 0);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
     			    
@@ -1869,7 +1852,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += wadd_hash((uint8_t*)data + add_s, add_len, 1);
+					add += apollo_hash_wadd((uint8_t*)data + add_s, add_len, 1);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 
@@ -1889,7 +1872,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += dwadd_hash((uint8_t*)data + add_s, add_len, 1);
+					add += apollo_hash_dwadd((uint8_t*)data + add_s, add_len, 1);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 					
@@ -1908,7 +1891,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += wadd_hash((uint8_t*)data + add_s, add_len, 0);
+					add += apollo_hash_wadd((uint8_t*)data + add_s, add_len, 0);
     			    
 					while ((carry > 0) && (add > 0xFFFF))
 					{
@@ -1934,7 +1917,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
 
 					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
-					add += add_hash((uint8_t*)data + add_s, add_len);
+					add += apollo_hash_add((uint8_t*)data + add_s, add_len);
 
 					while ((carry > 0) && (add > 0xFFFF))
 					{
@@ -1963,7 +1946,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					_parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
 
 					size_t sub_len = _clamp_range(dsize, &sub_s, &sub_e);
-					sub += wsub_hash((uint8_t*)data + sub_s, sub_len);
+					sub += apollo_hash_wsub((uint8_t*)data + sub_s, sub_len);
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &sub, BSD_VAR_INT32), "out of memory");
     			    
@@ -2878,22 +2861,22 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			if (wildcard_match_icase(line, "diablo3*"))
 			{
 				LOG("Decrypt Diablo 3 data");
-				diablo_decrypt_data((uint8_t*) data + range_start, (range_end - range_start));
+				apollo_crypt_diablo3(APOLLO_DECRYPT, (uint8_t*) data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "dw8xl*"))
 			{
 				LOG("Decrypt Dynasty Warriors 8 XL data");
-				dw8xl_encode_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_dw8xl((uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "silent_hill3*"))
 			{
 				LOG("Decrypt Silent Hill 3 data");
-				sh3_decrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_silent_hill3(APOLLO_DECRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "nfs_undercover*"))
 			{
 				LOG("Decrypt NFS Undercover data");
-				nfsu_decrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_nfs_undercover(APOLLO_DECRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
@@ -2922,7 +2905,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				*tmp = ')';
 				BSD_REQUIRE(key, "invalid ffxiii() key");
 
-				ff13_decrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
+				apollo_crypt_final_fantasy13(APOLLO_DECRYPT, mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
@@ -2944,7 +2927,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				s_type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				borderlands3_Decrypt(start, (range_end - range_start), s_type);
+				apollo_crypt_borderlands3(APOLLO_DECRYPT, start, (range_end - range_start), s_type);
 			}
 			else if (wildcard_match_icase(line, "monster_hunter(*)*"))
 			{
@@ -2959,7 +2942,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				monsterhunter_decrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
+				apollo_crypt_monster_hunter(APOLLO_DECRYPT, (uint8_t*)data + range_start, (range_end - range_start), type);
 			}
 			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
 			{
@@ -2974,17 +2957,17 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data(data + range_start, (range_end - range_start), xor_key);
+				apollo_crypt_mgs5_tpp(data + range_start, (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Decrypt MGS Peace Walker data");
-				mgspw_Decrypt(data + range_start, (range_end - range_start));
+				apollo_crypt_mgs_pw(APOLLO_DECRYPT, data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs_base64*"))
 			{
 				LOG("Decode MGS Base64 data");
-				mgs_DecodeBase64((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_mgs_base64(APOLLO_DECRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
@@ -3045,22 +3028,22 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			if (wildcard_match_icase(line, "diablo3*"))
 			{
 				LOG("Encrypt Diablo 3 data");
-				diablo_encrypt_data((uint8_t*) data + range_start, (range_end - range_start));
+				apollo_crypt_diablo3(APOLLO_ENCRYPT, (uint8_t*) data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "dw8xl*"))
 			{
 				LOG("Encrypt Dynasty Warriors 8 XL data");
-				dw8xl_encode_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_dw8xl((uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "silent_hill3*"))
 			{
 				LOG("Encrypt Silent Hill 3 data");
-				sh3_encrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_silent_hill3(APOLLO_ENCRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "nfs_undercover*"))
 			{
 				LOG("Encrypt NFS Undercover data");
-				nfsu_encrypt_data((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_nfs_undercover(APOLLO_ENCRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
@@ -3089,7 +3072,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				*tmp = ')';
 				BSD_REQUIRE(key, "invalid ffxiii() key");
 
-				ff13_encrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
+				apollo_crypt_final_fantasy13(APOLLO_ENCRYPT, mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
 			}
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
@@ -3111,7 +3094,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				s_type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				borderlands3_Encrypt(start, (range_end - range_start), s_type);
+				apollo_crypt_borderlands3(APOLLO_ENCRYPT, start, (range_end - range_start), s_type);
 			}
 			else if (wildcard_match_icase(line, "monster_hunter(*)*"))
 			{
@@ -3126,7 +3109,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				type = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				monsterhunter_encrypt_data((uint8_t*)data + range_start, (range_end - range_start), type);
+				apollo_crypt_monster_hunter(APOLLO_ENCRYPT, (uint8_t*)data + range_start, (range_end - range_start), type);
 			}
 			else if (wildcard_match_icase(line, "mgs5_tpp(*)*"))
 			{
@@ -3141,17 +3124,17 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				xor_key = _parse_int_value(line, pointer, dsize);
 				*tmp = ')';
 
-				mgs5tpp_encode_data(data + range_start, (range_end - range_start), xor_key);
+				apollo_crypt_mgs5_tpp(data + range_start, (range_end - range_start), xor_key);
 			}
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
 				LOG("Encrypt MGS Peace Walker data");
-				mgspw_Encrypt(data + range_start, (range_end - range_start));
+				apollo_crypt_mgs_pw(APOLLO_ENCRYPT, data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs_base64*"))
 			{
 				LOG("Encode MGS Base64 data");
-				mgs_EncodeBase64((uint8_t*)data + range_start, (range_end - range_start));
+				apollo_crypt_mgs_base64(APOLLO_ENCRYPT, (uint8_t*)data + range_start, (range_end - range_start));
 			}
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
@@ -3211,13 +3194,13 @@ bsd_end:
 	return (dsize);
 }
 
-size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code)
+size_t apollo_apply_sw_code(uint8_t *data, size_t dsize, const code_entry_t* code)
 {
 	char *gg_code;
 	long pointer = 0, end_pointer = 0;
 	uint32_t ptr_value = 0;
 	char tmp3[4], tmp4[5], tmp6[7], tmp8[9];
-	apollo_endianness_t data_endian = apollo_get_data_endianness();
+	apollo_endianness_t data_endian = apollo_get_endianness();
 
 	if (code->flags & APOLLO_CODE_FLAG_ORDER_BE)
 		data_endian = APOLLO_ENDIAN_BIG;
@@ -3235,7 +3218,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 	for (char *line = strtok(gg_code, "\n"); line != NULL;)
 	{
 		/* Every line is indexed at fixed offsets up to line[16] below, so it has
-		 * to be a full "XXXXXXXX YYYYYYYY". load_patch_code_list() already
+		 * to be a full "XXXXXXXX YYYYYYYY". apollo_load_code_list() already
 		 * guarantees this — a code with any other line width is typed BSD, not
 		 * Save Wizard (see tests/test_parse.c) — so this only guards callers
 		 * that build a code_entry_t themselves and call this public entry point
@@ -4310,7 +4293,7 @@ static void add_host_vars_python(struct _mp_state_ctx_t *upy_ctx)
 	}
 }
 
-size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
+size_t apollo_apply_py_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
 	char *py_code;
 	mp_obj_t savedata_obj;
@@ -4422,7 +4405,7 @@ static void* dummy_host_callback(int id, uint32_t* size)
 	return "";
 }
 
-int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb)
+int apollo_apply_code(const char* fpath, const code_entry_t* code, apollo_host_cb_t host_cb)
 {
 	uint8_t* data;
 	size_t dsize = 0;
@@ -4456,17 +4439,17 @@ int apply_cheat_patch_code(const char* fpath, const code_entry_t* code, apollo_h
 	{
 	case APOLLO_CODE_GAMEGENIE:
 		LOG("Save Wizard Code");
-		dsize = apply_sw_patch_code(data, dsize, code);
+		dsize = apollo_apply_sw_code(data, dsize, code);
 		break;
 
 	case APOLLO_CODE_BSD:
 		LOG("BSD Script Code");
-		dsize = apply_bsd_patch_code(&data, dsize, code);
+		dsize = apollo_apply_bsd_code(&data, dsize, code);
 		break;
 
 	case APOLLO_CODE_PYTHON:
 		LOG("Python Script Code");
-		dsize = apply_py_script_code(&data, dsize, code);
+		dsize = apollo_apply_py_code(&data, dsize, code);
 		break;
 
 	default:

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define APOLLO_LIB_VERSION         "2.1.0"
+#define APOLLO_LIB_VERSION         "3.0.0"
 
 #define APOLLO_CODE_GAMEGENIE      1
 #define APOLLO_CODE_SAVEWIZARD     1
@@ -39,6 +39,15 @@ typedef enum
     APOLLO_HOST_TEMP_PATH,
     APOLLO_HOST_DATA_PATH,
 } apollo_host_data_t;
+
+/* Direction argument shared by every apollo_crypt_* function that has an
+   inverse. Values match the MicroPython ucrypto module's DECRYPT/ENCRYPT, so a
+   C call and a Python call read the same way. */
+typedef enum
+{
+    APOLLO_DECRYPT = 0,
+    APOLLO_ENCRYPT = 1,
+} apollo_crypt_mode_t;
 
 typedef struct list_node_s
 {
@@ -123,91 +132,71 @@ int write_buffer(const char *file_path, const uint8_t *buf, size_t size);
 
 //---  Apollo patch functions ---
 
-void free_patch_var_list(void);
+void apollo_free_var_list(void);
 void apollo_set_endianness(int endian);
-int apollo_get_data_endianness(void);
-size_t apply_sw_patch_code(uint8_t* data, size_t dsize, const code_entry_t* code);
-size_t apply_bsd_patch_code(uint8_t** data, size_t dsize, const code_entry_t* code);
-size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
-int apply_cheat_patch_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
-int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
+int apollo_get_endianness(void);
+size_t apollo_apply_sw_code(uint8_t* data, size_t dsize, const code_entry_t* code);
+size_t apollo_apply_bsd_code(uint8_t** data, size_t dsize, const code_entry_t* code);
+size_t apollo_apply_py_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
+int apollo_apply_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
+int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 
-//---  Apollo encryption functions ---
+//---  Apollo crypto functions ---
+//
+// Functions with an inverse take `mode` first: APOLLO_ENCRYPT or APOLLO_DECRYPT.
+// The four without one omit it -- CTR and the two XOR streams are self-inverse,
+// and MGS5 TPP only ever encodes.
 
-// Diablo 3 save data encryption
-void diablo_decrypt_data(uint8_t* data, uint32_t size);
-void diablo_encrypt_data(uint8_t* data, uint32_t size);
+// AES save data crypto
+void apollo_crypt_aes_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
+void apollo_crypt_aes_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+void apollo_crypt_aes_ctr(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
 
-// Blowfish ECB save data encryption
-void blowfish_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
-void blowfish_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
+// 3-DES save data crypto
+void apollo_crypt_des3_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
+void apollo_crypt_des3_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
 
-// Blowfish CBC save data encryption
-void blowfish_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
-void blowfish_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+// Blowfish save data crypto
+void apollo_crypt_blowfish_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
+void apollo_crypt_blowfish_cbc(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
 
-// AES ECB save data encryption
-void aes_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
-void aes_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
+// Camellia save data crypto
+void apollo_crypt_camellia_ecb(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 
-// AES CBC save data encryption
-void aes_cbc_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
-void aes_cbc_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+// Diablo 3 save data crypto
+void apollo_crypt_diablo3(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size);
 
-// AES CTR save data encryption
-void aes_ctr_xcrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+// Silent Hill 3 save data crypto
+void apollo_crypt_silent_hill3(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size);
 
-// 3-DES ECB save data encryption
-void des3_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
-void des3_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
+// NFS Undercover save data crypto
+void apollo_crypt_nfs_undercover(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size);
 
-// 3-DES CBC save data encryption
-void des3_cbc_decrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
-void des3_cbc_encrypt(uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len, uint8_t* iv, uint32_t iv_len);
+// Final Fantasy XIII (1/2/3) save data crypto
+void apollo_crypt_final_fantasy13(apollo_crypt_mode_t mode, uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
 
-// NFS Undercover save data encryption
-void nfsu_decrypt_data(uint8_t* data, uint32_t size);
-void nfsu_encrypt_data(uint8_t* data, uint32_t size);
+// Borderlands 3 save data crypto (`is_data`: non-zero for save data, zero for profile)
+void apollo_crypt_borderlands3(apollo_crypt_mode_t mode, uint8_t* buffer, int length, int is_data);
 
-// Silent Hill 3 save data encryption
-void sh3_decrypt_data(uint8_t* data, uint32_t size);
-void sh3_encrypt_data(uint8_t* data, uint32_t size);
+// Monster Hunter save data crypto
+void apollo_crypt_monster_hunter(apollo_crypt_mode_t mode, uint8_t* buff, uint32_t size, int ver);
 
-// Camellia ECB save data encryption
-void camellia_ecb_decrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
-void camellia_ecb_encrypt(uint8_t* data, uint32_t len, uint8_t* key, uint32_t key_len);
+// Metal Gear Solid 2/3 HD save data crypto
+void apollo_crypt_mgs(apollo_crypt_mode_t mode, uint8_t* data, int size, const char* key, int keylen);
+void apollo_crypt_mgs_base64(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size);
 
-// Dynasty Warriors 8 Xtreme Legends save data encryption
-void dw8xl_encode_data(uint8_t* data, uint32_t len);
+// Metal Gear Solid Peace Walker save data crypto
+void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len);
 
-// Metal Gear Solid 2/3 HD save data encryption
-void mgs_Decrypt(uint8_t* data, int size, const char* key, int keylen);
-void mgs_Encrypt(uint8_t* data, int size, const char* key, int keylen);
-void mgs_DecodeBase64(uint8_t* data, uint32_t size);
-void mgs_EncodeBase64(uint8_t* data, uint32_t size);
+// Metal Gear Solid 5 TPP save data crypto (encode only)
+void apollo_crypt_mgs5_tpp(uint8_t* data, uint32_t len, uint32_t key);
 
-// Metal Gear Solid Peace Walker save data encryption
-void mgspw_Encrypt(uint8_t* data, uint32_t len);
-void mgspw_Decrypt(uint8_t* data, uint32_t len);
+// Dynasty Warriors 8 Xtreme Legends save data crypto (self-inverse XOR stream)
+void apollo_crypt_dw8xl(uint8_t* data, uint32_t len);
 
-// Metal Gear Solid 5 TPP save data encryption
-void mgs5tpp_encode_data(uint8_t* data, uint32_t len, uint32_t key);
-
-// RGG Studio save data encryption
-void rgg_xor_data(uint8_t* data, uint32_t size, const char* key, int key_len);
-
-// Final Fantasy XIII (1/2/3) save data encryption
-void ff13_decrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
-void ff13_encrypt_data(uint32_t game, uint8_t* data, uint32_t len, const uint8_t* key, uint32_t key_len);
-
-// Borderlands 3 save data encryption
-void borderlands3_Decrypt(uint8_t* buffer, int length, int mode);
-void borderlands3_Encrypt(uint8_t* buffer, int length, int mode);
-
-// Monster Hunter save data encryption
-void monsterhunter_decrypt_data(uint8_t* buff, uint32_t size, int ver);
-void monsterhunter_encrypt_data(uint8_t* buff, uint32_t size, int ver);
+// RGG Studio save data crypto (self-inverse XOR)
+void apollo_crypt_rgg_studio(uint8_t* data, uint32_t size, const char* key, int key_len);
 
 //---  offZip/packZip functions ---
 
@@ -235,182 +224,182 @@ int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* out
 //---  Apollo checksum functions ---
 
 /* hash calculation for MGS: Peace Walker */
-uint32_t mgspw_Checksum(const uint8_t* data, int size);
+uint32_t apollo_hash_mgspw(const uint8_t* data, int size);
 
 /* hash calculation for Final Fantasy XIII */
-uint32_t ff13_checksum(const uint8_t* bytes, uint32_t len);
+uint32_t apollo_hash_ff13(const uint8_t* bytes, uint32_t len);
 
 /* checksum update for Dead Rising */
-int deadrising_checksum(uint8_t* data, uint32_t size);
+int apollo_hash_deadrising(uint8_t* data, uint32_t size);
 
 /* checksum calculation for DBZ Xenoverse 2 */
-uint64_t dbzxv2_checksum(const uint8_t* data, uint32_t size);
+uint64_t apollo_hash_dbzxv2(const uint8_t* data, uint32_t size);
 
 /**
  * This function makes a CRC16 calculation on Length data bytes
  *
  * RETURN VALUE: 16 bit result of CRC calculation
  */
-uint16_t crc16_hash(const uint8_t* message, uint32_t nBytes, custom_crc_t* cfg);
+uint16_t apollo_hash_crc16(const uint8_t* message, uint32_t nBytes, custom_crc_t* cfg);
 
 /**
  * This function makes a CRC32 calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t crc32_hash(const uint8_t* message, uint32_t nBytes, custom_crc_t* cfg);
+uint32_t apollo_hash_crc32(const uint8_t* message, uint32_t nBytes, custom_crc_t* cfg);
 
 /**
  * This function makes a CRC64 calculation on Length data bytes
  *
  * RETURN VALUE: 64 bit result of CRC calculation
  */
-uint64_t crc64_hash(const uint8_t *data, uint32_t len, custom_crc_t* cfg);
+uint64_t apollo_hash_crc64(const uint8_t *data, uint32_t len, custom_crc_t* cfg);
 
 /**
  * This function makes a "MC02" Electronic Arts hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t MC02_hash(const uint8_t *data, uint32_t len);
+uint32_t apollo_hash_mc02(const uint8_t *data, uint32_t len);
 
 /**
  * This function makes a djb2 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t djb2_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_djb2(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes a SDBM hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t sdbm_hash(const uint8_t* data, uint32_t len, uint32_t init);
+uint32_t apollo_hash_sdbm(const uint8_t* data, uint32_t len, uint32_t init);
 
 /**
  * This function makes a FNV-1 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-int fnv1_hash(const uint8_t* data, uint32_t len, int init);
+int apollo_hash_fnv1(const uint8_t* data, uint32_t len, int init);
 
 /**
  * This function makes a Checksum32 calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-int Checksum32_hash(const uint8_t* data, uint32_t len);
+int apollo_hash_checksum32(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Adler16 hash calculation on Length data bytes
  *
  * RETURN VALUE: 16 bit result of CRC calculation
  */
-uint16_t adler16(const uint8_t *data, size_t len);
+uint16_t apollo_hash_adler16(const uint8_t *data, size_t len);
 
 /**
  * This function makes Final Fantasy X hash calculation on Length data bytes
  *
  * RETURN VALUE: 16 bit result of CRC calculation
  */
-uint16_t ffx_hash(const uint8_t* data, uint32_t len);
+uint16_t apollo_hash_ffx(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Kingdom Hearts 2.5 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t kh25_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_kh25(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Kingdom Hearts Chain of Memories hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t kh_com_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_khcom(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Jenkins Lookup3 little2 hash calculation on Length data bytes
  *
  * RETURN VALUES: 32 bit results of CRC calculation
  */
-void lookup3_hashlittle2(const uint8_t *k, size_t length, uint32_t *pc, uint32_t *pb);
+void apollo_hash_lookup3_little2(const uint8_t *k, size_t length, uint32_t *pc, uint32_t *pb);
 
 /**
  * This function makes Samurai Warriors 4 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result array of CRC calculation
  */
-int sw4_hash(const uint8_t* data, uint32_t size, uint32_t* crcs);
+int apollo_hash_sw4(const uint8_t* data, uint32_t size, uint32_t* crcs);
 
 /**
  * This function makes MGS2 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-int mgs2_hash(const uint8_t* data, uint32_t len);
+int apollo_hash_mgs2(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Tears to Tiara 2 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t tiara2_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_tiara2(const uint8_t* data, uint32_t len);
 
 /**
  * This function makes Castlevania LOS 1/2 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-int castlevania_hash(const uint8_t* Bytes, uint32_t length);
+int apollo_hash_castlevania(const uint8_t* Bytes, uint32_t length);
 
 /**
  * This function makes Tales of Zestiria hash calculation on Length data bytes
  *
  * RETURN VALUE: 20 byte result array of SHA1 calculation
  */
-void toz_hash(const uint8_t* data, uint32_t len, uint8_t* sha_hash);
+void apollo_hash_toz(const uint8_t* data, uint32_t len, uint8_t* sha_hash);
 
 /**
  * This function brute-force a CRC32 hash calculation to match newcrc on Length data bytes
  *
  * RETURN VALUE: 32 bit data result to update offset
  */
-int force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc);
+int apollo_hash_force_crc32(const uint8_t *data, uint32_t length, uint32_t offset, uint32_t newcrc);
 
 /**
  * This function makes Murmur3 32 hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of CRC calculation
  */
-uint32_t murmur3_32(const uint8_t *data, size_t len, uint32_t h);
+uint32_t apollo_hash_murmur3_32(const uint8_t *data, size_t len, uint32_t h);
 
 /**
  * This function makes Jenkins hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of hash calculation
  */
-uint32_t jhash(const uint8_t *data, uint32_t length, uint32_t initval);
+uint32_t apollo_hash_jhash(const uint8_t *data, uint32_t length, uint32_t initval);
 
 /**
  * This function makes Jenkins one-at-a-time hash calculation on Length data bytes
  *
  * RETURN VALUE: 32 bit result of hash calculation
  */
-uint32_t jenkins_oaat_hash(const uint8_t* data, size_t length, uint32_t init);
+uint32_t apollo_hash_jenkins_oaat(const uint8_t* data, size_t length, uint32_t init);
 
-uint32_t md5_xor_hash(const uint8_t* data, uint32_t len);
-uint64_t sha1_xor64_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_md5_xor(const uint8_t* data, uint32_t len);
+uint64_t apollo_hash_sha1_xor64(const uint8_t* data, uint32_t len);
 
-int pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
-int pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
+int apollo_hash_pbkdf2_sha1(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
+int apollo_hash_pbkdf2_sha256(const void *Pwd, size_t Plen, const void *Salt, size_t Slen, unsigned int count, uint8_t *DK, size_t dkLen);
 
-uint32_t add_hash(const uint8_t* data, uint32_t len);
-uint32_t wadd_hash(const uint8_t* data, uint32_t len, int is_le);
-uint32_t dwadd_hash(const uint8_t* data, uint32_t len, int is_le);
-uint32_t qwadd_hash(const uint8_t* data, uint32_t len);
-uint32_t wsub_hash(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_add(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_wadd(const uint8_t* data, uint32_t len, int is_le);
+uint32_t apollo_hash_dwadd(const uint8_t* data, uint32_t len, int is_le);
+uint32_t apollo_hash_qwadd(const uint8_t* data, uint32_t len);
+uint32_t apollo_hash_wsub(const uint8_t* data, uint32_t len);
 
 #ifdef __cplusplus
 }

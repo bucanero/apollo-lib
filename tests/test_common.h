@@ -45,7 +45,7 @@ int check_str(const char* file, int line, const char* desc,
 #define CHECK_STR(desc, got, exp)       check_str(__FILE__, __LINE__, desc, got, exp)
 
 /* ---- code builders ----
- * apply_sw_patch_code / apply_bsd_patch_code only read ->codes and
+ * apollo_apply_sw_code / apollo_apply_bsd_code only read ->codes and
  * ->options_count, so a stack code_entry_t is enough for a vector.
  */
 code_entry_t make_sw_code(const char* codes);
