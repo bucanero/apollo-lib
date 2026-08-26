@@ -100,6 +100,29 @@ TEST(parse_type_savewizard_vs_bsd)
     CHECK_U64("non-hex body -> BSD", bsd->type, APOLLO_CODE_BSD);
 }
 
+/*
+ * The Save Wizard type is only assigned when EVERY body line is exactly
+ * "XXXXXXXX YYYYYYYY" (17 chars) — the mask in loader.c has no trailing '*', so
+ * wildcard_match requires a whole-string match. apply_sw_patch_code relies on
+ * this: it indexes each line at fixed offsets up to line[16].
+ */
+TEST(parse_sw_type_requires_exact_line_width)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[Short line]\n"
+                      "20000004 123456\n"        /* 15 chars */
+                      "\n"
+                      "[Long line]\n"
+                      "20000004 123456789\n"     /* 18 chars */
+                      "\n"
+                      "[Exact line]\n"
+                      "20000004 12345678\n");
+
+    CHECK_U64("15-char line -> BSD", ((code_entry_t*)list_get_item(l, 1))->type, APOLLO_CODE_BSD);
+    CHECK_U64("18-char line -> BSD", ((code_entry_t*)list_get_item(l, 2))->type, APOLLO_CODE_BSD);
+    CHECK_U64("17-char line -> Save Wizard", ((code_entry_t*)list_get_item(l, 3))->type, APOLLO_CODE_SAVEWIZARD);
+}
+
 TEST(parse_code_body_excludes_comments)
 {
     list_t* l = parse(SAMPLE);
