@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <limits.h>
 #ifdef _USE_MBEDTLS
 #include <mbedtls/md.h>
 #include <mbedtls/md5.h>
@@ -23,6 +24,19 @@
 
 #define SUCCESS                 0
 #define skip_spaces(str)        while (*str == ' ') str++;
+
+/*
+ * Null-safety: a malformed .savepatch can omit a delimiter the parser expects,
+ * run out of lines in the middle of a multi-line code, or ask for an allocation
+ * the host can't satisfy. Every such site rejects the code instead of
+ * dereferencing NULL: `dsize = 0` is the engine's existing "produced nothing,
+ * don't write the file" signal (see apply_cheat_patch_code).
+ */
+#define BSD_REQUIRE(cond, msg)  do { if (!(cond)) { LOG("ERROR: %s", msg); dsize = 0; goto bsd_end; } } while (0)
+#define SW_REQUIRE(cond, msg)   do { if (!(cond)) { LOG("ERROR: %s", msg); dsize = 0; goto sw_end; } } while (0)
+
+/* Save Wizard code lines are fixed-width: "XXXXXXXX YYYYYYYY" */
+#define SW_CODE_LINE_LEN        17
 
 #ifdef __vita__
 // PS Vita
@@ -133,6 +147,70 @@ static int sw_val_bytes(char t)
 	return 1 << (n & 3);
 }
 
+/*
+ * Clamps an inclusive [start, end] byte range parsed from a .savepatch to the
+ * save buffer and returns the number of bytes it covers (0 when empty).
+ *
+ * The checksum commands take an INCLUSIVE end offset, and real patches commonly
+ * write it as `eof+1` — one past the last byte — so `end` routinely lands on
+ * `dsize`. Without this clamp the hash reads one byte of unallocated heap and
+ * the resulting checksum is nondeterministic. `start` is left at a valid
+ * one-past-end position when the range is empty, so `data + start` is never a
+ * wild pointer.
+ */
+static size_t _clamp_range(size_t dsize, int* start, int* end)
+{
+	if (*start < 0)
+		*start = 0;
+
+	if ((size_t) *start >= dsize)
+	{
+		*start = (int) dsize;
+		return 0;
+	}
+
+	if (*end < 0 || (size_t) *end >= dsize)
+		*end = (int) (dsize - 1);
+
+	return (*end < *start) ? 0 : (size_t) (*end - *start + 1);
+}
+
+/*
+ * Allocates `bufsize` bytes for a BSD variable and reports `len` of them as the
+ * value.
+ * Returns 0 on failure, leaving the variable empty. Returns 1 on success.
+ */
+static int _alloc_var_data(bsd_variable_t* var, uint32_t len)
+{
+	uint8_t* buf = malloc(len ? len : 1);
+
+	if (!buf)
+	{
+		LOG("ERROR: [%s] allocation of %u bytes failed", var->name, len);
+		free(var->data);
+		var->data = NULL;
+		var->len = BSD_VAR_NULL;
+		return 0;
+	}
+
+	free(var->data);
+	var->data = buf;
+	var->len = len;
+	return 1;
+}
+
+/* Sets a BSD variable to a copy of `len` bytes of `src`. Returns 0 on failure. */
+static int _set_var_data(bsd_variable_t* var, const void* src, uint32_t len)
+{
+	if (!_alloc_var_data(var, len))
+		return 0;
+
+	if (len)
+		memcpy(var->data, src, len);
+
+	return 1;
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
@@ -181,31 +259,38 @@ static void* _decode_variable_data(const char* line, int *data_len)
 	char* output = NULL;
 
 	skip_spaces(line);
+	*data_len = 0;
+
 	if (wildcard_match(line, "\"*\"*"))
 	{
 		char* c = strchr(line, '"')+1;
 		len = strrchr(line, '"') - c;
-		output = malloc(len);
-	    
+		output = malloc(len ? len : 1);
+		if (!output)
+			return NULL;
+
 		for (i = 0; i < len; i++)
 			output[i] = c[i];
 	}
 	else if (wildcard_match(line, "[*]*"))
 	{
 		line++;
-	    
+
 		char* tmp = strchr(line, ']');
 		*tmp = 0;
-	    
+
 		bsd_variable_t* var = _get_bsd_variable(line);
-	    
+
 		line = tmp+1;
 		*tmp = ']';
-	    
-		if (var)
+
+		if (var && var->data)
 		{
 			len = var->len;
-			output = malloc(len);
+			output = malloc(len ? len : 1);
+			if (!output)
+				return NULL;
+
 			memcpy(output, var->data, len);
 
 			switch (len)
@@ -231,6 +316,8 @@ static void* _decode_variable_data(const char* line, int *data_len)
 
 		len = strlen(line) / 2;
 		output = (char*) x_to_u8_buffer(line);
+		if (!output)
+			return NULL;
 	}
 
 	*data_len = len;
@@ -332,22 +419,31 @@ void free_patch_var_list(void)
 	_default_endianness = APOLLO_ENDIAN_DEFAULT;
 }
 
-static void _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
+/* Parses "<a>,<b>)" — returns 0 when either delimiter is missing. */
+static int _parse_start_end(char* line, int pointer, int dsize, int *start_val, int *end_val)
 {
 	char *tmp;
 
 	tmp = strchr(line, ',');
+	if (!tmp)
+		return 0;
+
 	*tmp = 0;
-	
+
 	*start_val = _parse_int_value(line, pointer, dsize);
 
 	line = tmp+1;
 	*tmp = ',';
 	tmp = strchr(line, ')');
+	if (!tmp)
+		return 0;
+
 	*tmp = 0;
 
 	*end_val = _parse_int_value(line, pointer, dsize);
 	*tmp = ')';
+
+	return 1;
 }
 
 static void _log_dump(const char* name, const uint8_t* buf, int size)
@@ -356,6 +452,9 @@ static void _log_dump(const char* name, const uint8_t* buf, int size)
 	char ascii[32];
 
 	LOG("----- %s %d bytes -----", name, size);
+	if (!buf || size <= 0)
+		return;
+
 	for (int i = 0; i < size; i++)
 	{
 		if (i && !(i % 16))
@@ -421,25 +520,44 @@ static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
 			continue;
 
 		option_value_t *val = list_get_item(entry->options[i].opts, entry->options[i].sel);
-		if (val)
+		if (val && val->value)
 		{
+			char* tag = strstr(txtcode, entry->options[i].line);
+			if (!tag)
+			{
+				LOG("Tag '%s' not found in code", entry->options[i].line);
+				continue;
+			}
+
 			LOG("Set tag value: %s=%s", entry->options[i].line, val->value);
-			strncpy(strstr(txtcode, entry->options[i].line), val->value, strlen(entry->options[i].line));
+			strncpy(tag, val->value, strlen(entry->options[i].line));
 		}
 	}
 }
 
-static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t length)
+static int _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t length)
 {
 	int key_len;
 	char *key, *tmp;
 
 	tmp = strrchr(line, ')');
+	if (!tmp)
+	{
+		LOG("ERROR: missing ')' in encryption command");
+		return 0;
+	}
+
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
 	key = _decode_variable_data(line, &key_len);
 	*tmp = ')';
+
+	if (!key)
+	{
+		LOG("ERROR: invalid encryption key");
+		return 0;
+	}
 
 	switch (type)
 	{
@@ -496,14 +614,21 @@ static void _exec_encryption_key(int type, char* line, uint8_t* start, uint32_t 
 	}
 
 	free(key);
+	return 1;
 }
 
-static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_t length)
+static int _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32_t length)
 {
 	int key_len, iv_len;
 	char *key, *iv, *tmp;
 
 	tmp = strrchr(line, ',');
+	if (!tmp)
+	{
+		LOG("ERROR: missing IV in encryption command");
+		return 0;
+	}
+
 	*tmp = 0;
 
 	LOG("Encryption Key=%s", line);
@@ -512,11 +637,26 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 
 	line = tmp + 1;
 	tmp = strrchr(line, ')');
+	if (!tmp)
+	{
+		LOG("ERROR: missing ')' in encryption command");
+		free(key);
+		return 0;
+	}
+
 	*tmp = 0;
 
 	LOG("Encryption IV=%s", line);
 	iv = _decode_variable_data(line, &iv_len);
 	*tmp = ')';
+
+	if (!key || !iv)
+	{
+		LOG("ERROR: invalid encryption key/IV");
+		free(key);
+		free(iv);
+		return 0;
+	}
 
 	switch (type)
 	{
@@ -559,6 +699,7 @@ static void _exec_encryption_key_iv(int type, char* line, uint8_t* start, uint32
 
 	free(key);
 	free(iv);
+	return 1;
 }
 
 static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
@@ -568,18 +709,31 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 	int i, wlen;
 	char* bw_val = _decode_variable_data(line, &wlen);
 
-	if (var->len != wlen)
+	if (!bw_val)
+	{
+		LOG("[%s]:Bitwise error! invalid value {%s}", var->name, line);
+		return 0;
+	}
+	if (var->len != wlen || !var->data)
 	{
 		// variable has different length
 		LOG("[%s]:Bitwise error! var length doesn't match", var->name);
+		free(bw_val);
 		return 0;
 	}
 	if (apollo_get_host_endianness() == APOLLO_ENDIAN_LITTLE)
 	{
 		// workaround: _decode_variable_data() returns data as big endian
 		// convert it to the configured data endianness to match the variable
-		char* le_val = malloc(wlen);
-		
+		char* le_val = malloc(wlen ? wlen : 1);
+
+		if (!le_val)
+		{
+			LOG("[%s]:Bitwise error! out of memory", var->name);
+			free(bw_val);
+			return 0;
+		}
+
 		for (i=0; i < wlen; i++)
 			le_val[i] = bw_val[wlen - i - 1];
 
@@ -605,6 +759,7 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 			break;
 		}
 
+	free(var->data);
 	var->data = (uint8_t*) bw_val;
 	return 1;
 }
@@ -624,18 +779,30 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 		var_list = list_alloc();
 
 	bsd_code = strdup(code->codes);
+	if (!var_list || !bsd_code)
+	{
+		LOG("ERROR: out of memory");
+		free(bsd_code);
+		return 0;
+	}
+
 	apply_tag_opts(bsd_code, code);
 	for (char *line = strtok(bsd_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
 	{
 		// carry(*)
 		if (wildcard_match_icase(line, "carry(*)"))
 		{
-			int tmpi;
+			int tmpi = 0;
 			// carry setting for add() / sub()
 			line += strlen("carry");
 			sscanf(line, "(%d)", &tmpi);
+
+			/* the result is a 32-bit value truncated to (4 - carry) bytes, so
+			 * anything outside 0..4 underflows var->len into a huge malloc */
+			if (tmpi < 0) tmpi = 0;
+			if (tmpi > BSD_VAR_INT32) tmpi = BSD_VAR_INT32;
 			carry = tmpi;
-		    
+
 			LOG("Set carry bytes = %d", carry);
 		}
 
@@ -837,15 +1004,22 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				{
 					old_val = 0;
 					var = malloc(sizeof(bsd_variable_t));
+					BSD_REQUIRE(var, "out of memory");
+
 					var->name = strdup(line);
 					var->data = NULL;
 					var->len = BSD_VAR_NULL;
-					list_append(var_list, var);
+					if (!var->name || !list_append(var_list, var))
+					{
+						free(var->name);
+						free(var);
+						BSD_REQUIRE(0, "out of memory");
+					}
 				}
 				else
 				{
 					// for now we don't update variable values, we only overwrite
-					switch (var->len)
+					switch (var->data ? var->len : BSD_VAR_NULL)
 					{
 						case BSD_VAR_INT8:
 							old_val = *((uint8_t*)var->data);
@@ -863,8 +1037,15 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					if (var->data)
 					{
+						/* Keep the previous value reachable for the bitwise /
+						 * endian_swap ops below, but as a heap copy: every
+						 * branch (and free_patch_var_list) owns var->data, so
+						 * it must never point at this function's stack. */
 						free(var->data);
-						var->data = (uint8_t*) &old_val + HOST_LSB(4 - var->len);
+						var->data = NULL;
+
+						if (var->len && var->len <= BSD_VAR_INT32)
+							BSD_REQUIRE(_set_var_data(var, (uint8_t*) &old_val + HOST_LSB(BSD_VAR_INT32 - var->len), var->len), "out of memory");
 					}
 
 					LOG("Old value 0x%X", old_val);
@@ -914,7 +1095,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				// set [*]:endian_swap*
 				else if (wildcard_match_icase(line, "endian_swap*"))
 				{
-					if (var->len != BSD_VAR_INT16 && var->len != BSD_VAR_INT32 && var->len != BSD_VAR_INT64)
+					if (!var->data ||
+						(var->len != BSD_VAR_INT16 && var->len != BSD_VAR_INT32 && var->len != BSD_VAR_INT64))
 					{
 						// variable has different length
 						LOG("[%s]:endian_swap error! unsupported var length (%d)", var->name, var->len);
@@ -923,10 +1105,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					}
 
 					uint8_t* le_val = malloc(var->len);
-					
+					BSD_REQUIRE(le_val, "out of memory");
+
 					for (int i=0; i < var->len; i++)
 						le_val[i] = var->data[var->len - i - 1];
 
+					free(var->data);
 					var->data = le_val;
 
 					LOG("Var [%s]:endian_swap( %X )", var->name, old_val);
@@ -937,9 +1121,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				{
 					uint32_t val = _parse_int_value(line, pointer, dsize);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &val, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &val, BSD_VAR_INT32), "out of memory");
 
 					LOG("Var [%s]:%s = %08X", var->name, line, val);
 				}
@@ -948,9 +1130,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				{
 					uint32_t val = _parse_int_value(line, pointer, dsize);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &val, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &val, BSD_VAR_INT32), "out of memory");
 
 					LOG("Var [%s]:%s = %08X", var->name, line, val);
 				}
@@ -991,9 +1171,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						LOG("len %d CRC32 HASH = %08X", len, hash);
 					}
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 				}
 
 				// set [*]:crc16*
@@ -1012,9 +1190,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = crc16_hash(start, len, &custom_crc);
 
-					var->len = BSD_VAR_INT16;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
 					LOG("len %d CRC16 HASH = %04X", len, hash);
 				}
@@ -1053,9 +1229,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						LOG("len %d CRC64 ISO HASH = %016" PRIX64, len, hash);
 					}
 
-					var->len = BSD_VAR_INT64;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 				}
 
 				// set [*]:crc*
@@ -1073,9 +1247,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						// Custom CRC-16
 						uint16_t hash = crc16_hash(start, len, &custom_crc);
 
-						var->len = BSD_VAR_INT16;
-						var->data = malloc(var->len);
-						memcpy(var->data, (uint8_t*) &hash, var->len);
+						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
 						LOG("len %d Custom CRC16 HASH = %04X", len, hash);
 					}
@@ -1084,9 +1256,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						// Custom CRC-64
 						uint64_t hash = crc64_hash(start, len, &custom_crc);
 
-						var->len = BSD_VAR_INT64;
-						var->data = malloc(var->len);
-						memcpy(var->data, (uint8_t*) &hash, var->len);
+						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
 						LOG("len %d Custom CRC64 HASH = %016" PRIX64, len, hash);
 					}
@@ -1095,9 +1265,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						// Custom CRC-32
 						uint32_t hash = crc32_hash(start, len, &custom_crc);
 
-						var->len = BSD_VAR_INT32;
-						var->data = malloc(var->len);
-						memcpy(var->data, (uint8_t*) &hash, var->len);
+						BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 						LOG("len %d Custom CRC32 HASH = %08X", len, hash);
 					}
@@ -1111,9 +1279,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = md5_xor_hash((uint8_t*)data + range_start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d MD5_XOR HASH = %08X", len, hash);
 				}
@@ -1124,8 +1290,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_MD5;
-					var->data = malloc(var->len);
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_MD5), "out of memory");
 					md5(start, len, var->data);
 
 					LOG("len %d MD5", len);
@@ -1137,8 +1302,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				{
 					len = range_end - range_start;
 
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA256), "out of memory");
 					var->len = 28;
-					var->data = malloc(BSD_VAR_SHA256);
 					sha256((uint8_t*)data + range_start, len, var->data, 1);
 
 					LOG("len %d SHA224", len);
@@ -1153,9 +1318,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = sha1_xor64_hash((uint8_t*)data + range_start, len);
 
-					var->len = BSD_VAR_INT64;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
 					LOG("len %d SHA1_XOR64 HASH = %016" PRIX64, len, hash);
 				}
@@ -1166,8 +1329,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA1;
-					var->data = malloc(var->len);
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA1), "out of memory");
 					sha1(start, len, var->data);
 
 					LOG("len %d SHA1", len);
@@ -1180,8 +1342,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA256;
-					var->data = malloc(var->len);
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA256), "out of memory");
 					sha256(start, len, var->data, 0);
 
 					LOG("len %d SHA256", len);
@@ -1194,8 +1355,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA512), "out of memory");
 					var->len = 48;
-					var->data = malloc(BSD_VAR_SHA512);
 					sha512(start, len, var->data, 1);
 
 					LOG("len %d SHA384", len);
@@ -1208,8 +1369,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA512;
-					var->data = malloc(var->len);
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA512), "out of memory");
 					sha512(start, len, var->data, 0);
 
 					LOG("len %d SHA512", len);
@@ -1231,9 +1391,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = adler32(hash, start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Adler32 HASH = %08X", len, hash);
 				}
@@ -1247,9 +1405,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = adler16(start, len);
 
-					var->len = BSD_VAR_INT16;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
 					LOG("len %d Adler16 HASH = %04X", len, hash);
 				}
@@ -1265,9 +1421,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = murmur3_32((uint8_t*)data + range_start, len, hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Murmur3-32 HASH = %08X", len, hash);
 				}
@@ -1283,9 +1437,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = jhash((uint8_t*)data + range_start, len, hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d JHASH = %08X", len, hash);
 				}
@@ -1301,9 +1453,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = jenkins_oaat_hash((uint8_t*)data + range_start, len, hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Jenkins OAAT HASH = %08X", len, hash);
 				}
@@ -1325,8 +1475,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					key = _decode_variable_data(line, &key_len);
 					*tmp = ')';
 
-					var->len = BSD_VAR_SHA1;
-					var->data = malloc(var->len);
+					if (!key || !_alloc_var_data(var, BSD_VAR_SHA1))
+					{
+						free(key);
+						BSD_REQUIRE(0, "invalid HMAC key");
+					}
+
 					md_hmac(md_info_from_type(POLARSSL_MD_SHA1), (uint8_t*) key, key_len, start, len, var->data);
 					free(key);
 
@@ -1345,9 +1499,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = force_crc32((uint8_t*)data + range_start, len, pointer, newcrc);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Force-CRC32 (%08X) HASH = %08X", len, newcrc, hash);
 				}
@@ -1361,9 +1513,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = MC02_hash(start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d EA/MC02 HASH = %08X", len, hash);
 				}
@@ -1379,9 +1529,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					hash = ffx_hash(start, len);
 					hash = ES16(hash);
 
-					var->len = BSD_VAR_INT16;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
 
 					LOG("len %d FFX HASH = %04X", len, hash);
 				}
@@ -1397,9 +1545,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					hash = ff13_checksum(start, len);
 					hash = ES32(hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d FFXIII HASH = %08X", len, hash);
 				}
@@ -1414,9 +1560,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					hash = castlevania_hash((uint8_t*)data + range_start, len);
 					hash = ES32(hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Castlevania HASH = %08X", len, hash);
 				}
@@ -1436,9 +1580,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				{
 					uint64_t hash = dbzxv2_checksum((uint8_t*)data, dsize);
 
-					var->len = BSD_VAR_INT64;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
 					LOG("len %d DBZ XV2 HASH = %016" PRIX64, dsize, hash);
 				}
@@ -1454,13 +1596,31 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					chks_off = search_data(data, len, range_start, (uint8_t*) "CHKS", 5, 1);
 					while (chks_off > 0)
 					{
+						int64_t blk;
+
+						/* the 16-byte CHKS header itself must fit */
+						if (!_range_in_bounds(dsize, chks_off, 0x10))
+						{
+							LOG("SKIP out-of-bounds CHKS header at 0x%X", chks_off);
+							break;
+						}
+
 						memcpy(&chks,     data + chks_off + 4, sizeof(chks));
 						memcpy(&chks_len, data + chks_off + 8, sizeof(chks_len));
 						BE32(chks);
 						BE32(chks_len);
 
+						/* size and start are read straight out of the save file */
+						blk = (int64_t) chks_off - (int64_t) chks_len + (int64_t) chks;
+						if (blk < 0 || blk > (int64_t) dsize || !_range_in_bounds(dsize, (long) blk, chks_len))
+						{
+							LOG("SKIP out-of-bounds CHKS block (0x%X bytes at 0x%X)", chks_len, (uint32_t) blk);
+							chks_off = search_data(data, len, chks_off+1, (uint8_t*) "CHKS", 5, 1);
+							continue;
+						}
+
 						memset(data + chks_off + 8, 0, 8);
-						chks = jenkins_oaat_hash((uint8_t*) (data + chks_off - chks_len + chks), chks_len, 0x3FAC7125);
+						chks = jenkins_oaat_hash(data + blk, chks_len, 0x3FAC7125);
 						LOG(" + CHKS Size: 0x%X Offset: 0x%X - Wrote Checksum: %08X", chks_len, chks_off, chks);
 
 						BE32(chks);
@@ -1471,9 +1631,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						chks_off = search_data(data, len, chks_off+1, (uint8_t*) "CHKS", 5, 1);
 					}
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &chks, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &chks, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Rockstar CHKS %s", len, chks_len ? "OK" : "ERROR");
 				}
@@ -1486,15 +1644,13 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					len = range_end - range_start;
 
 					line += strlen("lookup3_little2(");
-					_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, (int*) &iv1, (int*) &iv2), "malformed range arguments");
 					LOG("lookup3 init values %X %X", iv1, iv2);
 
 					lookup3_hashlittle2((uint8_t*)data + range_start, len, &iv1, &iv2);
 					hash = iv2 + (((uint64_t) iv1) << 32);
 
-					var->len = BSD_VAR_INT64;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT64), "out of memory");
 
 					LOG("len %d lookup3_little2 Hashes = %08X %08X", len, iv1, iv2);
 				}
@@ -1510,9 +1666,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					hash = kh25_hash(start, len);
 					hash = ES32(hash);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d KH 2.5 HASH = %08X", len, hash);
 				}
@@ -1526,9 +1680,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = kh_com_hash(start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d KH CoM HASH = %08X", len, hash);
 				}
@@ -1541,9 +1693,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = mgs2_hash((uint8_t*)data + range_start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d MGS2 HASH = %08X", len, hash);
 				}
@@ -1556,9 +1706,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = mgspw_Checksum((uint8_t*)data + range_start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d MGS PW HASH = %08X", len, hash);
 				}
@@ -1572,9 +1720,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					sw4_hash(start, len, hash);
 
-					var->len = BSD_VAR_MD5;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
 
 					LOG("len %d SW4 HASH = %08X %08X %08X %08X", len, hash[0], hash[1], hash[2], hash[3]);
 				}
@@ -1585,8 +1731,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
-					var->len = BSD_VAR_SHA1;
-					var->data = malloc(var->len);
+					BSD_REQUIRE(_alloc_var_data(var, BSD_VAR_SHA1), "out of memory");
 					toz_hash(start, len, var->data);
 
 					LOG("len %d TOZ SHA1", len);
@@ -1602,9 +1747,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = tiara2_hash(start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Tiara2 HASH = %08X", len, hash);
 				}
@@ -1618,9 +1761,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = Checksum32_hash(start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d Checksum32 = %08X", len, hash);
 				}
@@ -1640,9 +1781,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = sdbm_hash(start, len, init_val);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d SDBM HASH = %08X", len, hash);
 				}
@@ -1655,9 +1794,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = djb2_hash((uint8_t*)data + range_start, len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d DJB2 HASH = %08X", len, hash);
 				}
@@ -1677,9 +1814,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					hash = fnv1_hash(start, len, init_val);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &hash, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
 
 					LOG("len %d FNV-1 HASH = %08X", len, hash);
 				}
@@ -1693,13 +1828,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("qwadd(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += qwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += qwadd_hash((uint8_t*)data + add_s, add_len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 					
 					LOG("[%s]:qwadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1713,13 +1847,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("dwadd(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += dwadd_hash((uint8_t*)data + add_s, add_len, 0);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
     			    
 					LOG("[%s]:dwadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1734,13 +1867,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("wadd_le(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += wadd_hash((uint8_t*)data + add_s, add_len, 1);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 
 					LOG("[%s]:wadd_le(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1755,13 +1887,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("dwadd_le(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += dwadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 1);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += dwadd_hash((uint8_t*)data + add_s, add_len, 1);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add, BSD_VAR_INT32), "out of memory");
 					
 					LOG("[%s]:dwadd_le(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1775,18 +1906,19 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("wadd(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += wadd_hash((uint8_t*)data + add_s, add_e - add_s + 1, 0);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += wadd_hash((uint8_t*)data + add_s, add_len, 0);
     			    
 					while ((carry > 0) && (add > 0xFFFF))
 					{
-						add = (add & 0x0000FFFF) + ((add & 0xFFFF0000) >> 8*carry);
+						/* 64-bit shift: 8*carry reaches 32 when carry == 4,
+						 * which is undefined on a uint32_t */
+						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					var->len = BSD_VAR_INT32 - carry;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
 
 					LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1800,18 +1932,19 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t add = old_val;
 
 					line += strlen("add(");
-					_parse_start_end(line, pointer, dsize, &add_s, &add_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &add_s, &add_e), "malformed range arguments");
 
-					add += add_hash((uint8_t*)data + add_s, add_e - add_s + 1);
+					size_t add_len = _clamp_range(dsize, &add_s, &add_e);
+					add += add_hash((uint8_t*)data + add_s, add_len);
 
 					while ((carry > 0) && (add > 0xFFFF))
 					{
-						add = (add & 0x0000FFFF) + ((add & 0xFFFF0000) >> 8*carry);
+						/* 64-bit shift: 8*carry reaches 32 when carry == 4,
+						 * which is undefined on a uint32_t */
+						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					var->len = BSD_VAR_INT32 - carry;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &add + HOST_LSB(carry), var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
 
 					LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1828,13 +1961,12 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t sub = old_val;
 
 					line += strlen("wsub(");
-					_parse_start_end(line, pointer, dsize, &sub_s, &sub_e);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &sub_s, &sub_e), "malformed range arguments");
 
-					sub += wsub_hash((uint8_t*)data + sub_s, sub_e - sub_s + 1);
+					size_t sub_len = _clamp_range(dsize, &sub_s, &sub_e);
+					sub += wsub_hash((uint8_t*)data + sub_s, sub_len);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &sub, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &sub, BSD_VAR_INT32), "out of memory");
     			    
 					LOG("[%s]:wsub(0x%X , 0x%X) = %X", var->name, sub_s, sub_e, sub);
 				}
@@ -1869,7 +2001,14 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					*tmp = ')';
 					if (xor_i < 1) xor_i = 1;      /* avoid infinite loop */
 					if (xor_i > 4) xor_i = 4;      /* xor[4] stack bound   */
+
+					/* exclusive end range, so it is clamped to dsize (not
+					 * dsize-1); the loop below still checks each xor_i step */
 					if (xor_s < 0) xor_s = 0;
+					if ((size_t) xor_s > dsize) xor_s = dsize;
+					if (xor_e < 0) xor_e = 0;
+					if ((size_t) xor_e > dsize) xor_e = dsize;
+
 					uint8_t* read = data + xor_s;
     			    
 					while (read < data + xor_e && read + xor_i <= data + dsize)
@@ -1880,9 +2019,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						read += xor_i;
 					}
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) xor, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) xor, BSD_VAR_INT32), "out of memory");
 
 					LOG("[%s]:XOR(0x%X , 0x%X, %d) = %X", var->name, xor_s, xor_e, xor_i, ((uint32_t*)var->data)[0]);
 				}
@@ -1898,7 +2035,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int read_s, read_l;
 
 					line += strlen("read(");
-					_parse_start_end(line, pointer, dsize, &read_s, &read_l);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &read_s, &read_l), "malformed range arguments");
 					if (read_l < 0 || !_range_in_bounds(dsize, read_s, read_l))
 					{
 						LOG("ERROR: read() out of bounds (off=0x%X len=%d)", read_s, read_l);
@@ -1923,8 +2060,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						var->len = read_l;
 					}
 
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) read, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) read, var->len), "out of memory");
 
 					switch (var->len)
 					{
@@ -1952,11 +2088,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int rvalue, rlen;
 
 					line += strlen("right(");
-					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &rvalue, &rlen), "malformed range arguments");
 
-					var->len = rlen;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &rvalue + HOST_LSB(4 - rlen), var->len);
+					/* the slice is taken out of a 32-bit value */
+					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "right() length out of range");
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &rvalue + HOST_LSB(BSD_VAR_INT32 - rlen), rlen), "out of memory");
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 				}
@@ -1968,10 +2104,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					int rvalue, rlen;
 
 					line += strlen("left(");
-					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
+					BSD_REQUIRE(_parse_start_end(line, pointer, dsize, &rvalue, &rlen), "malformed range arguments");
 
-					var->len = rlen;
-					var->data = malloc(var->len);
+					/* the slice is taken out of a 32-bit value */
+					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "left() length out of range");
+					BSD_REQUIRE(_alloc_var_data(var, rlen), "out of memory");
 					/* keep the most-significant (leftmost) bytes of the value,
 					 * as a host-native integer; the write path emits it big-
 					 * endian. HOST_MSB makes this host-consistent. */
@@ -2008,10 +2145,11 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 					*tmp = ')';
 
-					var->len = mid_c;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*)mid_val + mid_s, var->len);
+					/* the slice must sit inside the decoded value */
+					int mid_ok = (mid_val && mid_s >= 0 && mid_c >= 0 && mid_s <= mlen && mid_c <= (mlen - mid_s) &&
+								_set_var_data(var, (uint8_t*)mid_val + mid_s, mid_c));
 					free(mid_val);
+					BSD_REQUIRE(mid_ok, "invalid mid() arguments");
 
 					/* mid_val is a big-endian byte string; normalise the slice to
 					 * host order (like read()) so the write path re-emits the
@@ -2045,8 +2183,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, var->len), "out of memory");
 
 					_log_dump("host_lan_addr", var->data, var->len);
 				}
@@ -2061,8 +2198,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, var->len), "out of memory");
 
 					_log_dump("host_wlan_addr", var->data, var->len);
 				}
@@ -2077,8 +2213,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, var->len), "out of memory");
 
 					_log_dump("host_account_id", var->data, var->len);
 				}
@@ -2093,8 +2228,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, var->len), "out of memory");
 
 					_log_dump("host_psid", var->data, var->len);
 				}
@@ -2109,9 +2243,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->len = strlen(rval);
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, strlen(rval)), "out of memory");
 
 					_log_dump("host_username", var->data, var->len);
 				}
@@ -2126,9 +2258,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 						continue;
 					}
 
-					var->len = strlen(rval);
-					var->data = malloc(var->len);
-					memcpy(var->data, rval, var->len);
+					BSD_REQUIRE(_set_var_data(var, rval, strlen(rval)), "out of memory");
 
 					_log_dump("host_sys_name", var->data, var->len);
 				}
@@ -2139,9 +2269,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 					uint32_t tval;
 					sscanf(line, "%" PRIx32, &tval);
 
-					var->len = BSD_VAR_INT32;
-					var->data = malloc(var->len);
-					memcpy(var->data, (uint8_t*) &tval, var->len);
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &tval, BSD_VAR_INT32), "out of memory");
 
 					LOG("[%s]:%s = %08X", var->name, line, tval);
 				}
@@ -2233,7 +2361,14 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				skip_spaces(line);
 
 				write_val = _decode_variable_data(line, &wlen);
-			    
+				if (!write_val || !_range_in_bounds(dsize, off, wlen))
+				{
+					LOG("ERROR: xor write out of bounds (%d bytes) at 0x%X", wlen, off);
+					free(write_val);
+					dsize = 0;
+					goto bsd_end;
+				}
+
 				for (int i=0; i < wlen; i++)
 					write_val[i] ^= data[off + i];
 
@@ -2261,9 +2396,22 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 				r_val = _decode_variable_data(line, &wlen);
 
 				*tmp = ')';
-				
-				write_val = malloc(r_cnt * wlen);
-				
+
+				if (!r_val || r_cnt < 0 || (r_cnt && wlen > (INT_MAX / r_cnt)))
+				{
+					LOG("ERROR: invalid repeat(%d , %d bytes)", r_cnt, wlen);
+					free(r_val);
+					dsize = 0;
+					goto bsd_end;
+				}
+
+				write_val = malloc((size_t)(r_cnt * wlen) ? (size_t)(r_cnt * wlen) : 1);
+				if (!write_val)
+				{
+					free(r_val);
+					BSD_REQUIRE(0, "out of memory");
+				}
+
 				for(j = 0; j < r_cnt; j++)
 					memcpy(write_val + (j * wlen), r_val, wlen);
 
@@ -2661,18 +2809,25 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			}
 
 			bsd_variable_t *var = malloc(sizeof(bsd_variable_t));
+			BSD_REQUIRE(var, "out of memory");
+
 			var->len = sizeof(void*);
 			var->data = (uint8_t*) ozip_list;
 			var->name = strdup("~offzip_list");
-			list_append(var_list, var);
+			BSD_REQUIRE(var->name && list_append(var_list, var), "out of memory");
 
 			for (; ozip_list->data; ozip_list++)
 			{
 				var = malloc(sizeof(bsd_variable_t));
+				BSD_REQUIRE(var, "out of memory");
+
 				var->len = ozip_list->outlen;
 				var->data = ozip_list->data;
-				asprintf(&var->name, "~extracted\\%08" PRIx32 ".dat", ozip_list->offset);
-				list_append(var_list, var);
+				var->name = NULL;
+				if (asprintf(&var->name, "~extracted\\%08" PRIx32 ".dat", ozip_list->offset) < 0)
+					var->name = NULL;
+
+				BSD_REQUIRE(var->name && list_append(var_list, var), "out of memory");
 
 				//keep reference to the original variable's data for compression later
 				ozip_list->data = &var->data;
@@ -2749,6 +2904,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 				line += strlen("ffxiii(");
 				tmp = strrchr(line, ',');
+				BSD_REQUIRE(tmp, "malformed ffxiii() arguments");
+
 				*tmp = 0;
 
 				mode = _parse_int_value(line, pointer, dsize);
@@ -2756,12 +2913,15 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 				line = tmp + 1;
 				tmp = strrchr(line, ')');
+				BSD_REQUIRE(tmp, "malformed ffxiii() arguments");
+
 				*tmp = 0;
 
 				LOG("FFXIII Type=%d Encryption Key=%s", mode, line);
 
 				key = _decode_variable_data(line, &key_len);
 				*tmp = ')';
+				BSD_REQUIRE(key, "invalid ffxiii() key");
 
 				ff13_decrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
@@ -2769,7 +2929,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
 				line += strlen("rgg_studio(");
-				_exec_encryption_key(DEC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2830,49 +2990,49 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
 				line += strlen("mgs(");
-				_exec_encryption_key(DEC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				line += strlen("aes_ecb(");
-				_exec_encryption_key(DEC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
 				line += strlen("aes_cbc(");
-				_exec_encryption_key_iv(DEC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(DEC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
 			{
 				line += strlen("aes_ctr(");
-				_exec_encryption_key_iv(DEC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(DEC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
 				line += strlen("camellia_ecb(");
-				_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
 				line += strlen("des3_ecb(");
-				_exec_encryption_key(DEC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
 				line += strlen("des3_cbc(");
-				_exec_encryption_key_iv(DEC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(DEC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
 				line += strlen("blowfish_ecb(");
-				_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(DEC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
 			{
 				line += strlen("blowfish_cbc(");
-				_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(DEC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 
 		}
@@ -2911,6 +3071,8 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 				line += strlen("ffxiii(");
 				tmp = strrchr(line, ',');
+				BSD_REQUIRE(tmp, "malformed ffxiii() arguments");
+
 				*tmp = 0;
 
 				mode = _parse_int_value(line, pointer, dsize);
@@ -2918,12 +3080,15 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 
 				line = tmp + 1;
 				tmp = strrchr(line, ')');
+				BSD_REQUIRE(tmp, "malformed ffxiii() arguments");
+
 				*tmp = 0;
 
 				LOG("FFXIII Type=%d Encryption Key=%s", mode, line);
 
 				key = _decode_variable_data(line, &key_len);
 				*tmp = ')';
+				BSD_REQUIRE(key, "invalid ffxiii() key");
 
 				ff13_encrypt_data(mode, start, (range_end - range_start), (uint8_t*) key, key_len);
 				free(key);
@@ -2931,7 +3096,7 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "rgg_studio(*)*"))
 			{
 				line += strlen("rgg_studio(");
-				_exec_encryption_key(ENC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_RGG_STUDIO, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "borderlands3(*)*"))
 			{
@@ -2992,49 +3157,49 @@ size_t apply_bsd_patch_code(uint8_t** src_data, size_t dsize, const code_entry_t
 			else if (wildcard_match_icase(line, "mgs(*)*"))
 			{
 				line += strlen("mgs(");
-				_exec_encryption_key(ENC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_MGS_HD, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			// Standard Encryption
 			// AES, Blowfish, Camellia, DES, 3-DES
 			else if (wildcard_match_icase(line, "aes_ecb(*)*"))
 			{
 				line += strlen("aes_ecb(");
-				_exec_encryption_key(ENC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_AES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "aes_cbc(*,*)*"))
 			{
 				line += strlen("aes_cbc(");
-				_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(ENC_AES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "aes_ctr(*,*)*"))
 			{
 				line += strlen("aes_ctr(");
-				_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(ENC_AES_CTR, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "camellia_ecb(*)*"))
 			{
 				line += strlen("camellia_ecb(");
-				_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_CAMELLIA_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "des3_ecb(*)*"))
 			{
 				line += strlen("des3_ecb(");
-				_exec_encryption_key(ENC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_3DES_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "des3_cbc(*,*)*"))
 			{
 				line += strlen("des3_cbc(");
-				_exec_encryption_key_iv(ENC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(ENC_3DES_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "blowfish_ecb(*)*"))
 			{
 				line += strlen("blowfish_ecb(");
-				_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key(ENC_BLOWFISH_ECB, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 			else if (wildcard_match_icase(line, "blowfish_cbc(*)*"))
 			{
 				line += strlen("blowfish_cbc(");
-				_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start));
+				BSD_REQUIRE(_exec_encryption_key_iv(ENC_BLOWFISH_CBC, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 
 		}
@@ -3061,9 +3226,28 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 		data_endian = APOLLO_ENDIAN_LITTLE;
 
 	gg_code = strdup(code->codes);
+	if (!gg_code)
+	{
+		LOG("ERROR: out of memory");
+		return 0;
+	}
+
 	apply_tag_opts(gg_code, code);
 	for (char *line = strtok(gg_code, "\n"); line != NULL;)
 	{
+		/* Every line is indexed at fixed offsets up to line[16] below, so it has
+		 * to be a full "XXXXXXXX YYYYYYYY". load_patch_code_list() already
+		 * guarantees this — a code with any other line width is typed BSD, not
+		 * Save Wizard (see tests/test_parse.c) — so this only guards callers
+		 * that build a code_entry_t themselves and call this public entry point
+		 * directly. */
+		if (strlen(line) < SW_CODE_LINE_LEN)
+		{
+			LOG("SKIP malformed code line (%s)", line);
+			line = strtok(NULL, "\n");
+			continue;
+		}
+
 		switch (line[0])
 		{
 			case '0':
@@ -3252,6 +3436,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sscanf(tmp8, "%" PRIx32, &val);
 
 				line = strtok(NULL, "\n");
+				SW_REQUIRE(line && strlen(line) >= SW_CODE_LINE_LEN, "truncated multi-write code");
 
 				if (t == '4' || t == '5' || t == '6' || t == 'C' || t == 'D' || t == 'E')
 				{
@@ -3331,6 +3516,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				uint8_t* src = data + off_src + (line[1] == '8' ? pointer : 0);
 
 				line = strtok(NULL, "\n");
+				SW_REQUIRE(line && strlen(line) >= SW_CODE_LINE_LEN, "truncated copy code");
 
 				sprintf(tmp6, "%.6s", line+2);
 				sscanf(tmp6, "%x", &off_dst);
@@ -3631,14 +3817,26 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sscanf(tmp8, "%" PRIx32, &val);
 				BE32(val);
 
+				/* the first 4 bytes are always written, so the pattern needs
+				 * at least one byte and a 4-byte aligned buffer to hold them */
+				SW_REQUIRE(len > 0, "empty search pattern");
 				find = malloc((len+3) & ~3);
+				SW_REQUIRE(find, "out of memory");
+
 				if (!cnt) cnt = 1;
 
 				memcpy(find, (char*) &val, 4);
-    			
+
 				for (i=4; i < len; i += 8)
 				{
 					line = strtok(NULL, "\n");
+					if (!line || strlen(line) < SW_CODE_LINE_LEN)
+					{
+						LOG("ERROR: truncated search pattern");
+						free(find);
+						dsize = 0;
+						goto sw_end;
+					}
 
 					sprintf(tmp8, "%.8s", line);
 					sscanf(tmp8, "%" PRIx32, &val);
@@ -3770,11 +3968,19 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 
 				sprintf(tmp8, "%.8s", line+9);
 				sscanf(tmp8, "%" PRIx32, &size);
-				write = malloc((size+3) & ~3);
+				write = malloc(size ? ((size+3) & ~3) : 1);
+				SW_REQUIRE(write, "out of memory");
 
 				for (uint32_t i = 0; i < size; i += 8)
 				{
 					line = strtok(NULL, "\n");
+					if (!line || strlen(line) < SW_CODE_LINE_LEN)
+					{
+						LOG("ERROR: truncated multi-line write");
+						free(write);
+						dsize = 0;
+						goto sw_end;
+					}
 
 					sprintf(tmp8, "%.8s", line);
 					sscanf(tmp8, "%" PRIx32, &val);
@@ -3832,15 +4038,25 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 				sscanf(tmp8, "%" PRIx32, &val);
 				BE32(val);
 
+				SW_REQUIRE(len > 0, "empty search pattern");
 				find = malloc((len+3) & ~3);
+				SW_REQUIRE(find, "out of memory");
+
 				if (!cnt) cnt = 1;
 				if (!end_pointer) end_pointer = dsize - 1;
 
 				memcpy(find, (char*) &val, 4);
-				
+
 				for (i=4; i < len; i += 8)
 				{
 					line = strtok(NULL, "\n");
+					if (!line || strlen(line) < SW_CODE_LINE_LEN)
+					{
+						LOG("ERROR: truncated search pattern");
+						free(find);
+						dsize = 0;
+						goto sw_end;
+					}
 
 					sprintf(tmp8, "%.8s", line);
 					sscanf(tmp8, "%" PRIx32, &val);
@@ -4054,6 +4270,7 @@ size_t apply_sw_patch_code(uint8_t *data, size_t dsize, const code_entry_t* code
 		line = strtok(NULL, "\n");
 	}
 
+sw_end:
 	free(gg_code);
 
 	return (dsize);
@@ -4133,6 +4350,12 @@ size_t apply_py_script_code(uint8_t** src_data, size_t dsize, const code_entry_t
 	micropy_store_global(upy, qsd, micropy_obj_new_bytearray(upy, strlen(save_file), (char*) save_file));
 
 	py_code = strdup(code->codes);
+	if (!py_code)
+	{
+		LOG("Memory allocation failed!");
+		return 0;
+	}
+
 	apply_tag_opts(py_code, code);
 
 	savedata_obj = micropy_obj_new_bytearray(upy, dsize, *src_data);
