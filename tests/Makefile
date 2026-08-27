@@ -32,7 +32,7 @@ CFLAGS  := -g -O2 -Wall -D_GNU_SOURCE -D_USE_MBEDTLS -DAPOLLO_CLI $(INC)
 LDFLAGS := -L$(MBED) -lmbedcrypto -lz -lm
 
 LIB_SRCS := crc_util list offzip patches decrypt loader packzip wildcard upy
-TST_SRCS := test_common test_offzip test_crypt_bsd test_savewizard test_sw_endian_gaps test_bsd test_search test_parse test_bounds test_null test_corpus test_main
+TST_SRCS := test_common test_offzip test_crypt_bsd test_mgspw test_samples test_savewizard test_sw_endian_gaps test_bsd test_search test_parse test_bounds test_null test_corpus test_main
 
 vpath %.c $(SRC) .
 
@@ -45,7 +45,7 @@ BE_OBJS := $(addprefix $(BE_DIR)/,$(addsuffix .o,$(LIB_SRCS) $(TST_SRCS)))
 # Point at the full patches repo for a broad sweep:  make check-corpus PATCHES=/path/to/apollo-patches
 PATCHES ?= fixtures
 
-.PHONY: all ci check golden check-corpus bsd-invariance corpus-determinism sweep clean
+.PHONY: all ci check check-mgspw check-samples golden check-corpus bsd-invariance corpus-determinism sweep clean
 
 all: test_apollo_le test_apollo_be
 
@@ -69,6 +69,21 @@ test_apollo_be: $(BE_OBJS)
 check: all
 	@echo "== little-endian ==" && ./test_apollo_le
 	@echo "== big-endian ==" && ./test_apollo_be
+
+# Opt-in correctness check against a real MGS Peace Walker save (not vendored).
+# Expects the encrypted save, with its decrypted twin alongside as <file>.dec:
+#   make check-mgspw MGSPW_SAVE=/path/to/00000000.000
+check-mgspw: test_apollo_le test_apollo_be
+	@[ -n "$(MGSPW_SAVE)" ] || { echo "set MGSPW_SAVE=/path/to/00000000.000"; exit 2; }
+	@MGSPW_SAVE="$(MGSPW_SAVE)" ./test_apollo_le | grep -E "mgspw|checks,"
+	@MGSPW_SAVE="$(MGSPW_SAVE)" ./test_apollo_be | grep -E "mgspw|checks,"
+
+# Opt-in known-answer checks against real game saves from the save-decrypters
+# repo (not vendored):  make check-samples SAMPLES=/path/to/save-decrypters
+check-samples: test_apollo_le test_apollo_be
+	@[ -n "$(SAMPLES)" ] || { echo "set SAMPLES=/path/to/save-decrypters"; exit 2; }
+	@SAMPLES="$(SAMPLES)" ./test_apollo_le | grep -E "sample_|checks,"
+	@SAMPLES="$(SAMPLES)" ./test_apollo_be | grep -E "sample_|checks,"
 
 golden: all
 	@mkdir -p golden

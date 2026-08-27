@@ -21,6 +21,8 @@ same vectors and golden manifests must still reproduce identically.
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo: Diablo 3, Monster Hunter PSP (ver 2 and 3), MGS Peace Walker, NFS Undercover, DW8XL, Borderlands 3 and Silent Hill 3. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges. Run with `make check-samples SAMPLES=...`. |
+| `test_mgspw.c` | MGS Peace Walker bounds vectors (undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused) using synthetic buffers, plus an **opt-in** correctness round-trip against a real save via `make check-mgspw MGSPW_SAVE=...`. |
 | `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
 | `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
@@ -35,6 +37,26 @@ cd tests
 make check           # hand-authored opcode vectors, LE + BE (fast, no external deps)
 make check-corpus    # re-apply fixtures and diff against committed goldens
 make bsd-invariance  # assert BSD output is identical in the LE and BE builds
+```
+
+Broader correctness needs real game saves, which are likewise not vendored.
+Point the check at a clone of
+[save-decrypters](https://github.com/bucanero/save-decrypters):
+
+```bash
+make check-samples SAMPLES=/path/to/save-decrypters
+```
+
+A round-trip only proves a cipher is reversible; these prove libapollo speaks
+the real format. The NFS Undercover off-by-one fixed in `63f334a` round-tripped
+perfectly and still produced the wrong bytes.
+
+Correctness for MGS Peace Walker needs a real save, which is deliberately not
+vendored (~300 KB of binary, and it is somebody's game data). Point the opt-in
+check at an encrypted save with its decrypted twin alongside as `<file>.dec`:
+
+```bash
+make check-mgspw MGSPW_SAVE=/path/to/00000000.000
 ```
 
 `make golden` regenerates the committed manifests — only run it deliberately

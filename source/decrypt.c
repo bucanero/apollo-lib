@@ -795,6 +795,13 @@ uint32_t apollo_hash_mgspw(const uint8_t* data, int size)
 	return ~csum;
 }
 
+/*
+ * Highest byte either direction touches: mgspw_DeEncryptBlock(data + 0xD686*4,
+ * 0x3C34) walks 0x3C34 words from 0x35A18, ending at 0x44AE8. The guard used to
+ * be 0x35998, which let a save 0xF150 bytes short of that through.
+ */
+#define MGSPW_MIN_SIZE  0x44AE8
+
 static void mgspw_DeEncryptBlock(uint8_t* data, int size, uint32_t* pwSalts)
 {
 	uint32_t tmp;
@@ -810,15 +817,32 @@ static void mgspw_DeEncryptBlock(uint8_t* data, int size, uint32_t* pwSalts)
 	}
 }
 
-static void mgspw_SetSalts(uint32_t* pwSalts, const uint8_t *data)
+/*
+ * `offset` is derived from the save's own bytes, so a malformed file can point
+ * it anywhere. `avail` is how many bytes remain from `data`; the deepest read
+ * below is at (offset + 7) * 4 and is 4 bytes wide. Returns 0 when the file
+ * asks to read outside itself.
+ */
+static int mgspw_SetSalts(uint32_t* pwSalts, const uint8_t *data, size_t avail)
 {
 	uint32_t offset, d0, d1;
+
+	if (avail < 8)
+		return 0;
 
 	memcpy(&d0, data, sizeof(d0));
 	memcpy(&d1, data + 4, sizeof(d1));
 	BE32(d0);
 	BE32(d1);
 	offset = (d1 | 0xAD47DE8F) ^ d0;
+
+	/* 64-bit math: (offset + 8) * 4 overflows uint32_t for a hostile offset */
+	if (((uint64_t) offset + 8) * 4 > (uint64_t) avail)
+	{
+		LOG("[!] MGS PW: salt offset 0x%X out of range", offset);
+		return 0;
+	}
+
 	memcpy(&d0, &data[(offset + 2)*4], sizeof(d0));
 	memcpy(&d1, &data[(offset + 3)*4], sizeof(d1));
 	BE32(d0);
@@ -829,6 +853,7 @@ static void mgspw_SetSalts(uint32_t* pwSalts, const uint8_t *data)
 	BE32(d1);
 	pwSalts[1] = pwSalts[0] * (d1 ^ 0xBC4DEFA2);
 	pwSalts[0] = (pwSalts[0] ^ 0x6576) << 16 | pwSalts[0];
+	return 1;
 }
 
 static void mgspw_SwapBlock(uint8_t* data, int len)
@@ -849,14 +874,16 @@ static void mgspw_Decrypt(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
-	if (size < 0x35998)
+	if (size < MGSPW_MIN_SIZE)
 		return;
 
 	mgspw_SwapBlock(data, 0xd676);
-	mgspw_SetSalts(salts, data);
+	if (!mgspw_SetSalts(salts, data, size))
+		return;
 	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
 
-	mgspw_SetSalts(salts, data + 0xD676 * 4);
+	if (!mgspw_SetSalts(salts, data + 0xD676 * 4, size - 0xD676 * 4))
+		return;
 	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
 	mgspw_SwapBlock(data + 0x44, 0xd665);
 
@@ -890,14 +917,16 @@ static void mgspw_Encrypt(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
-	if (size < 0x35998)
+	if (size < MGSPW_MIN_SIZE)
 		return;
 
 	mgspw_SwapBlock(data + 0x44, 0xd665);
-	mgspw_SetSalts(salts, data + 0xD676 * 4);
+	if (!mgspw_SetSalts(salts, data + 0xD676 * 4, size - 0xD676 * 4))
+		return;
 	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
 
-	mgspw_SetSalts(salts, data);
+	if (!mgspw_SetSalts(salts, data, size))
+		return;
 	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
 	mgspw_SwapBlock(data, 0xD676);
 
