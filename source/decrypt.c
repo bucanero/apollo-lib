@@ -247,14 +247,19 @@ static void nfsu_decrypt_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
+	if (size < XOR_BLOCK_SIZE)
+		return;
+
 	// init xor key
 	memcpy(xor_key, NFS_XOR_KEY, XOR_BLOCK_SIZE);
 	xor_block(data, xor_key);
 	md5(xor_key, XOR_BLOCK_SIZE, xor_key);
 
 	size /= XOR_BLOCK_SIZE;
-	
-	while (size--)
+
+	/* block 0 only seeds the key above; the payload is blocks 1..n-1, so stop
+	   one short — running the full count walks a block past the buffer. */
+	while (size-- > 1)
 	{
 		data += XOR_BLOCK_SIZE;
 
@@ -272,6 +277,9 @@ static void nfsu_encrypt_data(uint8_t* data, uint32_t size)
 
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
+	if (size < XOR_BLOCK_SIZE)
+		return;
+
 	// init xor key
 	memcpy(xor_key, NFS_XOR_KEY, XOR_BLOCK_SIZE);
 	xor_block(data, xor_key);
@@ -279,7 +287,9 @@ static void nfsu_encrypt_data(uint8_t* data, uint32_t size)
 
 	size /= XOR_BLOCK_SIZE;
 
-	while (size--)
+	/* block 0 only seeds the key above; the payload is blocks 1..n-1, so stop
+	   one short — running the full count walks a block past the buffer. */
+	while (size-- > 1)
 	{
 		data += XOR_BLOCK_SIZE;
 

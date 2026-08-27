@@ -731,7 +731,7 @@ uint32_t apollo_hash_murmur3_32(const uint8_t* key, size_t len, uint32_t h)
 /* The most generic version, hashes an arbitrary sequence
  * of bytes.  No alignment or length assumptions are made about
  * the input key.
- * https://kernel.googlesource.com/pub/scm/linux/kernel/git/klassert/ipsec/+/refs/tags/v2.6.19-rc3/include/linux/apollo_hash_jhash.h
+ * https://kernel.googlesource.com/pub/scm/linux/kernel/git/klassert/ipsec/+/refs/tags/v2.6.19-rc3/include/linux/jhash.h
  */
 uint32_t apollo_hash_jhash(const uint8_t *k, uint32_t length, uint32_t initval)
 {
