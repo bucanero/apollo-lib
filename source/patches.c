@@ -814,13 +814,13 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			// set *:param = "wadd(*,*)", "[dq]wadd(*,*)", "sub(*,*)", "wsub(*,*)", "[dq]wsub(*,*)", "repeat(*,*)*",
 			// set *:param = "mid(*,*)", "left(*,*)", "right(*,*)"
 			// UNUSED: "userid*", "titleid*", "psid*", "account*", "profile*",
-			// UNUSED: crc16, apollo_hash_adler16, md4, sha384, sha512, left, not
+			// UNUSED: crc16, adler16, md4, sha384, sha512, left, not
 			//
 			// "set range:*,*", "set crc_*:*", "set md5:*", "set md2:*", "set sha1:*", "set crc32:*", "set crc32big:*",
 			// "set crc32little:*", "set crc16:*", "set adler16:*", "set adler32:*",
 			// "set ""*"":*", "set pointer:*"
 			// UNUSED: "set psid:*", "set userid:*", "set titleid:*", "set *account*:*", "set *profile*:*",
-			// UNUSED: crc16, apollo_hash_adler16, md4, sha384, sha512,
+			// UNUSED: crc16, adler16, md4, sha384, sha512,
 
 			int ptr_off, len;
 			char* tmp = NULL;
