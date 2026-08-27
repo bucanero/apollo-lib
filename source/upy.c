@@ -38161,7 +38161,7 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
         DEBUG_printf("Found compressed block at offset 0x%08x: %d -> %d\n", offz, inlen, outlen);
     }
 
-    offzip_free();
+    offzip_free(ozfd);
 
     return list;
 }

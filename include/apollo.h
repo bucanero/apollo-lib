@@ -213,11 +213,18 @@ typedef struct offzip_list
     uint32_t* ref_outlen; //pointer to the outlen field of the corresponding variable in the var_list
 } offzip_t;
 
+/* One-shot convenience: runs a whole scan and returns the results. Manages its
+   own handle, so it needs no offzip_free(). */
 offzip_t* offzip_util(const uint8_t *data, size_t dlen, int offset, int wbits, int count);
-void offzip_free(void);
+
+/* Scanning is session-based: offzip_init() returns an opaque handle that owns
+   all of the scan state, so independent scans never interfere. Pass the handle
+   to search/verify, and release it with offzip_free(). */
 void* offzip_init(const uint8_t *data, size_t dsz, int wbits);
 int offzip_search(void *offz_fd);
 int offzip_verify(void *offz_fd, uint32_t *offset, uint32_t *inlen, uint32_t *outlen);
+void offzip_free(void *offz_fd);
+
 int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* outsize);
 
 

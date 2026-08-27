@@ -21,6 +21,7 @@ same vectors and golden manifests must still reproduce identically.
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
 | `test_common.[ch]` | Tiny assertion framework, deterministic data helpers, host-callback + log stubs, code builders. |
 | `fixtures/` | A curated, vendored set of `.savepatch` files so the committed goldens are reproducible from this repo alone. |
