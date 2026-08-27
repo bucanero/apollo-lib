@@ -109,7 +109,7 @@ Listing:
 The `dumper` command-line tool reads a binary file and generates a `.savepatch` file with a SW code that writes the raw content of the binary data.
 
 ```
-Apollo binary file SW dumper v1.4.0 - (c) 2023-2025 by Bucanero
+Apollo binary file SW dumper v2.1.0 - (c) 2023-2026 by Bucanero
 
 USAGE: ./dumper filename.ext
 ```
