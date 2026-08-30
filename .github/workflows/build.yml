@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
 
@@ -33,21 +34,55 @@ jobs:
 
     - name: Install mbedTLS
       run: |
-        curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xvz -C ./
+        curl -fsSL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xvz -C ./
         cd mbedtls-2.16.12
-        mkdir build && cd build
-        cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-        make mbedcrypto
+        mkdir build
+        # macOS needs Universal2 mbedTLS archives and a macOS 11.0 floor; Linux
+        # keeps the existing native CMake configuration.
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          cmake -S . -B build \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$(xcrun --find clang)" \
+            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+            -DCMAKE_OSX_ARCHITECTURES='x86_64;arm64' \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+            -DUSE_STATIC_MBEDTLS_LIBRARY=ON \
+            -DUSE_SHARED_MBEDTLS_LIBRARY=OFF \
+            -DENABLE_PROGRAMS=OFF \
+            -DENABLE_TESTING=OFF
+        else
+          cmake -S . -B build -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        fi
+        cmake --build build --target mbedcrypto --parallel
 
     - name: Build Apollo CLI tools
       run: |
         cd tools
-        make clean && make
+        make clean
+        # Make receives the SDK, both architectures, and deployment target via CC
+        # so the CLI matches the CMake-built Universal2 components.
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          make CC="$(xcrun --find clang) -isysroot $(xcrun --sdk macosx --show-sdk-path) -arch x86_64 -arch arm64 -mmacosx-version-min=11.0"
+        else
+          make
+        fi
 
     - name: Build Apollo Patcher GUI
       run: |
         cd gui
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        # Keep the GUI's CMake configuration aligned with Universal2 mbedTLS and
+        # the same macOS 11.0 deployment baseline.
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$(xcrun --find clang)" \
+            -DCMAKE_CXX_COMPILER="$(xcrun --find clang++)" \
+            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+            -DCMAKE_OSX_ARCHITECTURES='x86_64;arm64' \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+        else
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        fi
         cmake --build build -j
         # Normalise the output path across OSes for the upload step.
         mkdir -p dist
@@ -56,6 +91,56 @@ jobs:
         else
           cp build/apollo_patcher_gui dist/
         fi
+
+    # Neither gui/CMakeLists.txt nor tools/Makefile sets a deployment target. Use
+    # macOS 11.0, the first Apple Silicon release, as one baseline for both slices.
+    # Fail before upload if a shipped executable or link input loses a CPU slice,
+    # or if a distributable executable raises that baseline.
+    - name: Verify macOS Universal2 and deployment targets
+      if: matrix.os == 'macos-latest'
+      run: |
+        chmod 755 tools/patcher tools/dumper gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
+
+        verify_universal() {
+          local file="$1"
+          test -f "$file"
+          lipo "$file" -verify_arch x86_64 arm64
+          lipo "$file" -info
+        }
+
+        assert_minos_11() {
+          local file="$1"
+          local arch
+          for arch in x86_64 arm64; do
+            # Modern and legacy Mach-O load commands use different fields for
+            # the minimum macOS version.
+            if ! otool -arch "$arch" -l "$file" | awk '
+              $1 == "cmd" && $2 == "LC_BUILD_VERSION" { build=1; legacy=0; next }
+              $1 == "cmd" && $2 == "LC_VERSION_MIN_MACOSX" { legacy=1; build=0; next }
+              $1 == "Load" && $2 == "command" { build=0; legacy=0 }
+              build && $1 == "minos" && $2 == "11.0" { found=1 }
+              legacy && $1 == "version" && $2 == "11.0" { found=1 }
+              END { exit(found ? 0 : 1) }
+            '; then
+              echo "${file} ${arch} does not declare macOS minimum 11.0"
+              otool -arch "$arch" -l "$file"
+              exit 1
+            fi
+          done
+        }
+
+        # Keep this inventory in sync when macOS artifacts or link inputs change.
+        # New shipped executables also need an assert_minos_11 check below.
+        verify_universal mbedtls-2.16.12/build/library/libmbedcrypto.a
+        verify_universal tools/patcher
+        verify_universal tools/dumper
+        verify_universal gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
+        verify_universal gui/build/libapollo_engine.a
+        verify_universal gui/build/libimgui.a
+        verify_universal gui/build/_deps/glfw-build/src/libglfw3.a
+        assert_minos_11 tools/patcher
+        assert_minos_11 tools/dumper
+        assert_minos_11 gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
 
     - name: Get short SHA
       run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
@@ -66,9 +151,10 @@ jobs:
         path: |
           tools/patcher
           tools/dumper
-          tools/patcher-bigendian
+        if-no-files-found: error
 
     - uses: actions/upload-artifact@v4
       with:
         name: apollo-gui-${{ env.sha_name }}-${{matrix.os}}
         path: gui/dist
+        if-no-files-found: error
