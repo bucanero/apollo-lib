@@ -54,6 +54,25 @@ The library is cross-platform and is required to build:
 
 You can find `.savepatch` files for many PlayStation games in the [apollo-patches](https://github.com/bucanero/apollo-patches/) repository.
 
+## C API
+
+The library's public surface lives in [`include/apollo.h`](include/apollo.h).
+As of **3.0.0** the patch, checksum and crypto functions are namespaced:
+
+| Group | Convention | Example |
+|-------|------------|---------|
+| Patch engine | `apollo_apply_*` / `apollo_load_*` | `apollo_apply_code()` |
+| Checksums | `apollo_hash_<algorithm>` | `apollo_hash_mgspw()` |
+| Crypto | `apollo_crypt_<cipher>(mode, ...)` | `apollo_crypt_blowfish_cbc(APOLLO_ENCRYPT, ...)` |
+
+Encrypt/decrypt pairs are now a single function taking `APOLLO_ENCRYPT` or
+`APOLLO_DECRYPT` as its first argument, matching the `ucrypto` Python module.
+Functions with no inverse (AES CTR, the DW8XL and RGG Studio XOR streams, and
+MGS5 TPP) take no mode.
+
+This is a breaking change for 2.x callers. The BSD script commands and the
+Python module APIs are **unchanged**.
+
 ## CLI Tools
 
 [Apollo command-line tools](https://github.com/bucanero/apollo-lib/releases/latest) are useful for code creators and developers, to test SW codes and BSD scripts locally on a computer.
@@ -66,7 +85,7 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 The `patcher` command-line tool reads a `.savepatch` file and a comma-separated list of patches, and apply the selected cheat codes to the target file. It defaults to little-endian data mode and also supports `-b/--big-endian` and `-l/--little-endian` to select the mode at run-time.
 
 ```
-Apollo Cheat Patcher v2.1.0 - (c) 2022-2026 by Bucanero
+Apollo Cheat Patcher v3.0.0 - (c) 2022-2026 by Bucanero
 
 Patching:
  USAGE: ./patcher [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]

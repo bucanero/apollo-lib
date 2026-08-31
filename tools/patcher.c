@@ -214,7 +214,7 @@ int main(int argc, char **argv)
 
     list_codes = list_alloc();
     list_append(list_codes, code);
-    load_patch_code_list(data, list_codes, NULL, NULL);
+    apollo_load_code_list(data, list_codes, NULL, NULL);
     free(data);
 
     list_node_t *node = list_head(list_codes);
@@ -238,13 +238,13 @@ int main(int argc, char **argv)
                 get_user_options(code);
 
             printf("\n===============[ Applying code #%ld ]===============\n", len);
-            if (apply_cheat_patch_code((argc == 2) ? code->file : argv[3], code, NULL))
+            if (apollo_apply_code((argc == 2) ? code->file : argv[3], code, NULL))
                 printf("- OK\n");
             else
                 printf("- ERROR!\n");
         }
     }
 
-    free_patch_var_list();
+    apollo_free_var_list();
     printf("\nPatching completed: %d codes applied\n\n", log);
 }

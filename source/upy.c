@@ -38161,7 +38161,7 @@ STATIC mp_obj_t micropy_mod_uzlib_offzip(struct _mp_state_ctx_t *mp_state, size_
         DEBUG_printf("Found compressed block at offset 0x%08x: %d -> %d\n", offz, inlen, outlen);
     }
 
-    offzip_free();
+    offzip_free(ozfd);
 
     return list;
 }
@@ -38393,7 +38393,7 @@ mp_obj_t micropy_mod_uhashlib_add(struct _mp_state_ctx_t *mp_state, size_t n_arg
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = add_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_add(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     int carry = 0;
@@ -38420,7 +38420,7 @@ mp_obj_t micropy_mod_uhashlib_wadd(struct _mp_state_ctx_t *mp_state, size_t n_ar
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, args[0], &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = wadd_hash(bufinfo.buf, bufinfo.len, 0);
+    uint32_t crc = apollo_hash_wadd(bufinfo.buf, bufinfo.len, 0);
     micropy_write_be_uint32(mp_state, out, crc);
 
     int carry = 0;
@@ -38447,7 +38447,7 @@ mp_obj_t micropy_mod_uhashlib_wadd_le(struct _mp_state_ctx_t *mp_state, mp_obj_t
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = wadd_hash(bufinfo.buf, bufinfo.len, 1);
+    uint32_t crc = apollo_hash_wadd(bufinfo.buf, bufinfo.len, 1);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38459,7 +38459,7 @@ mp_obj_t micropy_mod_uhashlib_dwadd(struct _mp_state_ctx_t *mp_state, mp_obj_t d
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = dwadd_hash(bufinfo.buf, bufinfo.len, 0);
+    uint32_t crc = apollo_hash_dwadd(bufinfo.buf, bufinfo.len, 0);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38471,7 +38471,7 @@ mp_obj_t micropy_mod_uhashlib_dwadd_le(struct _mp_state_ctx_t *mp_state, mp_obj_
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = dwadd_hash(bufinfo.buf, bufinfo.len, 1);
+    uint32_t crc = apollo_hash_dwadd(bufinfo.buf, bufinfo.len, 1);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38483,7 +38483,7 @@ mp_obj_t micropy_mod_uhashlib_qwadd(struct _mp_state_ctx_t *mp_state, mp_obj_t d
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = qwadd_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_qwadd(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38495,7 +38495,7 @@ mp_obj_t micropy_mod_uhashlib_wsub(struct _mp_state_ctx_t *mp_state, mp_obj_t da
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = wsub_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_wsub(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38507,7 +38507,7 @@ mp_obj_t micropy_mod_uhashlib_adler16(struct _mp_state_ctx_t *mp_state, mp_obj_t
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint16_t crc = adler16(bufinfo.buf, bufinfo.len);
+    uint16_t crc = apollo_hash_adler16(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint16(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, 2, out);
@@ -38537,7 +38537,7 @@ mp_obj_t micropy_mod_uhashlib_checksum32(struct _mp_state_ctx_t *mp_state, mp_ob
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = Checksum32_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_checksum32(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38571,21 +38571,21 @@ mp_obj_t micropy_mod_uhashlib_crc(struct _mp_state_ctx_t *mp_state, size_t n_arg
     case 16:
         micropy_vstr_init_len(mp_state, &vstr, 2);
         out = (byte*)vstr.buf;
-        uint16_t crc16 = crc16_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        uint16_t crc16 = apollo_hash_crc16(bufinfo.buf, bufinfo.len, &crc_opts);
         micropy_write_be_uint16(mp_state, out, crc16);
         break;
 
     case 32:
         micropy_vstr_init_len(mp_state, &vstr, 4);
         out = (byte*)vstr.buf;
-        uint32_t crc32 = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        uint32_t crc32 = apollo_hash_crc32(bufinfo.buf, bufinfo.len, &crc_opts);
         micropy_write_be_uint32(mp_state, out, crc32);
         break;
 
     case 64:
         micropy_vstr_init_len(mp_state, &vstr, 8);
         out = (byte*)vstr.buf;
-        uint64_t crc64 = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+        uint64_t crc64 = apollo_hash_crc64(bufinfo.buf, bufinfo.len, &crc_opts);
         micropy_write_be_uint64(mp_state, out, crc64);
         break;
         
@@ -38610,7 +38610,7 @@ mp_obj_t micropy_mod_uhashlib_crc16(struct _mp_state_ctx_t *mp_state, mp_obj_t d
         .refOut = 0,
     };
 
-    uint16_t crc = crc16_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    uint16_t crc = apollo_hash_crc16(bufinfo.buf, bufinfo.len, &crc_opts);
     micropy_write_be_uint16(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, 2, out);
@@ -38630,7 +38630,7 @@ mp_obj_t micropy_mod_uhashlib_crc32(struct _mp_state_ctx_t *mp_state, mp_obj_t d
         .refOut = 1,
     };
 
-    uint32_t crc = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    uint32_t crc = apollo_hash_crc32(bufinfo.buf, bufinfo.len, &crc_opts);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38650,7 +38650,7 @@ mp_obj_t micropy_mod_uhashlib_crc32big(struct _mp_state_ctx_t *mp_state, mp_obj_
         .refOut = 0,
     };
 
-    uint32_t crc = crc32_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    uint32_t crc = apollo_hash_crc32(bufinfo.buf, bufinfo.len, &crc_opts);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38670,7 +38670,7 @@ mp_obj_t micropy_mod_uhashlib_crc64_ecma(struct _mp_state_ctx_t *mp_state, mp_ob
         .refOut = 0,
     };
 
-    uint64_t crc = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    uint64_t crc = apollo_hash_crc64(bufinfo.buf, bufinfo.len, &crc_opts);
     micropy_write_be_uint64(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38690,7 +38690,7 @@ mp_obj_t micropy_mod_uhashlib_crc64_iso(struct _mp_state_ctx_t *mp_state, mp_obj
         .refOut = 0,
     };
 
-    uint64_t crc = crc64_hash(bufinfo.buf, bufinfo.len, &crc_opts);
+    uint64_t crc = apollo_hash_crc64(bufinfo.buf, bufinfo.len, &crc_opts);
     micropy_write_be_uint64(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38702,7 +38702,7 @@ mp_obj_t micropy_mod_uhashlib_djb2(struct _mp_state_ctx_t *mp_state, mp_obj_t da
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = djb2_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_djb2(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38720,7 +38720,7 @@ mp_obj_t micropy_mod_uhashlib_fnv1(struct _mp_state_ctx_t *mp_state, size_t n_ar
         init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    uint32_t crc = fnv1_hash(bufinfo.buf, bufinfo.len, init_val);
+    uint32_t crc = apollo_hash_fnv1(bufinfo.buf, bufinfo.len, init_val);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38732,7 +38732,7 @@ mp_obj_t micropy_mod_uhashlib_force_crc32(struct _mp_state_ctx_t *mp_state, mp_o
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = force_crc32(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, offset), micropy_obj_int_get_truncated(mp_state, newcrc));
+    uint32_t crc = apollo_hash_force_crc32(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, offset), micropy_obj_int_get_truncated(mp_state, newcrc));
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38773,7 +38773,7 @@ mp_obj_t micropy_mod_uhashlib_pbkdf2_sha1(struct _mp_state_ctx_t *mp_state, size
     int dklen = micropy_obj_int_get_truncated(mp_state, args[3]);
     dklen = MIN(dklen, sizeof(out));
 
-    if (pbkdf2_sha1(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
+    if (apollo_hash_pbkdf2_sha1(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
         micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "PBKDF2-SHA1 failed"));
     }
 
@@ -38791,7 +38791,7 @@ mp_obj_t micropy_mod_uhashlib_pbkdf2_sha256(struct _mp_state_ctx_t *mp_state, si
     int dklen = micropy_obj_int_get_truncated(mp_state, args[3]);
     dklen = MIN(dklen, sizeof(out));
 
-    if (pbkdf2_sha256(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
+    if (apollo_hash_pbkdf2_sha256(pwdinfo.buf, pwdinfo.len, saltinfo.buf, saltinfo.len, iter, out, dklen) != 0) {
         micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "PBKDF2-SHA256 failed"));
     }
 
@@ -38810,7 +38810,7 @@ mp_obj_t micropy_mod_uhashlib_jenkins_oaat(struct _mp_state_ctx_t *mp_state, siz
         init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    uint32_t crc = jenkins_oaat_hash(bufinfo.buf, bufinfo.len, init_val);
+    uint32_t crc = apollo_hash_jenkins_oaat(bufinfo.buf, bufinfo.len, init_val);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38828,7 +38828,7 @@ mp_obj_t micropy_mod_uhashlib_jhash(struct _mp_state_ctx_t *mp_state, size_t n_a
         init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    uint32_t crc = jhash(bufinfo.buf, bufinfo.len, init_val);
+    uint32_t crc = apollo_hash_jhash(bufinfo.buf, bufinfo.len, init_val);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38843,7 +38843,7 @@ mp_obj_t micropy_mod_uhashlib_lookup3_little2(struct _mp_state_ctx_t *mp_state, 
 
     uint32_t iv1 = micropy_obj_int_get_truncated(mp_state, pc_iv1);
     uint32_t iv2 = micropy_obj_int_get_truncated(mp_state, pb_iv2);
-    lookup3_hashlittle2(bufinfo.buf, bufinfo.len, &iv1, &iv2);
+    apollo_hash_lookup3_little2(bufinfo.buf, bufinfo.len, &iv1, &iv2);
 
     micropy_write_be_uint32(mp_state, out, iv1);
     items[0] = micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38881,7 +38881,7 @@ mp_obj_t micropy_mod_uhashlib_md5_xor(struct _mp_state_ctx_t *mp_state, mp_obj_t
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t hash = md5_xor_hash(bufinfo.buf, bufinfo.len);
+    uint32_t hash = apollo_hash_md5_xor(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, hash);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38899,7 +38899,7 @@ mp_obj_t micropy_mod_uhashlib_murmur3_32(struct _mp_state_ctx_t *mp_state, size_
         init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    uint32_t crc = murmur3_32(bufinfo.buf, bufinfo.len, init_val);
+    uint32_t crc = apollo_hash_murmur3_32(bufinfo.buf, bufinfo.len, init_val);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38917,7 +38917,7 @@ mp_obj_t micropy_mod_uhashlib_sdbm(struct _mp_state_ctx_t *mp_state, size_t n_ar
         init_val = micropy_obj_int_get_truncated(mp_state, args[1]);
     }
 
-    uint32_t crc = sdbm_hash(bufinfo.buf, bufinfo.len, init_val);
+    uint32_t crc = apollo_hash_sdbm(bufinfo.buf, bufinfo.len, init_val);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38973,7 +38973,7 @@ mp_obj_t micropy_mod_uhashlib_sha1_xor64(struct _mp_state_ctx_t *mp_state, mp_ob
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint64_t shaxor = sha1_xor64_hash(bufinfo.buf, bufinfo.len);
+    uint64_t shaxor = apollo_hash_sha1_xor64(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint64(mp_state, out, shaxor);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38985,7 +38985,7 @@ mp_obj_t micropy_mod_uhashlib_eachecksum(struct _mp_state_ctx_t *mp_state, mp_ob
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = MC02_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_mc02(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -38998,7 +38998,7 @@ mp_obj_t micropy_mod_uhashlib_ffx_checksum(struct _mp_state_ctx_t *mp_state, mp_
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
     // FFX hash is stored in little-endian
-    uint16_t crc = ffx_hash(bufinfo.buf, bufinfo.len);
+    uint16_t crc = apollo_hash_ffx(bufinfo.buf, bufinfo.len);
     micropy_write_le_uint16(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39011,7 +39011,7 @@ mp_obj_t micropy_mod_uhashlib_ff13_checksum(struct _mp_state_ctx_t *mp_state, mp
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
     // FFXIII hash is stored in little-endian
-    uint32_t crc = ff13_checksum(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_ff13(bufinfo.buf, bufinfo.len);
     micropy_write_le_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39024,7 +39024,7 @@ mp_obj_t micropy_mod_uhashlib_kh25_checksum(struct _mp_state_ctx_t *mp_state, mp
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
     // Kingdom Hearts 2.5 hash is stored in little-endian
-    uint32_t crc = kh25_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_kh25(bufinfo.buf, bufinfo.len);
     micropy_write_le_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39036,7 +39036,7 @@ mp_obj_t micropy_mod_uhashlib_khcom_checksum(struct _mp_state_ctx_t *mp_state, m
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = kh_com_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_khcom(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39048,7 +39048,7 @@ mp_obj_t micropy_mod_uhashlib_mgs2_checksum(struct _mp_state_ctx_t *mp_state, mp
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = mgs2_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_mgs2(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39060,7 +39060,7 @@ mp_obj_t micropy_mod_uhashlib_mgspw_checksum(struct _mp_state_ctx_t *mp_state, m
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = mgspw_Checksum(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_mgspw(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39075,7 +39075,7 @@ mp_obj_t micropy_mod_uhashlib_sw4_checksum(struct _mp_state_ctx_t *mp_state, mp_
     mp_obj_t items[4];
     uint32_t hash[4];
 
-    sw4_hash(bufinfo.buf, bufinfo.len, hash);
+    apollo_hash_sw4(bufinfo.buf, bufinfo.len, hash);
     micropy_write_be_uint32(mp_state, out, hash[0]);
     items[0] = micropy_obj_new_bytearray(mp_state, sizeof(out), out);
     micropy_write_be_uint32(mp_state, out, hash[1]);
@@ -39094,7 +39094,7 @@ mp_obj_t micropy_mod_uhashlib_toz_checksum(struct _mp_state_ctx_t *mp_state, mp_
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    toz_hash(bufinfo.buf, bufinfo.len, out);
+    apollo_hash_toz(bufinfo.buf, bufinfo.len, out);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
 }
@@ -39105,7 +39105,7 @@ mp_obj_t micropy_mod_uhashlib_tiara2_checksum(struct _mp_state_ctx_t *mp_state, 
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = tiara2_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_tiara2(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39118,7 +39118,7 @@ mp_obj_t micropy_mod_uhashlib_castlevania_checksum(struct _mp_state_ctx_t *mp_st
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
     // Castlevania LOS hash is stored in little-endian
-    uint32_t crc = castlevania_hash(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_castlevania(bufinfo.buf, bufinfo.len);
     micropy_write_le_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39142,7 +39142,7 @@ mp_obj_t micropy_mod_uhashlib_rockstar_checksum(struct _mp_state_ctx_t *mp_state
         chks_len = read_be_uint32 ((&chks_off[8]));
 
         memset(chks_off + 8, 0, 8);
-        chks = jenkins_oaat_hash((uint8_t*) (chks_off - chks_len + chks), chks_len, 0x3FAC7125);
+        chks = apollo_hash_jenkins_oaat((uint8_t*) (chks_off - chks_len + chks), chks_len, 0x3FAC7125);
         DEBUG_printf(" + CHKS Size: 0x%X Offset: %p - Wrote Checksum: %08X\n", chks_len, chks_off, chks);
 
         micropy_write_be_uint32(mp_state, (&chks_off[0xC]), chks);
@@ -39163,7 +39163,7 @@ mp_obj_t micropy_mod_uhashlib_dbzxv2_checksum(struct _mp_state_ctx_t *mp_state, 
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint64_t crc = dbzxv2_checksum(bufinfo.buf, bufinfo.len);
+    uint64_t crc = apollo_hash_dbzxv2(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint64(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39175,7 +39175,7 @@ mp_obj_t micropy_mod_uhashlib_deadrising_checksum(struct _mp_state_ctx_t *mp_sta
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    uint32_t crc = deadrising_checksum(bufinfo.buf, bufinfo.len);
+    uint32_t crc = apollo_hash_deadrising(bufinfo.buf, bufinfo.len);
     micropy_write_be_uint32(mp_state, out, crc);
 
     return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
@@ -39532,7 +39532,7 @@ mp_obj_t micropy_mod_ucrypto_dw8xl(struct _mp_state_ctx_t *mp_state, mp_obj_t da
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    dw8xl_encode_data(bufinfo.buf, bufinfo.len);
+    apollo_crypt_dw8xl(bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39542,12 +39542,7 @@ mp_obj_t micropy_mod_ucrypto_diablo3(struct _mp_state_ctx_t *mp_state, mp_obj_t 
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        diablo_encrypt_data(bufinfo.buf, bufinfo.len);
-    else
-        // decryption mode
-        diablo_decrypt_data(bufinfo.buf, bufinfo.len);
+    apollo_crypt_diablo3(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39557,12 +39552,7 @@ mp_obj_t micropy_mod_ucrypto_silent_hill3(struct _mp_state_ctx_t *mp_state, mp_o
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        sh3_encrypt_data(bufinfo.buf, bufinfo.len);
-    else
-        // decryption mode
-        sh3_decrypt_data(bufinfo.buf, bufinfo.len);
+    apollo_crypt_silent_hill3(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39572,12 +39562,7 @@ mp_obj_t micropy_mod_ucrypto_nfs_undercover(struct _mp_state_ctx_t *mp_state, mp
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        nfsu_encrypt_data(bufinfo.buf, bufinfo.len);
-    else
-        // decryption mode
-        nfsu_decrypt_data(bufinfo.buf, bufinfo.len);
+    apollo_crypt_nfs_undercover(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39588,12 +39573,7 @@ mp_obj_t micropy_mod_ucrypto_final_fantasy13(struct _mp_state_ctx_t *mp_state, s
     micropy_get_buffer_raise(mp_state, args[1], &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, args[0]))
-        // encryption mode
-        ff13_encrypt_data(micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        ff13_decrypt_data(micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_final_fantasy13(micropy_obj_int_get_truncated(mp_state, args[0]) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, micropy_obj_int_get_truncated(mp_state, args[3]), bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return args[1];
 }
@@ -39603,12 +39583,7 @@ mp_obj_t micropy_mod_ucrypto_borderlands3(struct _mp_state_ctx_t *mp_state, mp_o
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        borderlands3_Encrypt(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
-    else
-        // decryption mode
-        borderlands3_Decrypt(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
+    apollo_crypt_borderlands3(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
 
     return data;
 }
@@ -39618,12 +39593,7 @@ mp_obj_t micropy_mod_ucrypto_mgs_pw(struct _mp_state_ctx_t *mp_state, mp_obj_t e
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        mgspw_Encrypt(bufinfo.buf, bufinfo.len);
-    else
-        // decryption mode
-        mgspw_Decrypt(bufinfo.buf, bufinfo.len);
+    apollo_crypt_mgs_pw(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39633,12 +39603,7 @@ mp_obj_t micropy_mod_ucrypto_mgs_base64(struct _mp_state_ctx_t *mp_state, mp_obj
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        mgs_EncodeBase64(bufinfo.buf, bufinfo.len);
-    else
-        // decryption mode
-        mgs_DecodeBase64(bufinfo.buf, bufinfo.len);
+    apollo_crypt_mgs_base64(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
 
     return data;
 }
@@ -39648,7 +39613,7 @@ mp_obj_t micropy_mod_ucrypto_mgs5_tpp(struct _mp_state_ctx_t *mp_state, mp_obj_t
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    mgs5tpp_encode_data(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, key));
+    apollo_crypt_mgs5_tpp(bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, key));
 
     return data;
 }
@@ -39659,7 +39624,7 @@ mp_obj_t micropy_mod_ucrypto_rgg_studio(struct _mp_state_ctx_t *mp_state, mp_obj
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    rgg_xor_data(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_rgg_studio(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39670,12 +39635,7 @@ mp_obj_t micropy_mod_ucrypto_mgs(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        mgs_Encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        mgs_Decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_mgs(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39690,12 +39650,7 @@ mp_obj_t micropy_mod_ucrypto_monster_hunter(struct _mp_state_ctx_t *mp_state, mp
         micropy_nlr_raise(mp_state, micropy_obj_new_exception_msg_varg(mp_state, &mp_type_ValueError, "Game version must be 2 or 3"));
     }
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        monsterhunter_encrypt_data(bufinfo.buf, bufinfo.len, ver);
-    else
-        // decryption mode
-        monsterhunter_decrypt_data(bufinfo.buf, bufinfo.len, ver);
+    apollo_crypt_monster_hunter(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, ver);
 
     return data;
 }
@@ -39706,12 +39661,7 @@ mp_obj_t micropy_mod_ucrypto_aes_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t 
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        aes_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        aes_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_aes_ecb(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39723,7 +39673,7 @@ mp_obj_t micropy_mod_ucrypto_aes_ctr(struct _mp_state_ctx_t *mp_state, mp_obj_t 
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, iv, &ivinfo, MP_BUFFER_READ);
 
-    aes_ctr_xcrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    apollo_crypt_aes_ctr(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
     return data;
 }
@@ -39734,12 +39684,7 @@ mp_obj_t micropy_mod_ucrypto_blowfish_ecb(struct _mp_state_ctx_t *mp_state, mp_o
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        blowfish_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        blowfish_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_blowfish_ecb(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39750,12 +39695,7 @@ mp_obj_t micropy_mod_ucrypto_camellia_ecb(struct _mp_state_ctx_t *mp_state, mp_o
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        camellia_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        camellia_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_camellia_ecb(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39766,12 +39706,7 @@ mp_obj_t micropy_mod_ucrypto_des3_ecb(struct _mp_state_ctx_t *mp_state, mp_obj_t
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, key, &keyinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, enc_mode))
-        // encryption mode
-        des3_ecb_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
-    else
-        // decryption mode
-        des3_ecb_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
+    apollo_crypt_des3_ecb(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len);
 
     return data;
 }
@@ -39783,12 +39718,7 @@ mp_obj_t micropy_mod_ucrypto_aes_cbc(struct _mp_state_ctx_t *mp_state, size_t n_
     micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, args[0]))
-        // encryption mode
-        aes_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
-    else
-        // decryption mode
-        aes_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    apollo_crypt_aes_cbc(micropy_obj_int_get_truncated(mp_state, args[0]) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
     return args[1];
 }
@@ -39800,12 +39730,7 @@ mp_obj_t micropy_mod_ucrypto_blowfish_cbc(struct _mp_state_ctx_t *mp_state, size
     micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, args[0]))
-        // encryption mode
-        blowfish_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
-    else
-        // decryption mode
-        blowfish_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    apollo_crypt_blowfish_cbc(micropy_obj_int_get_truncated(mp_state, args[0]) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
     return args[1];
 }
@@ -39817,12 +39742,7 @@ mp_obj_t micropy_mod_ucrypto_des3_cbc(struct _mp_state_ctx_t *mp_state, size_t n
     micropy_get_buffer_raise(mp_state, args[2], &keyinfo, MP_BUFFER_READ);
     micropy_get_buffer_raise(mp_state, args[3], &ivinfo, MP_BUFFER_READ);
 
-    if (micropy_obj_int_get_truncated(mp_state, args[0]))
-        // encryption mode
-        des3_cbc_encrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
-    else
-        // decryption mode
-        des3_cbc_decrypt(bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
+    apollo_crypt_des3_cbc(micropy_obj_int_get_truncated(mp_state, args[0]) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, keyinfo.buf, keyinfo.len, ivinfo.buf, ivinfo.len);
 
     return args[1];
 }
@@ -39995,7 +39915,7 @@ mp_obj_t micropy_mod_apollo_apply_savewizard(struct _mp_state_ctx_t *mp_state, m
         .codes = (char*)micropy_obj_str_get_str(mp_state, code),
     };
 
-    size_t ret = apply_sw_patch_code (bufinfo.buf, bufinfo.len, &code_entry);
+    size_t ret = apollo_apply_sw_code (bufinfo.buf, bufinfo.len, &code_entry);
 
     return micropy_obj_new_int_from_uint(mp_state, ret);
 }

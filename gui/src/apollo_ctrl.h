@@ -8,9 +8,13 @@
  *
  * The heavy lifting (parsing, patch application, crypto) stays in libapollo;
  * this file only adapts its data model into a UI-friendly, callback-driven API.
+ *
+ * Everything this facade owns is prefixed apctl_. The apollo_ prefix belongs
+ * to libapollo alone, so that a call site reading apctl_apply() vs
+ * apollo_apply_code() says which layer it is talking to.
  */
-#ifndef APOLLO_CTRL_H
-#define APOLLO_CTRL_H
+#ifndef APCTL_H
+#define APCTL_H
 
 #include <stddef.h>
 #include "apollo.h"   /* C++-safe: the code_entry_t type and APOLLO_CODE_* /
@@ -21,16 +25,16 @@ extern "C" {
 #endif
 
 /* Log sink. `line` is a single, already-formatted message (no trailing newline
- * guaranteed). `ud` is the opaque pointer passed to apollo_set_log_sink(). */
-typedef void (*apollo_log_fn)(void *ud, const char *line);
+ * guaranteed). `ud` is the opaque pointer passed to apctl_set_log_sink(). */
+typedef void (*apctl_log_fn)(void *ud, const char *line);
 
 /* Install a process-wide log sink. libapollo emits progress through the global
  * dbglogger_log() symbol (defined in apollo_ctrl.c); this routes it to `fn`.
  * Pass (NULL, NULL) to silence. Not thread-safe; set it before applying. */
-void apollo_set_log_sink(apollo_log_fn fn, void *ud);
+void apctl_set_log_sink(apctl_log_fn fn, void *ud);
 
 /* One code row, flattened for display. Pointers are owned by the session and
- * remain valid until apollo_close(). `raw` is the underlying engine entry,
+ * remain valid until apctl_close(). `raw` is the underlying engine entry,
  * needed for option queries and apply. */
 typedef struct {
     int            id;             /* 1-based position, matches CLI numbering  */
@@ -43,52 +47,52 @@ typedef struct {
     const char    *name;
     const char    *file;           /* target-file hint from the patch         */
     code_entry_t  *raw;
-} apollo_code_t;
+} apctl_code_t;
 
-typedef struct apollo_session apollo_session_t;
+typedef struct apctl_session apctl_session_t;
 
 /* Parse a .savepatch. Returns NULL on read/parse failure. */
-apollo_session_t *apollo_open_file(const char *path);
-apollo_session_t *apollo_open_buffer(const char *buf, size_t len, const char *name);
+apctl_session_t *apctl_open_file(const char *path);
+apctl_session_t *apctl_open_buffer(const char *buf, size_t len, const char *name);
 
-const char       *apollo_game_name(apollo_session_t *s);
-int               apollo_code_count(apollo_session_t *s);   /* excludes header */
-apollo_code_t    *apollo_code_at(apollo_session_t *s, int index); /* 0-based    */
+const char      *apctl_game_name(apctl_session_t *s);
+int              apctl_code_count(apctl_session_t *s);          /* excludes header */
+apctl_code_t    *apctl_code_at(apctl_session_t *s, int index);  /* 0-based         */
 
 /* Raw code/script body (Save Wizard lines, BSD commands, or Python source).
  * Owned by the session; may be empty for header/group entries. */
-const char *apollo_code_text(const apollo_code_t *c);
+const char *apctl_code_text(const apctl_code_t *c);
 
 /* ---- Interactive options (dropdowns) ---- */
-int          apollo_opt_group_count(const apollo_code_t *c);
-const char  *apollo_opt_tag(const apollo_code_t *c, int group);
-int          apollo_opt_value_count(const apollo_code_t *c, int group);
-const char  *apollo_opt_value_name(const apollo_code_t *c, int group, int idx);
-int          apollo_opt_get_selected(const apollo_code_t *c, int group);
-void         apollo_opt_set_selected(apollo_code_t *c, int group, int idx);
+int          apctl_opt_group_count(const apctl_code_t *c);
+const char  *apctl_opt_tag(const apctl_code_t *c, int group);
+int          apctl_opt_value_count(const apctl_code_t *c, int group);
+const char  *apctl_opt_value_name(const apctl_code_t *c, int group, int idx);
+int          apctl_opt_get_selected(const apctl_code_t *c, int group);
+void         apctl_opt_set_selected(apctl_code_t *c, int group, int idx);
 
 /* ---- Data endianness ---- */
 /* Select the byte order the engine uses for save DATA (the CLI's -b/-l flags).
  * Non-zero selects big-endian (PS3/PPU saves), zero returns to the host's
  * native order. The engine setting is global and is cleared by
- * free_patch_var_list(), so apollo_apply() re-asserts it before every code —
+ * apollo_free_var_list(), so apctl_apply() re-asserts it before every code —
  * set this once and it stays in effect for the whole session. */
-void apollo_set_big_endian(int enabled);
-int  apollo_get_big_endian(void);
+void apctl_set_big_endian(int enabled);
+int  apctl_get_big_endian(void);
 
 /* Apply one code to `target_file`. Returns 1 on success, 0 on error.
  * Progress is emitted through the installed log sink. If the code has options,
- * set them via apollo_opt_set_selected() first. */
-int  apollo_apply(apollo_session_t *s, apollo_code_t *c, const char *target_file);
+ * set them via apctl_opt_set_selected() first. */
+int  apctl_apply(apctl_session_t *s, apctl_code_t *c, const char *target_file);
 
 /* Release engine patch-variable state accumulated across apply() calls.
- * Call once after a batch of applies (mirrors free_patch_var_list()). */
-void apollo_reset_vars(void);
+ * Call once after a batch of applies (mirrors apollo_free_var_list()). */
+void apctl_reset_vars(void);
 
-void apollo_close(apollo_session_t *s);
+void apctl_close(apctl_session_t *s);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* APOLLO_CTRL_H */
+#endif /* APCTL_H */

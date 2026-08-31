@@ -20,7 +20,7 @@
 static void apply_sw(uint8_t* buf, size_t len, const char* codes)
 {
     code_entry_t c = make_sw_code(codes);
-    apply_sw_patch_code(buf, len, &c);
+    apollo_apply_sw_code(buf, len, &c);
 }
 
 /* Type 0 — 8-bit direct write (endian-invariant). */

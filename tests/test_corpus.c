@@ -16,7 +16,7 @@
  *     affects any other code (the same code crashes identically before/after,
  *     so CRASH is itself a stable, comparable outcome). Every code therefore
  *     produces exactly one manifest line.
- *   - Codes are driven through the public apply_cheat_patch_code() entry point
+ *   - Codes are driven through the public apollo_apply_code() entry point
  *     (via a temp file), so the host callback and the real file path are
  *     exercised exactly as production does.
  *   - Python codes and offzip-extracted targets are skipped (they need an
@@ -108,7 +108,7 @@ static void apply_one(const char* rel, int idx, code_entry_t* code,
 #if APOLLO_TEST_ENDIAN_BE
     code->flags = APOLLO_CODE_FLAG_ORDER_BE;
 #endif
-    size_t out = apply_cheat_patch_code(g_tmp_path, code, apollo_test_host_cb);
+    size_t out = apollo_apply_code(g_tmp_path, code, apollo_test_host_cb);
     if (out == 0) {
         printf("%s#%d\t%d\tnoop\t0\t-\n", rel, idx, code->type);
         return;
@@ -145,7 +145,7 @@ static void process_file(const char* path, const char* rel, const uint8_t* basel
     header->file = (char*)g_tmp_path;   /* target every code at our temp file */
     list_append(codes, header);
 
-    load_patch_code_list((char*)data, codes, NULL, NULL);
+    apollo_load_code_list((char*)data, codes, NULL, NULL);
 
     int idx = 0;
     list_node_t* node = list_head(codes);

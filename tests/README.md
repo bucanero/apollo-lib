@@ -20,7 +20,9 @@ same vectors and golden manifests must still reproduce identically.
 | `test_sw_endian_gaps.c` | The endian-critical Save Wizard opcodes: type 3 (8-byte `MEM64` add + pointer-relative form), type 4 (32-bit `MEM32` multi-write), type 6 (pointer "mega code" — `MEM16` read and `MEM32` write), type 7 (conditional no-less/no-more-than, `MEM16`/`MEM32`), type 9 (pointer add/sub, end-pointer set), and type D's explicit 16-bit BE vs LE reads. |
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
-| `test_parse.c` | Savepatch parsing (`load_patch_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
+| `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
 | `test_common.[ch]` | Tiny assertion framework, deterministic data helpers, host-callback + log stubs, code builders. |
 | `fixtures/` | A curated, vendored set of `.savepatch` files so the committed goldens are reproducible from this repo alone. |
@@ -123,7 +125,7 @@ Robustness notes:
   wild pointer on synthetic data yields one stable `CRASH(sig=N)` line instead
   of derailing the run. Crashes are deterministic and comparable across the
   refactor.
-- Codes run through the public `apply_cheat_patch_code()` entry point via a temp
+- Codes run through the public `apollo_apply_code()` entry point via a temp
   file, exercising the real host callback and file path.
 - Python codes and offzip-extracted targets are skipped (interpreter / external
   state, out of scope for endian testing).

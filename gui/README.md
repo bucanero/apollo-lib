@@ -5,7 +5,7 @@ A cross-platform (Windows / macOS / Linux) graphical front-end for the Apollo
 
 It does not reimplement any patch logic: it wraps the existing `libapollo`
 engine and drives the same functions the CLI does
-(`load_patch_code_list`, `apply_cheat_patch_code`).
+(`apollo_load_code_list`, `apollo_apply_code`).
 
 ## Architecture
 
@@ -20,8 +20,8 @@ engine and drives the same functions the CLI does
 
 | CLI (patcher.c)              | GUI equivalent                                  |
 |------------------------------|-------------------------------------------------|
-| `printf` / `dbglogger_log`   | `apollo_set_log_sink()` → log panel             |
-| `scanf` in `get_user_options`| `apollo_opt_set_selected()` ← combo boxes       |
+| `printf` / `dbglogger_log`   | `apctl_set_log_sink()` → log panel             |
+| `scanf` in `get_user_options`| `apctl_opt_set_selected()` ← combo boxes       |
 | `is_active_code` arg parsing | per-row checkboxes                              |
 
 MicroPython `print()` output is also routed to the log panel (the engine is
