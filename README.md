@@ -74,7 +74,7 @@ This is a breaking change for 2.x callers.
 
 The BSD script commands are backward-compatible. The only addition is a save
 type on `mgs_pw`, for the PSP releases: `mgs_pw(1)` for PSP US/EU, `mgs_pw(2)`
-for the PSP JP digital build, with the bare `mgs_pw` still selecting PS3.
+for the PSP JP digital build, and `mgs_pw(0)` for selecting PS3 saves.
 
 One Python API changed with it: `ucrypto.mgs_pw()` takes that save type as a
 required third argument, `ucrypto.mgs_pw(DECRYPT, data, 0)`. The rest of the
