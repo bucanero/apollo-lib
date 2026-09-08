@@ -2834,7 +2834,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 		{
 			/* The two directions differ only in which way each algorithm runs, so
 			 * one block handles both. "encrypt" and "decrypt" are the same length. */
-			apollo_crypt_mode_t cmode = (tolower((unsigned char) *line) == 'e') ? APOLLO_ENCRYPT : APOLLO_DECRYPT;
+			apollo_crypt_mode_t cmode = ((*line == 'e') || (*line == 'E')) ? APOLLO_ENCRYPT : APOLLO_DECRYPT;
 			const char* dir = (cmode == APOLLO_ENCRYPT) ? "En" : "De";
 
 			line += strlen("decrypt");
