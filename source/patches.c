@@ -231,16 +231,26 @@ static long reverse_search_data(const uint8_t* data, size_t size, int start, con
 	return -1;
 }
 
-static bsd_variable_t* _get_bsd_variable(const char* vname)
+/*
+ * Length-delimited variable lookup. Lets a "[name]" reference be resolved
+ * straight out of the script line, by passing the span between the brackets,
+ * instead of punching a temporary NUL over the ']'.
+ */
+static bsd_variable_t* _get_bsd_variable_n(const char* vname, size_t len)
 {
 	list_node_t *node;
 	bsd_variable_t *var;
 
 	for (node = list_head(var_list); (var = list_get(node)); node = list_next(node))
-		if (strcmp(var->name, vname) == 0)
+		if (strncmp(var->name, vname, len) == 0 && var->name[len] == 0)
 			return var;
 
 	return NULL;
+}
+
+static bsd_variable_t* _get_bsd_variable(const char* vname)
+{
+	return _get_bsd_variable_n(vname, strlen(vname));
 }
 
 /*
@@ -271,13 +281,10 @@ static void* _decode_variable_data(const char* line, uint32_t *data_len)
 	{
 		line++;
 
-		char* tmp = strchr(line, ']');
-		*tmp = 0;
-
-		bsd_variable_t* var = _get_bsd_variable(line);
+		const char* tmp = strchr(line, ']');
+		bsd_variable_t* var = _get_bsd_variable_n(line, tmp - line);
 
 		line = tmp+1;
-		*tmp = ']';
 
 		if (var && var->data)
 		{
@@ -353,15 +360,12 @@ static int _parse_int_value(const char* line, const int ptrval, const int size)
 	else if (wildcard_match(line, "[*]*"))
 	{
 		line++;
-	    
-		char* tmp = strchr(line, ']');
-		*tmp = 0;
-	    
-		bsd_variable_t* var = _get_bsd_variable(line);
-	    
+
+		const char* tmp = strchr(line, ']');
+		bsd_variable_t* var = _get_bsd_variable_n(line, tmp - line);
+
 		line = tmp+1;
-		*tmp = ']';
-	    
+
 		if (var)
 		{
 			switch (var->len)
@@ -436,7 +440,6 @@ static void _parse_start_end(char* line, int pointer, int dsize, int *start_val,
 	*start_val = _parse_int_value(line, pointer, dsize);
 
 	line = tmp+1;
-	*tmp = ',';
 	tmp = strchr(line, ')');
 	if (!tmp)
 		return;
@@ -444,7 +447,6 @@ static void _parse_start_end(char* line, int pointer, int dsize, int *start_val,
 	*tmp = 0;
 
 	*end_val = _parse_int_value(line, pointer, dsize);
-	*tmp = ')';
 }
 
 static void _log_dump(const char* name, const uint8_t* buf, int size)
@@ -549,7 +551,6 @@ static int _exec_encryption_key(int type, apollo_crypt_mode_t mode, char* line, 
 
 	LOG("Encryption Key=%s", line);
 	key = _decode_variable_data(line, &key_len);
-	*tmp = ')';
 
 	if (!key)
 	{
@@ -610,7 +611,6 @@ static int _exec_encryption_key_iv(int type, apollo_crypt_mode_t mode, char* lin
 
 	LOG("Encryption Key=%s", line);
 	key = _decode_variable_data(line, &key_len);
-	*tmp = ',';
 
 	line = tmp + 1;
 	tmp = strrchr(line, ')');
@@ -624,7 +624,6 @@ static int _exec_encryption_key_iv(int type, apollo_crypt_mode_t mode, char* lin
 
 	LOG("Encryption IV=%s", line);
 	iv = _decode_variable_data(line, &iv_len);
-	*tmp = ')';
 
 	if (!key || !iv)
 	{
@@ -892,7 +891,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					range_start = dsize;
 
 				line = tmp+1;
-				*tmp = ',';
 
 				range_end = _parse_int_value(line, pointer - eof, dsize) + 1;
 				if (range_end > (long)dsize)
@@ -1019,7 +1017,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				LOG("Var name = %s", var->name);
 
 				line = tmp+2;
-				*tmp = ']';
 
 				// set [*]:xor:*
 				if (wildcard_match_icase(line, "xor:*"))
@@ -1438,7 +1435,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					LOG("HMAC Key=%s", line);
 
 					key = _decode_variable_data(line, &key_len);
-					*tmp = ')';
 
 					if (!key || !_alloc_var_data(var, BSD_VAR_SHA1))
 					{
@@ -1950,20 +1946,17 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					xor_s = _parse_int_value(line, pointer, dsize);
 
 					line = tmp+1;
-					*tmp = ',';
 					tmp = strchr(line, ',');
 					*tmp = 0;
 
 					xor_e = _parse_int_value(line, pointer, dsize);
 
 					line = tmp+1;
-					*tmp = ',';
 					tmp = strchr(line, ')');
 					*tmp = 0;
 
 					xor_i = _parse_int_value(line, pointer, dsize);
 
-					*tmp = ')';
 					if (xor_i < 1) xor_i = 1;      /* avoid infinite loop */
 					if (xor_i > 4) xor_i = 4;      /* xor[4] stack bound   */
 
@@ -2096,20 +2089,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					char* mid_val = _decode_variable_data(line, &mlen);
 
 					line = tmp+1;
-					*tmp = ',';
 					tmp = strchr(line, ',');
 					*tmp = 0;
 
 					mid_s = _parse_int_value(line, pointer, dsize);
 
 					line = tmp+1;
-					*tmp = ',';
 					tmp = strchr(line, ')');
 					*tmp = 0;
 
 					mid_c = _parse_int_value(line, pointer, dsize);
-
-					*tmp = ')';
 
 					/* the slice must sit inside the decoded value */
 					int mid_ok = (mid_val && mid_s >= 0 && mid_c >= 0 && (uint32_t) mid_s <= mlen && (uint32_t) mid_c <= (mlen - (uint32_t) mid_s) &&
@@ -2325,7 +2314,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			off += (from_pointer ? pointer : 0);
 
 			line = tmp+1;
-			*tmp = ':';
 
 			skip_spaces(line);
 
@@ -2365,13 +2353,10 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				r_cnt = _parse_int_value(line, pointer, dsize);
 
 				line = tmp+1;
-				*tmp = ',';
 				tmp = strchr(line, ')');
 				*tmp = 0;
 
 				r_val = _decode_variable_data(line, &wlen);
-
-				*tmp = ')';
 
 				if (!r_val || r_cnt < 0 || (r_cnt && wlen > (uint32_t)(INT_MAX / r_cnt)))
 				{
@@ -2476,7 +2461,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			off += (from_pointer ? pointer : 0);
 
 			line = tmp+1;
-			*tmp = ':';
 
 			skip_spaces(line);
 
@@ -2556,7 +2540,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			off += (from_pointer ? pointer : 0);
 
 			line = tmp+1;
-			*tmp = ':';
 
 			skip_spaces(line);
 
@@ -2612,7 +2595,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			int cnt = 1, off = 0;
 			uint32_t len;
 			uint8_t* find;
-			char* tmp = NULL;
 
 			line += strlen("search");
 			skip_spaces(line);
@@ -2626,15 +2608,13 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 			if (wildcard_match(line, "*:*"))
 			{
-				tmp = strrchr(line, ':');
+				char* tmp = strrchr(line, ':');
+
 				sscanf(tmp+1, "%d", &cnt);
 				*tmp = 0;
 			}
 
 			find = _decode_variable_data(line, &len);
-
-			if (tmp)
-				*tmp = ':';
 
 			if (!find)
 			{
@@ -2644,7 +2624,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				goto bsd_end;
 			}
 
-			LOG("Searching {%s} ...", line);
+			LOG("Searching {%s:%d} ...", line, cnt);
 			pointer = search_data(data, dsize, off, find, len, cnt);
 			free(find);
 			
@@ -2672,14 +2652,12 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			tmp = strchr(line, ':');
 			*tmp = 0;
 			from = _parse_int_value(line, pointer, dsize);
-			*tmp++ = ':';
-			line = tmp;
+			line = tmp + 1;
 
 			tmp = strchr(line, ':');
 			*tmp = 0;
 			off = _parse_int_value(line, pointer, dsize);
-			*tmp++ = ':';
-			line = tmp;
+			line = tmp + 1;
 
 			len = _parse_int_value(line, pointer, dsize);
 			if (len >= 0 && _range_in_bounds(dsize, from, len) && _range_in_bounds(dsize, off, len))
@@ -2714,7 +2692,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			*tmp = 0;
 
 			mode = _parse_int_value(line, pointer, dsize);
-			*tmp = ')';
 
 			switch (mode)
 			{
@@ -2894,7 +2871,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				*tmp = 0;
 
 				game = _parse_int_value(line, pointer, dsize);
-				*tmp = ',';
 
 				line = tmp + 1;
 				tmp = strrchr(line, ')');
@@ -2905,7 +2881,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				LOG("FFXIII Type=%d Encryption Key=%s", game, line);
 
 				key = _decode_variable_data(line, &key_len);
-				*tmp = ')';
 				BSD_REQUIRE(key, "invalid ffxiii() key");
 
 				apollo_crypt_final_fantasy13(cmode, game, start, (range_end - range_start), (uint8_t*) key, key_len);
@@ -2928,7 +2903,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				LOG("Borderlands 3 Save Type=%s", line);
 
 				s_type = _parse_int_value(line, pointer, dsize);
-				*tmp = ')';
 
 				apollo_crypt_borderlands3(cmode, start, (range_end - range_start), s_type);
 			}
@@ -2943,7 +2917,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				LOG("Monster Hunter PSP Save Type=%s", line);
 
 				type = _parse_int_value(line, pointer, dsize);
-				*tmp = ')';
 
 				apollo_crypt_monster_hunter(cmode, (uint8_t*)data + range_start, (range_end - range_start), type);
 			}
@@ -2958,7 +2931,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				LOG("MGS 5 Key=%s", line);
 
 				xor_key = _parse_int_value(line, pointer, dsize);
-				*tmp = ')';
 
 				apollo_crypt_mgs5_tpp(data + range_start, (range_end - range_start), xor_key);
 			}

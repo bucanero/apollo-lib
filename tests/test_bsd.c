@@ -241,6 +241,64 @@ TEST(bsd_update_existing_variable)
     free(buf);
 }
 
+/*
+ * A "[name]" reference must match the whole variable name, not a prefix of it.
+ *
+ * Both lookups resolve the name straight out of the script line, from the span
+ * between the brackets, so the comparison is length-delimited (strncmp) rather
+ * than a strcmp over a NUL-terminated copy. strncmp alone only answers "does
+ * the stored name START with this span", so the lookup also has to check that
+ * the stored name ends there.
+ *
+ * Without that check, declaring [ab] and then [a] does not produce two
+ * variables at all: the declaration of [a] goes through the same lookup, finds
+ * [ab], and overwrites it. So the tell is a later reference to the LONGER name
+ * reading back the shorter one's value. Both vectors below are built that way,
+ * and both cover one of the two call sites: value decoding
+ * (_decode_variable_data) and integer parsing (_parse_int_value).
+ *
+ * The values are 1 and 3 bytes wide on purpose. A 2/4/8-byte variable is
+ * converted to big-endian on its way out, which would fold an endianness
+ * question into a name-resolution test.
+ */
+TEST(bsd_var_name_prefix_not_matched_as_value)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init),
+              "set [ab]:AABBCC\nset [a]:112233\nwrite at 0:[a]\nwrite at 8:[ab]");
+
+    uint8_t exp[16] = {0};
+    exp[0]=0x11; exp[1]=0x22; exp[2]=0x33;    /* [a]                          */
+    exp[8]=0xAA; exp[9]=0xBB; exp[10]=0xCC;   /* [ab], not clobbered by [a]   */
+    CHECK_MEM("[a] and [ab] stay distinct variables", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_var_name_prefix_not_matched_as_offset)
+{
+    uint8_t init[16];
+    uint8_t* buf;
+
+    for (int i = 0; i < 16; i++) init[i] = (uint8_t) i;   /* 00..0F */
+    buf = dup_bytes(init, sizeof(init));
+
+    /* read([p],1) reads offset 8 and read([pp],1) offset 4, so the two bytes
+     * written back name which variable each reference resolved to. */
+    apply_bsd(&buf, sizeof(init),
+              "set [pp]:0x00000004\nset [p]:0x00000008\n"
+              "set [v]:read([p],1)\nset [w]:read([pp],1)\n"
+              "write at 0:[v]\nwrite at 1:[w]");
+
+    uint8_t exp[16];
+    memcpy(exp, init, sizeof(exp));
+    exp[0]=0x08;                 /* [p]  -> offset 8 */
+    exp[1]=0x04;                 /* [pp] -> offset 4 */
+    CHECK_MEM("[p] and [pp] resolve to their own offsets", buf, exp, sizeof(exp));
+    free(buf);
+}
+
 /* delete shrinks the buffer, shifting the tail left */
 TEST(bsd_delete)
 {
