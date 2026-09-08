@@ -70,8 +70,15 @@ Encrypt/decrypt pairs are now a single function taking `APOLLO_ENCRYPT` or
 Functions with no inverse (AES CTR, the DW8XL and RGG Studio XOR streams, and
 MGS5 TPP) take no mode.
 
-This is a breaking change for 2.x callers. The BSD script commands and the
-Python module APIs are **unchanged**.
+This is a breaking change for 2.x callers.
+
+The BSD script commands are backward-compatible. The only addition is a save
+type on `mgs_pw`, for the PSP releases: `mgs_pw(1)` for PSP US/EU, `mgs_pw(2)`
+for the PSP JP digital build, with the bare `mgs_pw` still selecting PS3.
+
+One Python API changed with it: `ucrypto.mgs_pw()` takes that save type as a
+required third argument, `ucrypto.mgs_pw(DECRYPT, data, 0)`. The rest of the
+module is **unchanged**.
 
 ## CLI Tools
 

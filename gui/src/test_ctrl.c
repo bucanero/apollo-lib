@@ -1,5 +1,6 @@
 /* Headless parity check for apollo_ctrl: lists codes like `patcher <file>`. */
 #include <stdio.h>
+#include <stdlib.h>
 #include "apollo_ctrl.h"
 
 static void log_sink(void *ud, const char *line) { (void)ud; printf("- %s\n", line); }
@@ -17,8 +18,11 @@ int main(int argc, char **argv)
 {
     if (argc < 2) { fprintf(stderr, "usage: %s file.savepatch\n", argv[0]); return 2; }
 
-    apctl_set_log_sink(log_sink, NULL);   /* comment out for quiet listing */
-    apctl_set_log_sink(NULL, NULL);
+    /* Quiet by default: the listing is meant to be diffed against
+     * `patcher <file>`, and the engine's log would pollute that. Set
+     * APOLLO_TEST_VERBOSE=1 to route it through the sink instead -- same
+     * variable the tests/ suite uses. */
+    apctl_set_log_sink(getenv("APOLLO_TEST_VERBOSE") ? log_sink : NULL, NULL);
 
     apctl_session_t *s = apctl_open_file(argv[1]);
     if (!s) { fprintf(stderr, "Could not open %s\n", argv[1]); return 1; }
