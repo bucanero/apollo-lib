@@ -590,9 +590,7 @@ Custom Encryption Algorithms
 
 The save type is not detected, it is declared: a PS3 save carries a second
 encrypted block a PSP save does not, and the PSP JP digital build shifts every
-offset down by ``0x10``. Omitting the argument (``decrypt mgs_pw``) selects the
-PS3 layout, for compatibility with savepatches written before the argument
-existed.
+offset down by ``0x10``.
 
 **Metal Gear Solid Base64:**
 
