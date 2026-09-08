@@ -1372,6 +1372,34 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					LOG("len %d Adler16 HASH = %04X", len, hash);
 				}
 
+				// set [*]:fletcher16*
+				else if (wildcard_match_icase(line, "fletcher16*"))
+				{
+					uint16_t hash;
+					uint8_t* start = (uint8_t*)data + range_start;
+					len = range_end - range_start;
+
+					hash = apollo_hash_fletcher16(start, len);
+
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT16), "out of memory");
+
+					LOG("len %d Fletcher16 HASH = %04X", len, hash);
+				}
+
+				// set [*]:fletcher32*
+				else if (wildcard_match_icase(line, "fletcher32*"))
+				{
+					uint32_t hash;
+					uint8_t* start = (uint8_t*)data + range_start;
+					len = range_end - range_start;
+
+					hash = apollo_hash_fletcher32(start, len);
+
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_INT32), "out of memory");
+
+					LOG("len %d Fletcher32 HASH = %08X", len, hash);
+				}
+
 				// set [*]:murmur3_32*
 				else if (wildcard_match_icase(line, "murmur3_32*"))
 				{

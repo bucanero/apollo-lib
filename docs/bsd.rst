@@ -131,10 +131,17 @@ Sets a variable to a value or computed hash.
 - ``set [var]:crc64_ecma`` - CRC-64 ECMA 182
 - ``set [var]:adler32`` - Adler-32 checksum
 - ``set [var]:adler16`` - Adler-16 checksum
+- ``set [var]:fletcher16`` - Fletcher-16 checksum
+- ``set [var]:fletcher32`` - Fletcher-32 checksum
 - ``set [var]:crc`` - Custom CRC (configured via set ``crc_*``)
 - ``set [var]:md5_xor`` - XOR of MD5 hash bytes
 - ``set [var]:sha1_xor64`` - XOR of SHA-1 hash as 64-bit
 - ``set [var]:hmac_sha1(key)`` - HMAC-SHA1 with key
+
+Fletcher-32 sums 16-bit little-endian words, per its canonical definition, on
+every console -- the byte order is part of the algorithm, not of the save, so
+the same range yields the same value everywhere. An odd-length range
+contributes its last byte as the low half of a zero-padded word.
 
 **Checksum Functions:**
 

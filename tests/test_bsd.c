@@ -409,6 +409,108 @@ TEST(bsd_hash_sha1)
     free(buf);
 }
 
+/* ======================================================================== */
+/* Fletcher-16 / Fletcher-32                                                */
+/* ======================================================================== */
+
+/*
+ * Published Fletcher check values.
+ *
+ * Fletcher-32 sums 16-bit LITTLE-endian words by definition, and that is fixed
+ * in the implementation rather than taken from the host, so these vectors hold
+ * in both the LE and the __PS3_PC__ build -- which is the property that lets a
+ * savepatch using it produce the same hash on a PS3 as on a PS4.
+ */
+static const struct {
+    const char* s;
+    uint16_t    f16;
+    uint32_t    f32;
+} fletcher_vectors[] = {
+    { "abcde",    0xC8F0, 0xF04FC729 },
+    { "abcdef",   0x2057, 0x56502D2A },
+    { "abcdefgh", 0x0627, 0xEBE19591 },
+};
+
+TEST(hash_fletcher_known_vectors)
+{
+    for (size_t i = 0; i < sizeof(fletcher_vectors) / sizeof(*fletcher_vectors); i++)
+    {
+        const uint8_t* d = (const uint8_t*) fletcher_vectors[i].s;
+        size_t n = strlen(fletcher_vectors[i].s);
+
+        CHECK_U64("fletcher16 published vector",
+                  apollo_hash_fletcher16(d, n), fletcher_vectors[i].f16);
+        CHECK_U64("fletcher32 published vector",
+                  apollo_hash_fletcher32(d, n), fletcher_vectors[i].f32);
+    }
+}
+
+/*
+ * Both functions defer the modulo to the end of a block, sized so c1 cannot
+ * overflow first (5802 bytes / 360 words). This buffer is 6000 bytes, so it
+ * crosses that boundary in both -- a wrong block size or a dropped reduction
+ * diverges here and nowhere in the short vectors above.
+ *
+ * The expected values were computed with exact arbitrary-precision arithmetic
+ * and a single modulo at the very end, i.e. from Fletcher's definition rather
+ * than from a second copy of the blocked algorithm.
+ */
+TEST(hash_fletcher_block_boundary)
+{
+    uint8_t* buf = malloc(6000);
+    size_t i;
+
+    for (i = 0; i < 6000; i++)
+        buf[i] = (uint8_t)(i * 7 + 3);
+
+    CHECK_U64("fletcher16 across the 5802-byte block boundary",
+              apollo_hash_fletcher16(buf, 6000), 0x777F);
+    CHECK_U64("fletcher32 across the 360-word block boundary",
+              apollo_hash_fletcher32(buf, 6000), 0x7921C9B5);
+    free(buf);
+}
+
+/*
+ * An odd length contributes its last byte as the low half of a zero-padded
+ * word. The textbook version rounds the length up and then reads that byte from
+ * the buffer, one past the end of a caller-sized range; ASan catches that here.
+ */
+TEST(hash_fletcher32_odd_length_zero_padded)
+{
+    uint8_t three[3] = { 0x11, 0x22, 0x33 };
+
+    /* words 2211, 0033 */
+    CHECK_U64("fletcher32 odd length", apollo_hash_fletcher32(three, 3), 0x44552244);
+}
+
+/* An empty range must be well-defined, not a wrapped block length. */
+TEST(hash_fletcher_empty_range)
+{
+    CHECK_U64("fletcher16 of nothing", apollo_hash_fletcher16((const uint8_t*)"", 0), 0);
+    CHECK_U64("fletcher32 of nothing", apollo_hash_fletcher32((const uint8_t*)"", 0), 0);
+}
+
+/* The BSD commands, over "12345678" (8 bytes, so no padding is involved). */
+TEST(bsd_hash_fletcher16)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x7\nset [h]:fletcher16\nwrite at 0x10:[h]");
+
+    uint8_t exp[2] = { 0x3F, 0xA5 };
+    CHECK_MEM("fletcher16(\"12345678\") = 0x3FA5", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_hash_fletcher32)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x7\nset [h]:fletcher32\nwrite at 0x10:[h]");
+
+    uint8_t exp[4] = { 0x0A, 0x00, 0xD4, 0xD0 };
+    CHECK_MEM("fletcher32(\"12345678\") = 0x0A00D4D0", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
 TEST(bsd_hash_jhash)
 {
     uint8_t* buf = hash_buf();

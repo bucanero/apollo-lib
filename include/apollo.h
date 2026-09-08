@@ -319,6 +319,24 @@ int apollo_hash_checksum32(const uint8_t* data, uint32_t len);
 uint16_t apollo_hash_adler16(const uint8_t *data, size_t len);
 
 /**
+ * This function makes Fletcher16 hash calculation on Length data bytes
+ *
+ * RETURN VALUE: 16 bit result of CRC calculation
+ */
+uint16_t apollo_hash_fletcher16(const uint8_t *data, size_t len);
+
+/**
+ * This function makes Fletcher32 hash calculation on Length data bytes.
+ *
+ * Fletcher32 sums 16-bit little-endian words, per its canonical definition, on
+ * every build. An odd `len` is zero-padded to a whole word rather than read
+ * past.
+ *
+ * RETURN VALUE: 32 bit result of CRC calculation
+ */
+uint32_t apollo_hash_fletcher32(const uint8_t *data, size_t len);
+
+/**
  * This function makes Final Fantasy X hash calculation on Length data bytes
  *
  * RETURN VALUE: 16 bit result of CRC calculation

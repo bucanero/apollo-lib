@@ -746,6 +746,8 @@ QDEF(MP_QSTR_pbkdf2_sha1, (const byte*)"\x38\x07\x0b" "pbkdf2_sha1")
 QDEF(MP_QSTR_pbkdf2_sha256, (const byte*)"\x58\xc4\x0d" "pbkdf2_sha256")
 QDEF(MP_QSTR_sha1_xor64, (const byte*)"\x76\x60\x0a" "sha1_xor64")
 QDEF(MP_QSTR_adler16, (const byte*)"\x5c\x0d\x07" "adler16")
+QDEF(MP_QSTR_fletcher16, (const byte*)"\x05\x48\x0a" "fletcher16")
+QDEF(MP_QSTR_fletcher32, (const byte*)"\xc3\x47\x0a" "fletcher32")
 QDEF(MP_QSTR_adler32, (const byte*)"\x1a\x0d\x07" "adler32")
 QDEF(MP_QSTR_checksum32, (const byte*)"\xe9\xfa\x0a" "checksum32")
 QDEF(MP_QSTR_sdbm, (const byte*)"\x3d\x79\x04" "sdbm")
@@ -38301,6 +38303,8 @@ MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_pbkdf2_sha1_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_pbkdf2_sha256_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sha1_xor64_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_adler16_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_fletcher16_obj);
+MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_fletcher32_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_adler32_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_checksum32_obj);
 MP_DECLARE_CONST_FUN_OBJ(mod_uhashlib_sdbm_obj);
@@ -38513,6 +38517,30 @@ mp_obj_t micropy_mod_uhashlib_adler16(struct _mp_state_ctx_t *mp_state, mp_obj_t
     return micropy_obj_new_bytearray(mp_state, 2, out);
 }
 MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_adler16_obj, micropy_mod_uhashlib_adler16);
+
+mp_obj_t micropy_mod_uhashlib_fletcher16(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    uint8_t out[2];
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    uint16_t crc = apollo_hash_fletcher16(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint16(mp_state, out, crc);
+
+    return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_fletcher16_obj, micropy_mod_uhashlib_fletcher16);
+
+mp_obj_t micropy_mod_uhashlib_fletcher32(struct _mp_state_ctx_t *mp_state, mp_obj_t data) {
+    uint8_t out[4];
+    mp_buffer_info_t bufinfo;
+    micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
+
+    uint32_t crc = apollo_hash_fletcher32(bufinfo.buf, bufinfo.len);
+    micropy_write_be_uint32(mp_state, out, crc);
+
+    return micropy_obj_new_bytearray(mp_state, sizeof(out), out);
+}
+MP_DEFINE_CONST_FUN_OBJ_1(mod_uhashlib_fletcher32_obj, micropy_mod_uhashlib_fletcher32);
 
 mp_obj_t micropy_mod_uhashlib_adler32(struct _mp_state_ctx_t *mp_state, size_t n_args, const mp_obj_t *args) {
     uint8_t out[4];
@@ -39208,6 +39236,8 @@ STATIC const mp_rom_map_elem_t mp_module_hashlib_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_pbkdf2_sha256), MP_ROM_PTR(&mod_uhashlib_pbkdf2_sha256_obj) },
     { MP_ROM_QSTR(MP_QSTR_sha1_xor64), MP_ROM_PTR(&mod_uhashlib_sha1_xor64_obj) },
     { MP_ROM_QSTR(MP_QSTR_adler16), MP_ROM_PTR(&mod_uhashlib_adler16_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fletcher16), MP_ROM_PTR(&mod_uhashlib_fletcher16_obj) },
+    { MP_ROM_QSTR(MP_QSTR_fletcher32), MP_ROM_PTR(&mod_uhashlib_fletcher32_obj) },
     { MP_ROM_QSTR(MP_QSTR_adler32), MP_ROM_PTR(&mod_uhashlib_adler32_obj) },
     { MP_ROM_QSTR(MP_QSTR_checksum32), MP_ROM_PTR(&mod_uhashlib_checksum32_obj) },
     { MP_ROM_QSTR(MP_QSTR_sdbm), MP_ROM_PTR(&mod_uhashlib_sdbm_obj) },

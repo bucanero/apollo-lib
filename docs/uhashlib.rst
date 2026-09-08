@@ -241,6 +241,24 @@ These functions implement common checksum and non-cryptographic hash algorithms.
    :return: 2-byte Adler-16 checksum (big-endian)
    :rtype: bytes
 
+.. py:function:: fletcher16(data)
+
+   Computes Fletcher-16 checksum (16-bit) of the input data.
+
+   :param bytes data: Input data to checksum
+   :return: 2-byte Fletcher-16 checksum (big-endian)
+   :rtype: bytes
+
+.. py:function:: fletcher32(data)
+
+   Computes Fletcher-32 checksum (32-bit) of the input data, summing its 16-bit
+   words as little-endian per the canonical definition. An odd-length input
+   contributes its last byte as the low half of a zero-padded word.
+
+   :param bytes data: Input data to checksum
+   :return: 4-byte Fletcher-32 checksum (big-endian)
+   :rtype: bytes
+
 .. py:function:: adler32(data, init=0)
 
    Computes Adler-32 checksum (32-bit) of the input data.

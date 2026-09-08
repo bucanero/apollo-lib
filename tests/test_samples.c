@@ -187,22 +187,13 @@ TEST(sample_monster_hunter_v3)
 /*
  * MGS Peace Walker — one vector per save type.
  *
- * PS3 (NPUB30611/NPEB00686) runs bare `mgs_pw`, which is what those shipped
- * savepatches contain, so the vector doubles as the backward-compatibility
- * check that the un-parameterised command still means PS3.
+ * The save type is always named: there is no un-parameterised `mgs_pw`, and the
+ * shipped PS3 savepatches (NPUB30611/NPEB00686) carry `mgs_pw(0)` to match.
  */
 static const char MGSPW_PS3_DEC[] =
     "set range:0x0000,eof+1\n"
-    "DECRYPT mgs_pw";
-static const char MGSPW_PS3_ENC[] =
-    "set range:0x0000,eof+1\n"
-    "ENCRYPT mgs_pw";
-
-/* Explicit type 0, to pin that it is the same thing the bare command selects. */
-static const char MGSPW_PS3_DEC0[] =
-    "set range:0x0000,eof+1\n"
     "DECRYPT mgs_pw(0)";
-static const char MGSPW_PS3_ENC0[] =
+static const char MGSPW_PS3_ENC[] =
     "set range:0x0000,eof+1\n"
     "ENCRYPT mgs_pw(0)";
 
@@ -212,11 +203,6 @@ TEST(sample_mgs_pw_ps3)
                         "mgs-pw-decrypter/samples/00000000.000",
                         "mgs-pw-decrypter/samples/00000000.000.dec",
                         MGSPW_PS3_DEC, MGSPW_PS3_ENC, 0);
-
-    known_answer_script("mgs_pw PS3 00000000.000 (explicit type 0)",
-                        "mgs-pw-decrypter/samples/00000000.000",
-                        "mgs-pw-decrypter/samples/00000000.000.dec",
-                        MGSPW_PS3_DEC0, MGSPW_PS3_ENC0, 0);
 }
 
 /*

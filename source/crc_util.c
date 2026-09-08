@@ -562,6 +562,78 @@ uint16_t apollo_hash_adler16(const uint8_t *data, size_t len)
     return ((b << 8) | a);
 }
 
+/*
+ * Fletcher-16 and Fletcher-32.
+ *
+ * Both accumulate in 32-bit registers and defer the modulo to the end of a
+ * block, which is where the block sizes come from: the largest n with
+ * n * (n+1) / 2 * (2^k - 1) < 2^32 - 1, so c1 cannot overflow before the
+ * reduction. That is 5802 bytes for the 8-bit sums and 360 words for the
+ * 16-bit ones.
+ */
+uint16_t apollo_hash_fletcher16(const uint8_t *data, size_t len)
+{
+    uint32_t c0 = 0, c1 = 0;
+
+    while (len)
+    {
+        size_t blocklen = (len > 5802) ? 5802 : len;
+
+        len -= blocklen;
+        do {
+            c0 += *data++;
+            c1 += c0;
+        } while (--blocklen);
+
+        c0 %= 255;
+        c1 %= 255;
+    }
+
+    return (uint16_t)(c1 << 8 | c0);
+}
+
+/*
+ * Fletcher-32 sums 16-bit LITTLE-endian words. That is the canonical
+ * definition -- the textbook `const uint16_t*` implementation was written on a
+ * little-endian host, and the published check values are its output -- and
+ * fixing it here rather than reading host-native words is what keeps one
+ * savepatch hashing the same on a PS3 as on a PS4.
+ *
+ * An odd `len` contributes its last byte as the low half of a final word,
+ * zero-padded, instead of reading one byte past the buffer the way rounding
+ * the length up to a whole word would.
+ */
+uint32_t apollo_hash_fletcher32(const uint8_t *data, size_t len)
+{
+    uint32_t c0 = 0, c1 = 0;
+    size_t words = (len + 1) / 2;
+    int odd = (len & 1);
+
+    while (words)
+    {
+        size_t blocklen = (words > 360) ? 360 : words;
+
+        words -= blocklen;
+        do {
+            uint16_t w;
+
+            if (odd && words == 0 && blocklen == 1)
+                w = data[0];                 /* zero-padded tail */
+            else
+                w = read_le_uint16(data);
+
+            data += 2;
+            c0 += w;
+            c1 += c0;
+        } while (--blocklen);
+
+        c0 %= 65535;
+        c1 %= 65535;
+    }
+
+    return (c1 << 16 | c0);
+}
+
 int apollo_hash_deadrising(uint8_t* data, uint32_t size)
 {
     uint16_t sumL, sumH;
