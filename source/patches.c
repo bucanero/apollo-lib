@@ -243,9 +243,15 @@ static bsd_variable_t* _get_bsd_variable(const char* vname)
 	return NULL;
 }
 
-static void* _decode_variable_data(const char* line, int *data_len)
+/*
+ * Decodes a BSD value literal (quoted string, [variable] reference, or hex
+ * digits) into a freshly allocated buffer. `data_len` is the buffer size, so
+ * it is unsigned: there is no "negative length" outcome to report. A failure
+ * returns NULL with *data_len set to 0, and callers only need the NULL check.
+ */
+static void* _decode_variable_data(const char* line, uint32_t *data_len)
 {
-	int i, len = 0;
+	uint32_t len = 0;
 	char* output = NULL;
 
 	skip_spaces(line);
@@ -254,13 +260,12 @@ static void* _decode_variable_data(const char* line, int *data_len)
 	if (wildcard_match(line, "\"*\"*"))
 	{
 		char* c = strchr(line, '"')+1;
-		len = strrchr(line, '"') - c;
+		len = (uint32_t)(strrchr(line, '"') - c);
 		output = malloc(len ? len : 1);
 		if (!output)
 			return NULL;
 
-		for (i = 0; i < len; i++)
-			output[i] = c[i];
+		memcpy(output, c, len);
 	}
 	else if (wildcard_match(line, "[*]*"))
 	{
@@ -304,7 +309,7 @@ static void* _decode_variable_data(const char* line, int *data_len)
 		if (line[0] == '0' && line[1] == 'x')
 			line += 2;
 
-		len = strlen(line) / 2;
+		len = (uint32_t)(strlen(line) / 2);
 		output = (char*) x_to_u8_buffer(line);
 		if (!output)
 			return NULL;
@@ -533,7 +538,7 @@ static void apply_tag_opts(char *txtcode, const code_entry_t* entry)
 
 static int _exec_encryption_key(int type, apollo_crypt_mode_t mode, char* line, uint8_t* start, uint32_t length)
 {
-	int key_len;
+	uint32_t key_len;
 	char *key, *tmp;
 
 	tmp = strrchr(line, ')');
@@ -557,22 +562,22 @@ static int _exec_encryption_key(int type, apollo_crypt_mode_t mode, char* line, 
 	switch (type)
 	{
 	case CRYPT_AES_ECB:
-		LOG("%scrypting AES ECB %d data (%d bytes)", dir, key_len*8, length);
+		LOG("%scrypting AES ECB %u data (%u bytes)", dir, key_len*8, length);
 		apollo_crypt_aes_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case CRYPT_BLOWFISH_ECB:
-		LOG("%scrypting Blowfish ECB data (%d bytes)", dir, length);
+		LOG("%scrypting Blowfish ECB data (%u bytes)", dir, length);
 		apollo_crypt_blowfish_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case CRYPT_3DES_ECB:
-		LOG("%scrypting 3-DES ECB data (%d bytes)", dir, length);
+		LOG("%scrypting 3-DES ECB data (%u bytes)", dir, length);
 		apollo_crypt_des3_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
 	case CRYPT_CAMELLIA_ECB:
-		LOG("%scrypting Camellia ECB %d data (%d bytes)", dir, key_len*8, length);
+		LOG("%scrypting Camellia ECB %u data (%u bytes)", dir, key_len*8, length);
 		apollo_crypt_camellia_ecb(mode, start, length, (const uint8_t*) key, key_len);
 		break;
 
@@ -594,7 +599,7 @@ static int _exec_encryption_key(int type, apollo_crypt_mode_t mode, char* line, 
 
 static int _exec_encryption_key_iv(int type, apollo_crypt_mode_t mode, char* line, uint8_t* start, uint32_t length)
 {
-	int key_len, iv_len;
+	uint32_t key_len, iv_len;
 	char *key, *iv, *tmp;
 
 	tmp = strrchr(line, ',');
@@ -634,22 +639,22 @@ static int _exec_encryption_key_iv(int type, apollo_crypt_mode_t mode, char* lin
 	switch (type)
 	{
 	case CRYPT_AES_CTR:
-		LOG("Xcrypting AES CTR %d data (%d bytes)", key_len*8, length);
+		LOG("Xcrypting AES CTR %u data (%u bytes)", key_len*8, length);
 		apollo_crypt_aes_ctr(start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case CRYPT_AES_CBC:
-		LOG("%scrypting AES CBC %d data (%d bytes)", dir, key_len*8, length);
+		LOG("%scrypting AES CBC %u data (%u bytes)", dir, key_len*8, length);
 		apollo_crypt_aes_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case CRYPT_BLOWFISH_CBC:
-		LOG("%scrypting Blowfish CBC data (%d bytes)", dir, length);
+		LOG("%scrypting Blowfish CBC data (%u bytes)", dir, length);
 		apollo_crypt_blowfish_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
 	case CRYPT_3DES_CBC:
-		LOG("%scrypting 3-DES CBC data (%d bytes)", dir, length);
+		LOG("%scrypting 3-DES CBC data (%u bytes)", dir, length);
 		apollo_crypt_des3_cbc(mode, start, length, (const uint8_t*) key, key_len, (uint8_t*) iv, iv_len);
 		break;
 
@@ -666,7 +671,7 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 {
 	skip_spaces(line);
 
-	int i, wlen;
+	uint32_t i, wlen;
 	char* bw_val = _decode_variable_data(line, &wlen);
 
 	if (!bw_val)
@@ -1422,7 +1427,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				else if (wildcard_match_icase(line, "hmac_sha1(*)*"))
 				{
 					char *key;
-					int key_len;
+					uint32_t key_len;
 					uint8_t* start = (uint8_t*)data + range_start;
 					len = range_end - range_start;
 
@@ -2081,7 +2086,8 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				else if (wildcard_match_icase(line, "mid(*,*,*)*"))
 				{
 					// mid(<value>,<start>,<len>)
-					int mid_s, mid_c, mlen;
+					int mid_s, mid_c;
+					uint32_t mlen;
 
 					line += strlen("mid(");
 					tmp = strchr(line, ',');
@@ -2106,7 +2112,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					*tmp = ')';
 
 					/* the slice must sit inside the decoded value */
-					int mid_ok = (mid_val && mid_s >= 0 && mid_c >= 0 && mid_s <= mlen && mid_c <= (mlen - mid_s) &&
+					int mid_ok = (mid_val && mid_s >= 0 && mid_c >= 0 && (uint32_t) mid_s <= mlen && (uint32_t) mid_c <= (mlen - (uint32_t) mid_s) &&
 								_set_var_data(var, (uint8_t*)mid_val + mid_s, mid_c));
 					free(mid_val);
 					BSD_REQUIRE(mid_ok, "invalid mid() arguments");
@@ -2237,8 +2243,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				// set [*]:*
 				else
 				{
-					var->data = _decode_variable_data(line, &len);
-					var->len = len;
+					/* Decode into a local and copy, rather than passing
+					 * &var->len: _decode_variable_data() zeroes *data_len on
+					 * entry, before it resolves a [variable] reference. For a
+					 * self-reference like `set [a]:[a]` the destination IS the
+					 * source, so aliasing var->len would clear the length the
+					 * lookup is about to read and yield an empty value. */
+					uint32_t vlen;
+
+					var->data = _decode_variable_data(line, &vlen);
+					var->len = vlen;
 					LOG("[%s] = %s", var->name, line);
 				}
 			        
@@ -2270,7 +2284,8 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			//
 			// write at 0x100:[anyname1]
 			// ;Overwrites the content of the variable [anyname1] starting at offset 0x100.
-			int off, wlen;
+			int off;
+			uint32_t wlen;
 			uint8_t from_pointer = 0;
 			char* tmp = NULL;
 			char* write_val = NULL;
@@ -2323,13 +2338,13 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				write_val = _decode_variable_data(line, &wlen);
 				if (!write_val || !_range_in_bounds(dsize, off, wlen))
 				{
-					LOG("ERROR: xor write out of bounds (%d bytes) at 0x%X", wlen, off);
+					LOG("ERROR: xor write out of bounds (%u bytes) at 0x%X", wlen, off);
 					free(write_val);
 					dsize = 0;
 					goto bsd_end;
 				}
 
-				for (int i=0; i < wlen; i++)
+				for (uint32_t i=0; i < wlen; i++)
 					write_val[i] ^= data[off + i];
 
 				LOG(":xor:%s", line);
@@ -2340,6 +2355,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			{
 				// repeat(<count>,<value>)
 				int r_cnt, j;
+				size_t r_size;
 				char* r_val;
 
 				line += strlen("repeat(");
@@ -2357,15 +2373,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 				*tmp = ')';
 
-				if (!r_val || r_cnt < 0 || (r_cnt && wlen > (INT_MAX / r_cnt)))
+				if (!r_val || r_cnt < 0 || (r_cnt && wlen > (uint32_t)(INT_MAX / r_cnt)))
 				{
-					LOG("ERROR: invalid repeat(%d , %d bytes)", r_cnt, wlen);
+					LOG("ERROR: invalid repeat(%d , %u bytes)", r_cnt, wlen);
 					free(r_val);
 					dsize = 0;
 					goto bsd_end;
 				}
 
-				write_val = malloc((size_t)(r_cnt * wlen) ? (size_t)(r_cnt * wlen) : 1);
+				r_size = (size_t) r_cnt * wlen;
+				write_val = malloc(r_size ? r_size : 1);
 				if (!write_val)
 				{
 					free(r_val);
@@ -2376,7 +2393,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					memcpy(write_val + (j * wlen), r_val, wlen);
 
 				free(r_val);
-				wlen = r_cnt * wlen;
+				wlen = (uint32_t) r_cnt * wlen;
 
 				LOG(":repeat(0x%X , %s)", r_cnt, line);
 			}
@@ -2409,10 +2426,10 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			if (_range_in_bounds(dsize, off, wlen))
 				memcpy(write, write_val, wlen);
 			else
-				LOG("SKIP out-of-bounds write (%d bytes) at 0x%X", wlen, off);
+				LOG("SKIP out-of-bounds write (%u bytes) at 0x%X", wlen, off);
 			free(write_val);
 
-			LOG("Wrote %d bytes (%s) to 0x%X", wlen, line, off);
+			LOG("Wrote %u bytes (%s) to 0x%X", wlen, line, off);
 		}
 
 		// insert *:*
@@ -2420,7 +2437,8 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 		{
 			// insert data
 			// insert next / insert at
-			int off, ilen;
+			int off;
+			uint32_t ilen;
 			uint8_t from_pointer = 0;
 			char* tmp = NULL;
 			
@@ -2492,7 +2510,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			data = write;
 			dsize += ilen;
 
-			LOG("Inserted %d bytes (%s) from 0x%X to 0x%X", ilen, line, off, off + ilen);
+			LOG("Inserted %u bytes (%s) from 0x%X to 0x%X", ilen, line, off, off + ilen);
 		}
 
 		// delete *:*
@@ -2548,7 +2566,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				line += strlen("until");
 				skip_spaces(line);
 
-				int flen;
+				uint32_t flen;
 				uint8_t* find = _decode_variable_data(line, &flen);
 			    
 				if (!find)
@@ -2591,7 +2609,8 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			// search next 0x010e
 			// ; Start search from current pointer
 
-			int cnt = 1, len, off = 0;
+			int cnt = 1, off = 0;
+			uint32_t len;
 			uint8_t* find;
 			char* tmp = NULL;
 
@@ -2673,7 +2692,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 		else if (wildcard_match_icase(line, "msgbox [*]*"))
 		{
-			int len;
+			uint32_t len;
 			char* buf;
 
 			line += strlen("msgbox");
@@ -2863,7 +2882,8 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			}
 			else if (wildcard_match_icase(line, "ffxiii(*,*)*"))
 			{
-				int key_len, game;
+				int game;
+				uint32_t key_len;
 				char *key, *tmp;
 				uint8_t* start = (uint8_t*)data + range_start;
 
