@@ -26,8 +26,14 @@
 #include <stdio.h>
 #include "test_common.h"
 
-/* Deepest byte either direction touches; mirrors MGSPW_MIN_SIZE in decrypt.c. */
-#define MGSPW_MIN      0x44AE8
+/*
+ * Deepest byte either direction touches, per save type; mirrors the min_size
+ * values mgspw_GetLayout() derives in decrypt.c. A PS3 save has to reach the
+ * end of its second encrypted block; a PSP save only the end of the main one.
+ */
+#define MGSPW_MIN         0x44AE8    /* APOLLO_MGSPW_PS3    */
+#define MGSPW_MIN_PSP     0x359D8    /* APOLLO_MGSPW_PSP    */
+#define MGSPW_MIN_PSP_JP  0x359C8    /* APOLLO_MGSPW_PSP_JP */
 
 static uint8_t* zeros(size_t n) { return calloc(1, n); }
 
@@ -44,13 +50,65 @@ TEST(mgspw_rejects_undersized_buffer)
     size_t n = MGSPW_MIN - 1;
     uint8_t* buf = zeros(n);
 
-    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n);
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
     CHECK_U64("undersized decrypt left the buffer untouched", all_zero(buf, n), 1);
 
-    apollo_crypt_mgs_pw(APOLLO_ENCRYPT, buf, (uint32_t) n);
+    apollo_crypt_mgs_pw(APOLLO_ENCRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
     CHECK_U64("undersized encrypt left the buffer untouched", all_zero(buf, n), 1);
 
     free(buf);
+}
+
+/*
+ * PSP support is, at bottom, a second and lower size guard. The PS3 minimum
+ * (0x44AE8) is the end of the PS3-only second encrypted block, which is past
+ * the end of every real PSP save (0x3D9D0 standard, 0x3D9C0 JP) -- sharing it
+ * is exactly how PSP saves used to be turned away untouched.
+ *
+ * A buffer at the PSP minimum is therefore below the PS3 one: refused when
+ * typed as PS3, accepted when typed as PSP. The fill is pseudo-random rather
+ * than zeros so "accepted" is observable — the leading SwapBlock byte-swaps
+ * every word it covers, so the buffer must change. That SwapBlock spans the
+ * full swap_words, right up to min_size, so under ASan this also pins that the
+ * derived bound is not too LARGE.
+ */
+TEST(mgspw_psp_guard_is_independent_of_ps3)
+{
+    size_t n = MGSPW_MIN_PSP;
+    uint8_t* buf = malloc(n);
+    uint8_t* orig = malloc(n);
+
+    fill_lcg(buf, n, 0x5A5A0001);
+    memcpy(orig, buf, n);
+
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
+    CHECK_U64("PSP-sized buffer refused when typed as PS3", memcmp(buf, orig, n) == 0, 1);
+
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PSP);
+    CHECK_U64("PSP-sized buffer accepted when typed as PSP", memcmp(buf, orig, n) != 0, 1);
+
+    free(buf);
+    free(orig);
+}
+
+/* One byte under the PSP minimum is still refused, in both PSP layouts. */
+TEST(mgspw_psp_rejects_undersized_buffer)
+{
+    size_t n = MGSPW_MIN_PSP_JP - 1;
+    uint8_t* buf = malloc(n);
+    uint8_t* orig = malloc(n);
+
+    fill_lcg(buf, n, 0x5A5A0002);
+    memcpy(orig, buf, n);
+
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PSP);
+    CHECK_U64("undersized PSP decrypt left the buffer untouched", memcmp(buf, orig, n) == 0, 1);
+
+    apollo_crypt_mgs_pw(APOLLO_ENCRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PSP_JP);
+    CHECK_U64("undersized PSP-JP encrypt left the buffer untouched", memcmp(buf, orig, n) == 0, 1);
+
+    free(buf);
+    free(orig);
 }
 
 /*
@@ -67,7 +125,7 @@ TEST(mgspw_accepts_minimum_size)
      * of range, so the salts step refuses and decrypt returns early — but only
      * after the first SwapBlock has run over the buffer. That is the access the
      * old guard let run past the end. */
-    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n);
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
     CHECK_U64("minimum-size decrypt completed without a bounds error", 1, 1);
 
     free(buf);
@@ -83,10 +141,10 @@ TEST(mgspw_rejects_out_of_range_salt_offset)
     size_t n = MGSPW_MIN;
     uint8_t* buf = zeros(n);
 
-    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n);
+    apollo_crypt_mgs_pw(APOLLO_DECRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
     CHECK_U64("hostile salt offset did not read out of bounds (decrypt)", 1, 1);
 
-    apollo_crypt_mgs_pw(APOLLO_ENCRYPT, buf, (uint32_t) n);
+    apollo_crypt_mgs_pw(APOLLO_ENCRYPT, buf, (uint32_t) n, APOLLO_MGSPW_PS3);
     CHECK_U64("hostile salt offset did not read out of bounds (encrypt)", 1, 1);
 
     free(buf);
@@ -149,10 +207,10 @@ TEST(mgspw_real_save_round_trip)
         work = malloc(nenc);
         memcpy(work, enc, nenc);
 
-        apollo_crypt_mgs_pw(APOLLO_DECRYPT, work, (uint32_t) nenc);
+        apollo_crypt_mgs_pw(APOLLO_DECRYPT, work, (uint32_t) nenc, APOLLO_MGSPW_PS3);
         check_mem(__FILE__, __LINE__, "decrypt(save) == reference .dec", work, dec, nenc);
 
-        apollo_crypt_mgs_pw(APOLLO_ENCRYPT, work, (uint32_t) nenc);
+        apollo_crypt_mgs_pw(APOLLO_ENCRYPT, work, (uint32_t) nenc, APOLLO_MGSPW_PS3);
         check_mem(__FILE__, __LINE__, "encrypt(decrypt(save)) == original", work, enc, nenc);
 
         free(work);

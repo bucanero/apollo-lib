@@ -184,19 +184,137 @@ TEST(sample_monster_hunter_v3)
                  apply_mh3);
 }
 
-/* ---- MGS Peace Walker (NPUB30611: `set range:0x0000,eof+1`) ---- */
+/*
+ * MGS Peace Walker — one vector per save type.
+ *
+ * PS3 (NPUB30611/NPEB00686) runs bare `mgs_pw`, which is what those shipped
+ * savepatches contain, so the vector doubles as the backward-compatibility
+ * check that the un-parameterised command still means PS3.
+ */
+static const char MGSPW_PS3_DEC[] =
+    "set range:0x0000,eof+1\n"
+    "DECRYPT mgs_pw";
+static const char MGSPW_PS3_ENC[] =
+    "set range:0x0000,eof+1\n"
+    "ENCRYPT mgs_pw";
 
-static void apply_mgspw(uint8_t* b, size_t n, apollo_crypt_mode_t m)
+/* Explicit type 0, to pin that it is the same thing the bare command selects. */
+static const char MGSPW_PS3_DEC0[] =
+    "set range:0x0000,eof+1\n"
+    "DECRYPT mgs_pw(0)";
+static const char MGSPW_PS3_ENC0[] =
+    "set range:0x0000,eof+1\n"
+    "ENCRYPT mgs_pw(0)";
+
+TEST(sample_mgs_pw_ps3)
 {
-    apollo_crypt_mgs_pw(m, b, (uint32_t) n);
+    known_answer_script("mgs_pw PS3 00000000.000",
+                        "mgs-pw-decrypter/samples/00000000.000",
+                        "mgs-pw-decrypter/samples/00000000.000.dec",
+                        MGSPW_PS3_DEC, MGSPW_PS3_ENC, 0);
+
+    known_answer_script("mgs_pw PS3 00000000.000 (explicit type 0)",
+                        "mgs-pw-decrypter/samples/00000000.000",
+                        "mgs-pw-decrypter/samples/00000000.000.dec",
+                        MGSPW_PS3_DEC0, MGSPW_PS3_ENC0, 0);
 }
 
-TEST(sample_mgs_pw)
+/*
+ * The PSP vectors need their own driver, because libapollo deliberately leaves
+ * the decrypted header byte-swapped for PSP saves too, where the reference tool
+ * swaps the first 17 words back so its output header reads little-endian. One
+ * convention for both platforms means a savepatch reads the header fields the
+ * same way on PS3 and PSP, and it leaves PS3 output identical to previous
+ * releases — the cost is that libapollo's PSP plaintext differs from the tool's
+ * in those 0x44 bytes.
+ *
+ * So all three properties get asserted:
+ *
+ *   1. the payload past 0x44 matches the reference plaintext exactly;
+ *   2. the header is precisely the word-swapped reference header, which is what
+ *      separates "documented convention" from "corrupted";
+ *   3. re-encrypting libapollo's OWN plaintext reproduces the original file
+ *      byte for byte — the lossless round-trip that actually matters, since
+ *      decrypt -> patch -> encrypt is what a client does.
+ *
+ * Property 3 is why the encrypt half cannot come from the reference .dec the
+ * way known_answer_script() does it: apollo's encrypt is the inverse of
+ * apollo's decrypt, and feeding it the tool's differently-framed header would
+ * fail for that reason alone.
+ */
+#define MGSPW_HDR_LEN   0x44
+
+static void known_answer_mgspw_psp(const char* label, const char* rel_enc, const char* rel_dec,
+                                   const char* dec_script, const char* enc_script)
 {
-    known_answer("mgs_pw 00000000.000",
-                 "mgs-pw-decrypter/samples/00000000.000",
-                 "mgs-pw-decrypter/samples/00000000.000.dec",
-                 apply_mgspw);
+    uint8_t *enc, *dec, *work;
+    size_t n;
+    int i, j, hdr_ok = 1;
+    code_entry_t c;
+
+    if (!load_pair(label, rel_enc, rel_dec, &enc, &dec, &n))
+        return;
+
+    work = malloc(n);
+    memcpy(work, enc, n);
+
+    apollo_free_var_list();
+    c = make_bsd_code(dec_script);
+    check_u64(__FILE__, __LINE__, label, apollo_apply_bsd_code(&work, n, &c), n);
+
+    /* 1. payload */
+    check_mem(__FILE__, __LINE__, label,
+              work + MGSPW_HDR_LEN, dec + MGSPW_HDR_LEN, n - MGSPW_HDR_LEN);
+
+    /* 2. header framing */
+    for (i = 0; i < MGSPW_HDR_LEN; i += 4)
+        for (j = 0; j < 4; j++)
+            if (work[i + j] != dec[i + (3 - j)]) hdr_ok = 0;
+    check_u64(__FILE__, __LINE__, "PSP header is the word-swapped reference header", hdr_ok, 1);
+
+    /* 3. round-trip, from apollo's own plaintext */
+    apollo_free_var_list();
+    c = make_bsd_code(enc_script);
+    check_u64(__FILE__, __LINE__, label, apollo_apply_bsd_code(&work, n, &c), n);
+    check_mem(__FILE__, __LINE__, label, work, enc, n);
+
+    apollo_free_var_list();
+    free(work); free(enc); free(dec);
+}
+
+static const char MGSPW_PSP_DEC[] =
+    "set range:0x0000,eof+1\n"
+    "DECRYPT mgs_pw(1)";
+static const char MGSPW_PSP_ENC[] =
+    "set range:0x0000,eof+1\n"
+    "ENCRYPT mgs_pw(1)";
+
+TEST(sample_mgs_pw_psp)
+{
+    known_answer_mgspw_psp("mgs_pw PSP US/EU",
+                           "mgs-pw-decrypter/samples/00000000.000.PSP.enc",
+                           "mgs-pw-decrypter/samples/00000000.000.PSP.dec",
+                           MGSPW_PSP_DEC, MGSPW_PSP_ENC);
+}
+
+static const char MGSPW_PSP_JP_DEC[] =
+    "set range:0x0000,eof+1\n"
+    "DECRYPT mgs_pw(2)";
+static const char MGSPW_PSP_JP_ENC[] =
+    "set range:0x0000,eof+1\n"
+    "ENCRYPT mgs_pw(2)";
+
+/*
+ * The JP digital build's layout is 0x10 bytes shorter throughout. Decrypting it
+ * with the standard offsets gets the shared prefix right and then diverges, so
+ * this is the vector that pins the compact layout.
+ */
+TEST(sample_mgs_pw_psp_jp)
+{
+    known_answer_mgspw_psp("mgs_pw PSP JP digital",
+                           "mgs-pw-decrypter/samples/00000000.000.PSP-JP.enc",
+                           "mgs-pw-decrypter/samples/00000000.000.PSP-JP.dec",
+                           MGSPW_PSP_JP_DEC, MGSPW_PSP_JP_ENC);
 }
 
 /*

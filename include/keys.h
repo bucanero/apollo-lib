@@ -18,6 +18,21 @@ static const char NFS_XOR_KEY[] = {0x21, 0xF3, 0xC6, 0xD2, 0x08, 0x63, 0xAA, 0xA
 static const char MGS2_ALPHABET[] = "ghijklmn01234567opqrstuvEFGHIJKL89abcdefUVWXYZ_.wxyzABCDMNOPQRST";
 static const char MGS3_ALPHABET[] = "ghijklmn01234567opqrstuvEFGHIJKL89abcdefUVWXYZ+-wxyzABCDMNOPQRST";
 
+// Metal Gear Solid Peace Walker
+#define MGSPW_REGION1_STD   0x1AF24    /* PS3 (all regions) and PSP US/EU     */
+#define MGSPW_REGION1_JP    0x1AF14    /* PSP JP digital (NPJH50045)          */
+#define MGSPW_REGION2_SIZE  0x1C00
+#define MGSPW_REGION3_SIZE  0x18E68
+#define MGSPW_BLOCK1_OFF    0x40       /* start of the main encrypted block   */
+#define MGSPW_BLOCK1_TAIL   8          /* its unchecksummed tail              */
+#define MGSPW_HEADER2_OFF   0xD676     /* word offset, PS3 only               */
+#define MGSPW_BLOCK2_OFF    0xD686     /* word offset, PS3 only               */
+#define MGSPW_BLOCK2_SIZE   0xF0D0
+#define MGSPW_BLOCK2_CSUM   (0xD683 * 4)
+
+#define MGSPW_BLOCK1_LEN(r1)	(0x44 + (r1) + MGSPW_REGION2_SIZE + MGSPW_REGION3_SIZE \
+								 + MGSPW_BLOCK1_TAIL - MGSPW_BLOCK1_OFF)
+
 // Silent Hill 3
 #define SH3_KEY1        0x5b6c3a2aL
 #define SH3_KEY2        0x100000000L

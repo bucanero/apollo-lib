@@ -785,7 +785,7 @@ void apollo_crypt_mgs_base64(apollo_crypt_mode_t mode, uint8_t* data, uint32_t s
 		mgs_DecodeBase64(data, size);
 }
 
-uint32_t apollo_hash_mgspw(const uint8_t* data, int size)
+uint32_t apollo_hash_mgspw(const uint8_t* data, uint32_t size)
 {
 	uint32_t csum = -1;
 
@@ -796,11 +796,52 @@ uint32_t apollo_hash_mgspw(const uint8_t* data, int size)
 }
 
 /*
- * Highest byte either direction touches: mgspw_DeEncryptBlock(data + 0xD686*4,
- * 0x3C34) walks 0x3C34 words from 0x35A18, ending at 0x44AE8. The guard used to
- * be 0x35998, which let a save 0xF150 bytes short of that through.
+ * MGS Peace Walker save layouts.
+ *
+ * A PS3 (HD Edition) save holds two encrypted blocks: the main save data and a
+ * second one with the online/comrade data. A PSP save has only the main block,
+ * so everything from MGSPW_HEADER2_OFF on is absent and must not be touched.
+ *
+ * PSP releases also disagree on offsets: an array near 0xC0 is four u32 shorter
+ * in the JP digital build, which takes 0x10 bytes off the first checksummed
+ * region and shifts every later boundary down to match. That first region's
+ * length therefore pins the whole layout, and everything else derives from it.
+ *
+ * Which variant a buffer is comes from the caller (see apollo_mgspw_type_t) --
+ * the library does not guess.
  */
-#define MGSPW_MIN_SIZE  0x44AE8
+
+typedef struct
+{
+	int      ps3;               /* second encrypted block present             */
+	uint32_t block1_words;      /* words in the main encrypted block          */
+	uint32_t swap_words;        /* words covered by the byte-order swaps      */
+	uint32_t min_size;          /* deepest byte either direction touches      */
+	uint32_t csum_off[3];       /* start of each checksummed range            */
+	uint32_t csum_len[3];       /* and its length                             */
+} mgspw_layout_t;
+
+static void mgspw_GetLayout(mgspw_layout_t* lay, apollo_mgspw_type_t type)
+{
+	uint32_t r1 = (type == APOLLO_MGSPW_PSP_JP) ? MGSPW_REGION1_JP : MGSPW_REGION1_STD;
+	uint32_t b1 = MGSPW_BLOCK1_LEN(r1);
+
+	lay->ps3 = (type == APOLLO_MGSPW_PS3);
+	lay->block1_words = b1 / 4;
+	lay->swap_words = (MGSPW_BLOCK1_OFF / 4) + lay->block1_words;
+
+	/* A bounds guard, not a format check: the PSP trailer past the main block
+	 * is never touched, so a PSP save only has to reach the block's end. */
+	lay->min_size = lay->ps3 ? (MGSPW_BLOCK2_OFF * 4) + MGSPW_BLOCK2_SIZE
+							 : MGSPW_BLOCK1_OFF + b1;
+
+	lay->csum_off[0] = 0x44;
+	lay->csum_len[0] = r1;
+	lay->csum_off[1] = lay->csum_off[0] + r1;
+	lay->csum_len[1] = MGSPW_REGION2_SIZE;
+	lay->csum_off[2] = lay->csum_off[1] + MGSPW_REGION2_SIZE;
+	lay->csum_len[2] = MGSPW_REGION3_SIZE;
+}
 
 static void mgspw_DeEncryptBlock(uint8_t* data, int size, uint32_t* pwSalts)
 {
@@ -868,78 +909,109 @@ static void mgspw_SwapBlock(uint8_t* data, int len)
 	}
 }
 
-static void mgspw_Decrypt(uint8_t* data, uint32_t size)
+/*
+ * The decrypted header (the first 17 words) is left byte-swapped, for PSP saves
+ * as well as PS3 ones. The reference decrypter swaps those words back at the
+ * end of a PSP decrypt, so its output header reads little-endian, matching the
+ * rest of the save.
+ *
+ * libapollo deliberately does not, because the header is where the three custom
+ * checksums live (mgspw_csum_hdr below). Leaving it in the swapped frame means
+ * they read and write big-endian -- the byte order `write at` emits and the one
+ * the checksum verification below already assumes -- so a savepatch needs no
+ * endian_swap and the exact same three codes work on PS3 and PSP. It also keeps
+ * PS3 output bit-for-bit identical to previous releases.
+ *
+ * The cost is that PSP plaintext differs from the reference tool's in those 0x44
+ * bytes. Encrypt is symmetric, so the round-trip stays lossless.
+ */
+static void mgspw_Decrypt(uint8_t* data, uint32_t size, apollo_mgspw_type_t type)
 {
 	uint32_t salts[2] = {0, 0};
+	mgspw_layout_t lay;
+	// Byte offset of the header word holding each checksum (words 14, 15, 12).
+	const uint32_t mgspw_csum_hdr[3] = { 0x38, 0x3C, 0x30 };
 
+	mgspw_GetLayout(&lay, type);
 	LOG("[*] Total Decrypted Size Is 0x%X (%d bytes)", size, size);
 
-	if (size < MGSPW_MIN_SIZE)
+	if (size < lay.min_size)
+	{
+		LOG("[!] MGS PW: save is too small for a save (need 0x%X bytes)", lay.min_size);
 		return;
+	}
 
-	mgspw_SwapBlock(data, 0xd676);
+	mgspw_SwapBlock(data, lay.swap_words);
 	if (!mgspw_SetSalts(salts, data, size))
 		return;
-	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
+	mgspw_DeEncryptBlock(data + MGSPW_BLOCK1_OFF, lay.block1_words, salts);
 
-	if (!mgspw_SetSalts(salts, data + 0xD676 * 4, size - 0xD676 * 4))
-		return;
-	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
-	mgspw_SwapBlock(data + 0x44, 0xd665);
+	if (lay.ps3)
+	{
+		if (!mgspw_SetSalts(salts, data + MGSPW_HEADER2_OFF * 4, size - MGSPW_HEADER2_OFF * 4))
+			return;
+		mgspw_DeEncryptBlock(data + MGSPW_BLOCK2_OFF * 4, MGSPW_BLOCK2_SIZE / 4, salts);
+	}
+	mgspw_SwapBlock(data + 0x44, lay.swap_words - 0x11);
 
-	salts[0] = apollo_hash_mgspw(data + 68, 0x1af24);
-	BE32(salts[0]);
-	if (memcmp(&salts[0], &data[56], sizeof(uint32_t)) != 0)
-		LOG("[!] Checksum error (%x)", 68);
+	for (int i = 0; i < 3; i++)
+	{
+		salts[0] = apollo_hash_mgspw(data + lay.csum_off[i], lay.csum_len[i]);
+		BE32(salts[0]);
+		if (memcmp(&salts[0], &data[mgspw_csum_hdr[i]], sizeof(uint32_t)) != 0)
+			LOG("[!] Checksum error (%x)", lay.csum_off[i]);
+	}
 
-	salts[0] = apollo_hash_mgspw(data + 0x1af68, 0x1c00);
-	BE32(salts[0]);
-	if (memcmp(&salts[0], &data[60], sizeof(uint32_t)) != 0)
-		LOG("[!] Checksum error (%x)", 0x1af68);
-
-	salts[0] = apollo_hash_mgspw(data + 0x1cb68, 0x18e68);
-	BE32(salts[0]);
-	if (memcmp(&salts[0], &data[48], sizeof(uint32_t)) != 0)
-		LOG("[!] Checksum error (%x)", 0x1cb68);
-
-	salts[0] = apollo_hash_mgspw(data + 0x35a18, 0xf0d0);
-	BE32(salts[0]);
-	if (memcmp(&salts[0], &data[0xD683 * 4], sizeof(uint32_t)) != 0)
-		LOG("[!] Checksum error (%x)", 0x35a18);
+	if (lay.ps3)
+	{
+		salts[0] = apollo_hash_mgspw(data + MGSPW_BLOCK2_OFF * 4, MGSPW_BLOCK2_SIZE);
+		BE32(salts[0]);
+		if (memcmp(&salts[0], &data[MGSPW_BLOCK2_CSUM], sizeof(uint32_t)) != 0)
+			LOG("[!] Checksum error (%x)", MGSPW_BLOCK2_OFF * 4);
+	}
 
 	LOG("[*] Decrypted File Successfully!");
 	return;
 }
 
-static void mgspw_Encrypt(uint8_t* data, uint32_t size)
+static void mgspw_Encrypt(uint8_t* data, uint32_t size, apollo_mgspw_type_t type)
 {
 	uint32_t salts[2] = {0, 0};
+	mgspw_layout_t lay;
 
+	mgspw_GetLayout(&lay, type);
 	LOG("[*] Total Encrypted Size Is 0x%X (%d bytes)", size, size);
 
-	if (size < MGSPW_MIN_SIZE)
+	if (size < lay.min_size)
+	{
+		LOG("[!] MGS PW: save is too small for a save (need 0x%X bytes)", lay.min_size);
 		return;
+	}
 
-	mgspw_SwapBlock(data + 0x44, 0xd665);
-	if (!mgspw_SetSalts(salts, data + 0xD676 * 4, size - 0xD676 * 4))
-		return;
-	mgspw_DeEncryptBlock(data + 0xD686 * 4, 0x3C34, salts);
+	mgspw_SwapBlock(data + 0x44, lay.swap_words - 0x11);
+
+	if (lay.ps3)
+	{
+		if (!mgspw_SetSalts(salts, data + MGSPW_HEADER2_OFF * 4, size - MGSPW_HEADER2_OFF * 4))
+			return;
+		mgspw_DeEncryptBlock(data + MGSPW_BLOCK2_OFF * 4, MGSPW_BLOCK2_SIZE / 4, salts);
+	}
 
 	if (!mgspw_SetSalts(salts, data, size))
 		return;
-	mgspw_DeEncryptBlock(data + 0x40, 0xD666, salts);
-	mgspw_SwapBlock(data, 0xD676);
+	mgspw_DeEncryptBlock(data + MGSPW_BLOCK1_OFF, lay.block1_words, salts);
+	mgspw_SwapBlock(data, lay.swap_words);
 
 	LOG("[*] Encrypted File Successfully!");
 	return;
 }
 
-void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len)
+void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, apollo_mgspw_type_t type)
 {
 	if (mode == APOLLO_ENCRYPT)
-		mgspw_Encrypt(data, len);
+		mgspw_Encrypt(data, len, type);
 	else
-		mgspw_Decrypt(data, len);
+		mgspw_Decrypt(data, len, type);
 }
 
 void apollo_crypt_dw8xl(uint8_t* data, uint32_t size)

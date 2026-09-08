@@ -186,8 +186,21 @@ void apollo_crypt_monster_hunter(apollo_crypt_mode_t mode, uint8_t* buff, uint32
 void apollo_crypt_mgs(apollo_crypt_mode_t mode, uint8_t* data, int size, const char* key, int keylen);
 void apollo_crypt_mgs_base64(apollo_crypt_mode_t mode, uint8_t* data, uint32_t size);
 
-// Metal Gear Solid Peace Walker save data crypto
-void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len);
+// Metal Gear Solid Peace Walker save data crypto.
+//
+// The save variant is a parameter, not something the library sniffs: a PS3
+// save carries a second encrypted block that a PSP save does not, and PSP
+// releases do not all share the same offsets. Every client already knows which
+// it holds -- apollo-ps3 only ever sees PS3 saves, apollo-psp only PSP ones --
+// and a savepatch names the variant it targets.
+typedef enum
+{
+	APOLLO_MGSPW_PS3    = 0,   // PS3 HD Edition, any region
+	APOLLO_MGSPW_PSP    = 1,   // PSP US/EU: ULUS10509, ULES01372
+	APOLLO_MGSPW_PSP_JP = 2,   // PSP JP digital: NPJH50045
+} apollo_mgspw_type_t;
+
+void apollo_crypt_mgs_pw(apollo_crypt_mode_t mode, uint8_t* data, uint32_t len, apollo_mgspw_type_t type);
 
 // Metal Gear Solid 5 TPP save data crypto (encode only)
 void apollo_crypt_mgs5_tpp(uint8_t* data, uint32_t len, uint32_t key);
@@ -231,7 +244,7 @@ int packzip_util(offzip_t *input, uint32_t offset, uint8_t** output, size_t* out
 //---  Apollo checksum functions ---
 
 /* hash calculation for MGS: Peace Walker */
-uint32_t apollo_hash_mgspw(const uint8_t* data, int size);
+uint32_t apollo_hash_mgspw(const uint8_t* data, uint32_t size);
 
 /* hash calculation for Final Fantasy XIII */
 uint32_t apollo_hash_ff13(const uint8_t* bytes, uint32_t len);

@@ -39589,15 +39589,15 @@ mp_obj_t micropy_mod_ucrypto_borderlands3(struct _mp_state_ctx_t *mp_state, mp_o
 }
 MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_borderlands3_obj, micropy_mod_ucrypto_borderlands3);
 
-mp_obj_t micropy_mod_ucrypto_mgs_pw(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
+mp_obj_t micropy_mod_ucrypto_mgs_pw(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data, mp_obj_t type) {
     mp_buffer_info_t bufinfo;
     micropy_get_buffer_raise(mp_state, data, &bufinfo, MP_BUFFER_READ);
 
-    apollo_crypt_mgs_pw(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len);
+    apollo_crypt_mgs_pw(micropy_obj_int_get_truncated(mp_state, enc_mode) ? APOLLO_ENCRYPT : APOLLO_DECRYPT, bufinfo.buf, bufinfo.len, micropy_obj_int_get_truncated(mp_state, type));
 
     return data;
 }
-MP_DEFINE_CONST_FUN_OBJ_2(mod_ucrypto_mgs_pw_obj, micropy_mod_ucrypto_mgs_pw);
+MP_DEFINE_CONST_FUN_OBJ_3(mod_ucrypto_mgs_pw_obj, micropy_mod_ucrypto_mgs_pw);
 
 mp_obj_t micropy_mod_ucrypto_mgs_base64(struct _mp_state_ctx_t *mp_state, mp_obj_t enc_mode, mp_obj_t data) {
     mp_buffer_info_t bufinfo;

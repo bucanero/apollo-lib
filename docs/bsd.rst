@@ -579,8 +579,20 @@ Custom Encryption Algorithms
 
 .. code-block:: text
 
-    decrypt mgs_pw
-    encrypt mgs_pw
+    decrypt mgs_pw(type)
+    encrypt mgs_pw(type)
+
+**type:**
+
+- ``0`` : PS3 HD Edition (any region)
+- ``1`` : PSP US/EU -- ULUS10509, ULES01372
+- ``2`` : PSP JP digital -- NPJH50045
+
+The save type is not detected, it is declared: a PS3 save carries a second
+encrypted block a PSP save does not, and the PSP JP digital build shifts every
+offset down by ``0x10``. Omitting the argument (``decrypt mgs_pw``) selects the
+PS3 layout, for compatibility with savepatches written before the argument
+existed.
 
 **Metal Gear Solid Base64:**
 

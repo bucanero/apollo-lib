@@ -21,8 +21,8 @@ same vectors and golden manifests must still reproduce identically.
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
-| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo: Diablo 3, Monster Hunter PSP (ver 2 and 3), MGS Peace Walker, NFS Undercover, DW8XL, Borderlands 3 and Silent Hill 3. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges. Run with `make check-samples SAMPLES=...`. |
-| `test_mgspw.c` | MGS Peace Walker bounds vectors (undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused) using synthetic buffers, plus an **opt-in** correctness round-trip against a real save via `make check-mgspw MGSPW_SAVE=...`. |
+| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo: Diablo 3, Monster Hunter PSP (ver 2 and 3), MGS Peace Walker (PS3 HD Edition, PSP US/EU and PSP JP digital), NFS Undercover, DW8XL, Borderlands 3 and Silent Hill 3. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges. Run with `make check-samples SAMPLES=...`. |
+| `test_mgspw.c` | MGS Peace Walker bounds vectors using synthetic buffers: undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused, and the PSP size guard held independent of the (larger) PS3 one — a shared guard rejects every real PSP save. Plus an **opt-in** correctness round-trip against a real PS3 save via `make check-mgspw MGSPW_SAVE=...`. |
 | `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
 | `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
@@ -58,6 +58,15 @@ check at an encrypted save with its decrypted twin alongside as `<file>.dec`:
 ```bash
 make check-mgspw MGSPW_SAVE=/path/to/00000000.000
 ```
+
+`check-samples` covers all three MGS PW save types from the `save-decrypters`
+samples. Note libapollo leaves the decrypted header byte-swapped for PSP saves
+too, where the reference tool swaps the first 17 words back — one convention for
+both platforms, so a savepatch reads the header fields the same way on PS3 and
+PSP, and PS3 output stays identical to previous releases. The PSP vectors
+therefore compare the payload past `0x44` against the reference, assert the
+header is exactly the word-swapped reference header, and prove the round-trip by
+re-encrypting libapollo's *own* plaintext back to the original file.
 
 `make golden` regenerates the committed manifests — only run it deliberately
 (pre-refactor, or when fixtures change), then commit the result.

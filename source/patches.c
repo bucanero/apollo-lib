@@ -2934,10 +2934,26 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 				apollo_crypt_mgs5_tpp(data + range_start, (range_end - range_start), xor_key);
 			}
+			else if (wildcard_match_icase(line, "mgs_pw(*)*"))
+			{
+				int type;
+				char *tmp;
+
+				line += strlen("mgs_pw(");
+				tmp = strrchr(line, ')');
+				*tmp = 0;
+				LOG("MGS Peace Walker Save Type=%s", line);
+
+				type = _parse_int_value(line, pointer, dsize);
+
+				apollo_crypt_mgs_pw(cmode, data + range_start, (range_end - range_start), type);
+			}
+			/* Bare `mgs_pw` predates the save-type argument and every shipped
+			 * savepatch using it targets PS3, so it keeps meaning PS3. */
 			else if (wildcard_match_icase(line, "mgs_pw*"))
 			{
-				LOG("%scrypt MGS Peace Walker data", dir);
-				apollo_crypt_mgs_pw(cmode, data + range_start, (range_end - range_start));
+				LOG("%scrypt MGS Peace Walker data (PS3)", dir);
+				apollo_crypt_mgs_pw(cmode, data + range_start, (range_end - range_start), APOLLO_MGSPW_PS3);
 			}
 			else if (wildcard_match_icase(line, "mgs_base64*"))
 			{
