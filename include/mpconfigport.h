@@ -91,7 +91,11 @@ extern const struct _mp_obj_module_t mp_module_ffi;
 
 // type definitions for the specific machine
 
-#ifdef __LP64__
+// wasm32 is ILP32, so `long` is already pointer size there. It shares this
+// branch with LP64 because Emscripten spells size_t as `unsigned long`: the
+// `unsigned int` branch below is the same width but a different type, which
+// makes the mp_fun_var_t/mp_fun_kw_t initializers ill-formed under clang.
+#if defined(__LP64__) || defined(__wasm__)
 typedef long mp_int_t; // must be pointer size
 typedef unsigned long mp_uint_t; // must be pointer size
 #else

@@ -1,15 +1,15 @@
 /*
  * BSD script vectors.
  *
- * BSD is fully build-flag-invariant: reads/writes go through the unconditional
+ * BSD is fully endian-mode-invariant: reads/writes go through the unconditional
  * BE* macros, and host-native integer truncation goes through HOST_LSB (which
- * depends only on the real host byte order, the same in both LE and __PS3_PC__
- * builds). So every BSD vector uses a single shared expected array, and the
- * two builds must agree.
+ * depends only on the real host byte order, the same in the LE and BE modes).
+ * So every BSD vector uses a single shared expected array, and the two passes
+ * must agree.
  *
  * Note: carry()-based checksum truncation (wadd/dwadd/add/sub) originally used
- * the target-endian PADDING macro and produced WRONG, divergent output in the
- * __PS3_PC__ build (it sliced the high half of the accumulator on a
+ * the target-endian PADDING macro and produced WRONG, divergent output for
+ * big-endian save data (it sliced the high half of the accumulator on a
  * little-endian host). That was fixed by switching those sites to HOST_LSB;
  * bsd_carry_padding_truncation() below guards the corrected, invariant result.
  * See tests/README.md.
@@ -99,7 +99,7 @@ TEST(bsd_insert)
  *
  * wadd(0x0,0x3) over {12 34 56 78} = be16(0x1234)+be16(0x5678) = 0x000068AC.
  * In little-endian host memory that u32 is [AC 68 00 00]. carry(2) keeps the
- * low 16 bits (HOST_LSB=0 on a little-endian host, in BOTH builds), which the
+ * low 16 bits (HOST_LSB=0 on a little-endian host, in BOTH modes), which the
  * write path then emits big-endian as [68 AC]. This matches what a real PS3
  * (__PPU__) and a real PS4/PC produce; before the fix the __PS3_PC__ build
  * wrongly kept the high half and wrote [00 00].
@@ -123,7 +123,7 @@ TEST(bsd_carry_padding_truncation)
  * add() with carry — the second HOST_LSB site (patches.c add handler).
  * add(0x0,0x3) = 0xFF+0xFF+0xFF+0x04 = 0x00000301. carry(2) keeps the low 16
  * bits 0x0301 (HOST_LSB=0 on the host), emitted big-endian as [03 01] in both
- * builds. Before the fix the __PS3_PC__ build kept the high half -> [00 00].
+ * modes. Before the fix the big-endian build kept the high half -> [00 00].
  */
 TEST(bsd_add_carry_truncation)
 {
@@ -143,7 +143,7 @@ TEST(bsd_add_carry_truncation)
 /*
  * right(value,len) — the third HOST_LSB site. Keeps the `len` rightmost
  * (least-significant) bytes of the value. right(0x12345678,2) -> 0x5678,
- * emitted big-endian as [56 78] in both builds. Before the fix the __PS3_PC__
+ * emitted big-endian as [56 78] in both modes. Before the fix the big-endian
  * build kept the LEFT bytes -> [12 34].
  */
 TEST(bsd_right_truncation)
@@ -222,8 +222,8 @@ TEST(bsd_mid_offset)
  *
  * read(0,2) of file bytes {AA BB} stores the big-endian value 0xAABB. The
  * second set re-fetches it (line 796 -> low bytes), endian_swap reverses to
- * 0xBBAA, and write emits it big-endian as [BB AA]. Same in both builds; before
- * the fix the __PS3_PC__ build re-pointed at the high (zero) bytes -> [00 00].
+ * 0xBBAA, and write emits it big-endian as [BB AA]. Same in both modes; before
+ * the fix the big-endian build re-pointed at the high (zero) bytes -> [00 00].
  */
 TEST(bsd_update_existing_variable)
 {
@@ -418,7 +418,7 @@ TEST(bsd_hash_sha1)
  *
  * Fletcher-32 sums 16-bit LITTLE-endian words by definition, and that is fixed
  * in the implementation rather than taken from the host, so these vectors hold
- * in both the LE and the __PS3_PC__ build -- which is the property that lets a
+ * in both the LE and the BE mode -- which is the property that lets a
  * savepatch using it produce the same hash on a PS3 as on a PS4.
  */
 static const struct {

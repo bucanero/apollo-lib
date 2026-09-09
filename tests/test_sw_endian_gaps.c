@@ -10,8 +10,8 @@
  *   type 9  — pointer add/sub (ops 2/3) and end-pointer set (ops D/E)
  *   type D  — conditional skip with explicit 16-bit BE (Z=0) and LE (Z=2) reads
  *
- * Endian-sensitive results carry #if APOLLO_TEST_ENDIAN_BE expectations; the
- * pointer-arithmetic / explicit-endian opcodes are build-invariant (one array).
+ * Endian-sensitive results branch on apollo_test_be(); the pointer-arithmetic
+ * and explicit-endian opcodes are mode-invariant (one array).
  * Expected bytes are computed by hand from docs/savewizard.rst.
  */
 #include <string.h>
@@ -31,13 +31,13 @@ TEST(sw3_add64)
     apply_sw(buf, sizeof(buf), "33000000 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    /* 0xFF00000000000000 + 1 -> big-endian */
-    exp[0]=0xFF; exp[7]=0x01;
-#else
-    /* 0x00000000000000FF + 1 = 0x100 -> little-endian */
-    exp[1]=0x01;
-#endif
+    if (apollo_test_be()) {
+        /* 0xFF00000000000000 + 1 -> big-endian */
+        exp[0]=0xFF; exp[7]=0x01;
+    } else {
+        /* 0x00000000000000FF + 1 = 0x100 -> little-endian */
+        exp[1]=0x01;
+    }
     CHECK_MEM("add 8 bytes +1 (MEM64)", buf, exp, sizeof(buf));
 }
 
@@ -50,11 +50,11 @@ TEST(sw3_pointer_add32)
     apply_sw(buf, sizeof(buf), "95000000 00000004\n3A000004 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[8]=0xFF; exp[11]=0x01;
-#else
-    exp[9]=0x01;
-#endif
+    if (apollo_test_be()) {
+        exp[8]=0xFF; exp[11]=0x01;
+    } else {
+        exp[9]=0x01;
+    }
     CHECK_MEM("pointer-relative add32 @ptr+off", buf, exp, sizeof(buf));
 }
 
@@ -66,13 +66,13 @@ TEST(sw4_multiwrite32)
     apply_sw(buf, sizeof(buf), "42000000 12345678\n40020008 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[0]=0x12; exp[1]=0x34; exp[2]=0x56; exp[3]=0x78;   /* 0x12345678 */
-    exp[8]=0x12; exp[9]=0x34; exp[10]=0x56; exp[11]=0x79; /* 0x12345679 */
-#else
-    exp[0]=0x78; exp[1]=0x56; exp[2]=0x34; exp[3]=0x12;
-    exp[8]=0x79; exp[9]=0x56; exp[10]=0x34; exp[11]=0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[0]=0x12; exp[1]=0x34; exp[2]=0x56; exp[3]=0x78;   /* 0x12345678 */
+        exp[8]=0x12; exp[9]=0x34; exp[10]=0x56; exp[11]=0x79; /* 0x12345679 */
+    } else {
+        exp[0]=0x78; exp[1]=0x56; exp[2]=0x34; exp[3]=0x12;
+        exp[8]=0x79; exp[9]=0x56; exp[10]=0x34; exp[11]=0x12;
+    }
     CHECK_MEM("multi-write 32-bit x2", buf, exp, sizeof(buf));
 }
 
@@ -84,11 +84,11 @@ TEST(sw6_move_write32)
     apply_sw(buf, sizeof(buf), "62200000 00000008\n62400000 12345678");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[8]=0x12; exp[9]=0x34; exp[10]=0x56; exp[11]=0x78;
-#else
-    exp[8]=0x78; exp[9]=0x56; exp[10]=0x34; exp[11]=0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[8]=0x12; exp[9]=0x34; exp[10]=0x56; exp[11]=0x78;
+    } else {
+        exp[8]=0x78; exp[9]=0x56; exp[10]=0x34; exp[11]=0x12;
+    }
     CHECK_MEM("type6 move + write32", buf, exp, sizeof(buf));
 }
 
@@ -103,11 +103,11 @@ TEST(sw6_read16)
 
     uint8_t exp[512] = {0};
     exp[4] = 0x01;
-#if APOLLO_TEST_ENDIAN_BE
-    exp[256] = 0xAB;   /* pointer = 0x0100 */
-#else
-    exp[1] = 0xAB;     /* pointer = 0x0001 */
-#endif
+    if (apollo_test_be()) {
+        exp[256] = 0xAB;   /* pointer = 0x0100 */
+    } else {
+        exp[1] = 0xAB;     /* pointer = 0x0001 */
+    }
     CHECK_MEM("type6 read16 (MEM16) drives pointer", buf, exp, sizeof(buf));
 }
 
@@ -119,13 +119,13 @@ TEST(sw7_no_less_than16)
     apply_sw(buf, sizeof(buf), "71000004 00001234");   /* ensure >= 0x1234 */
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    /* current 0x0050 < 0x1234 -> written 0x1234 big-endian */
-    exp[4]=0x12; exp[5]=0x34;
-#else
-    /* current 0x5000 >= 0x1234 -> unchanged */
-    exp[4]=0x00; exp[5]=0x50;
-#endif
+    if (apollo_test_be()) {
+        /* current 0x0050 < 0x1234 -> written 0x1234 big-endian */
+        exp[4]=0x12; exp[5]=0x34;
+    } else {
+        /* current 0x5000 >= 0x1234 -> unchanged */
+        exp[4]=0x00; exp[5]=0x50;
+    }
     CHECK_MEM("no-less-than 16-bit (MEM16)", buf, exp, sizeof(buf));
 }
 
@@ -137,13 +137,13 @@ TEST(sw7_no_more_than32)
     apply_sw(buf, sizeof(buf), "76000004 00001000");     /* cap at 0x1000 */
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    /* current 0x50 <= 0x1000 -> unchanged */
-    exp[7]=0x50;
-#else
-    /* current 0x50000000 > 0x1000 -> capped to 0x1000 little-endian */
-    exp[5]=0x10;
-#endif
+    if (apollo_test_be()) {
+        /* current 0x50 <= 0x1000 -> unchanged */
+        exp[7]=0x50;
+    } else {
+        /* current 0x50000000 > 0x1000 -> capped to 0x1000 little-endian */
+        exp[5]=0x10;
+    }
     CHECK_MEM("no-more-than 32-bit (MEM32)", buf, exp, sizeof(buf));
 }
 

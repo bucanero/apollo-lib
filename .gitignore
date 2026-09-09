@@ -53,3 +53,10 @@ Module.symvers
 Mkfile.old
 dkms.conf
 docs/_build/
+
+# WebAssembly build output (Makefile.wasm). Deliberately narrow: a bare *.wasm
+# would also ignore Makefile.wasm itself.
+build-wasm/
+tests/build-wasm/
+tests/test_apollo.js
+tests/test_apollo.wasm

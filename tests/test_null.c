@@ -86,11 +86,11 @@ TEST(null_sw_short_line_skipped)
     size_t n = apply_sw(buf, sizeof(buf), "20\n20000000 000000AA");
 
     CHECK_U64("code still applied", n, sizeof(buf));
-#if APOLLO_TEST_ENDIAN_BE
-    CHECK_U64("write performed", buf[3], 0xAA);
-#else
-    CHECK_U64("write performed", buf[0], 0xAA);
-#endif
+    if (apollo_test_be()) {
+        CHECK_U64("write performed", buf[3], 0xAA);
+    } else {
+        CHECK_U64("write performed", buf[0], 0xAA);
+    }
 }
 
 /* ---- BSD: missing delimiters ---- */

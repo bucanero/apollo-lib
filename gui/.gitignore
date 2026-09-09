@@ -1,4 +1,0 @@
-build/
-*.o
-test_ctrl
-imgui.ini

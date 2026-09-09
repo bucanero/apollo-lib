@@ -51,11 +51,11 @@ TEST(bounds_sw_write_at_edge_ok)
     apply_sw(buf, sizeof(buf), "2000000C 12345678");   /* off 12 + 4 = 16 == 16 */
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[12]=0x12; exp[13]=0x34; exp[14]=0x56; exp[15]=0x78;
-#else
-    exp[12]=0x78; exp[13]=0x56; exp[14]=0x34; exp[15]=0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[12]=0x12; exp[13]=0x34; exp[14]=0x56; exp[15]=0x78;
+    } else {
+        exp[12]=0x78; exp[13]=0x56; exp[14]=0x34; exp[15]=0x12;
+    }
     CHECK_MEM("edge write performed", buf, exp, sizeof(buf));
 }
 

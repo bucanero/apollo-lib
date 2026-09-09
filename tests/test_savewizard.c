@@ -3,13 +3,13 @@
  *
  * Save-wizard multi-byte reads/writes go through the MEM* macros, which are
  * the ONLY endian-sensitive path in the library:
- *   - LE build (default) : MEM* is a no-op  -> values stored little-endian
- *   - BE build (__PS3_PC__): MEM* byte-swaps -> values stored big-endian
+ *   - LE mode : MEM* is a no-op   -> values stored little-endian
+ *   - BE mode : MEM* byte-swaps   -> values stored big-endian
  *
- * Vectors whose result depends on that flag carry #if APOLLO_TEST_ENDIAN_BE
- * expectations. Opcodes that use BE* (search/bulk, always big-endian) or that
- * read pointers with an explicit endianness are INVARIANT: their expected
- * bytes are identical in both builds, which is asserted by using one array.
+ * Vectors whose result depends on the mode branch on apollo_test_be().
+ * Opcodes that use BE* (search/bulk, always big-endian) or that read pointers
+ * with an explicit endianness are INVARIANT: their expected bytes are identical
+ * in both modes, which is asserted by using one array.
  *
  * Expected bytes are computed by hand from docs/savewizard.rst, independent of
  * the implementation, so a behavior change is caught rather than blessed.
@@ -41,11 +41,11 @@ TEST(sw_write16)
     apply_sw(buf, sizeof(buf), "10000002 00001234");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[2] = 0x12; exp[3] = 0x34;
-#else
-    exp[2] = 0x34; exp[3] = 0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[2] = 0x12; exp[3] = 0x34;
+    } else {
+        exp[2] = 0x34; exp[3] = 0x12;
+    }
     CHECK_MEM("16-bit write 0x1234 @0x2", buf, exp, sizeof(buf));
 }
 
@@ -56,11 +56,11 @@ TEST(sw_write32)
     apply_sw(buf, sizeof(buf), "20000004 12345678");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[4] = 0x12; exp[5] = 0x34; exp[6] = 0x56; exp[7] = 0x78;
-#else
-    exp[4] = 0x78; exp[5] = 0x56; exp[6] = 0x34; exp[7] = 0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[4] = 0x12; exp[5] = 0x34; exp[6] = 0x56; exp[7] = 0x78;
+    } else {
+        exp[4] = 0x78; exp[5] = 0x56; exp[6] = 0x34; exp[7] = 0x12;
+    }
     CHECK_MEM("32-bit write 0x12345678 @0x4", buf, exp, sizeof(buf));
 }
 
@@ -72,13 +72,13 @@ TEST(sw_add32)
     apply_sw(buf, sizeof(buf), "32000004 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    /* 0xFF000000 + 1 = 0xFF000001 -> big-endian */
-    exp[4] = 0xFF; exp[5] = 0x00; exp[6] = 0x00; exp[7] = 0x01;
-#else
-    /* 0x000000FF + 1 = 0x00000100 -> little-endian */
-    exp[4] = 0x00; exp[5] = 0x01; exp[6] = 0x00; exp[7] = 0x00;
-#endif
+    if (apollo_test_be()) {
+        /* 0xFF000000 + 1 = 0xFF000001 -> big-endian */
+        exp[4] = 0xFF; exp[5] = 0x00; exp[6] = 0x00; exp[7] = 0x01;
+    } else {
+        /* 0x000000FF + 1 = 0x00000100 -> little-endian */
+        exp[4] = 0x00; exp[5] = 0x01; exp[6] = 0x00; exp[7] = 0x00;
+    }
     CHECK_MEM("add32 +1", buf, exp, sizeof(buf));
 }
 
@@ -90,13 +90,13 @@ TEST(sw_sub16)
     apply_sw(buf, sizeof(buf), "35000000 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    /* 0x0001 - 1 = 0x0000 -> big-endian */
-    exp[0] = 0x00; exp[1] = 0x00;
-#else
-    /* 0x0100 - 1 = 0x00FF -> little-endian */
-    exp[0] = 0xFF; exp[1] = 0x00;
-#endif
+    if (apollo_test_be()) {
+        /* 0x0001 - 1 = 0x0000 -> big-endian */
+        exp[0] = 0x00; exp[1] = 0x00;
+    } else {
+        /* 0x0100 - 1 = 0x00FF -> little-endian */
+        exp[0] = 0xFF; exp[1] = 0x00;
+    }
     CHECK_MEM("sub16 -1", buf, exp, sizeof(buf));
 }
 
@@ -108,15 +108,15 @@ TEST(sw_multiwrite16)
     apply_sw(buf, sizeof(buf), "41000000 00001234\n40030004 00000001");
 
     uint8_t exp[16] = {0};
-#if APOLLO_TEST_ENDIAN_BE
-    exp[0] = 0x12; exp[1] = 0x34;   /* 0x1234 */
-    exp[4] = 0x12; exp[5] = 0x35;   /* 0x1235 */
-    exp[8] = 0x12; exp[9] = 0x36;   /* 0x1236 */
-#else
-    exp[0] = 0x34; exp[1] = 0x12;
-    exp[4] = 0x35; exp[5] = 0x12;
-    exp[8] = 0x36; exp[9] = 0x12;
-#endif
+    if (apollo_test_be()) {
+        exp[0] = 0x12; exp[1] = 0x34;   /* 0x1234 */
+        exp[4] = 0x12; exp[5] = 0x35;   /* 0x1235 */
+        exp[8] = 0x12; exp[9] = 0x36;   /* 0x1236 */
+    } else {
+        exp[0] = 0x34; exp[1] = 0x12;
+        exp[4] = 0x35; exp[5] = 0x12;
+        exp[8] = 0x36; exp[9] = 0x12;
+    }
     CHECK_MEM("multi-write 16-bit x3", buf, exp, sizeof(buf));
 }
 

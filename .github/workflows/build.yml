@@ -22,15 +22,7 @@ jobs:
       run: |
         echo "Linux requirements"
         sudo apt-get update
-        # zlib + GUI build deps: GLFW needs X11/GL headers. File dialogs use
-        # portable-file-dialogs (zenity at runtime — not a build dependency).
-        sudo apt-get -y install zlib1g-dev libgl1-mesa-dev xorg-dev
-
-    - name: Install macOS requirements
-      if: matrix.os == 'macos-latest'
-      run: |
-        echo "macOS requirements"
-        # GLFW uses Cocoa; file dialogs use osascript. Both ship with the OS. Nothing to install.
+        sudo apt-get -y install zlib1g-dev
 
     - name: Install mbedTLS
       run: |
@@ -68,38 +60,14 @@ jobs:
           make
         fi
 
-    - name: Build Apollo Patcher GUI
-      run: |
-        cd gui
-        # Keep the GUI's CMake configuration aligned with Universal2 mbedTLS and
-        # the same macOS 11.0 deployment baseline.
-        if [ "${{ matrix.os }}" = "macos-latest" ]; then
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER="$(xcrun --find clang)" \
-            -DCMAKE_CXX_COMPILER="$(xcrun --find clang++)" \
-            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
-            -DCMAKE_OSX_ARCHITECTURES='x86_64;arm64' \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
-        else
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-        fi
-        cmake --build build -j
-        # Normalise the output path across OSes for the upload step.
-        mkdir -p dist
-        if [ "${{ matrix.os }}" = "macos-latest" ]; then
-          cp -R build/apollo_patcher_gui.app dist/
-        else
-          cp build/apollo_patcher_gui dist/
-        fi
-
-    # Neither gui/CMakeLists.txt nor tools/Makefile sets a deployment target. Use
+    # tools/Makefile does not set a deployment target. Use
     # macOS 11.0, the first Apple Silicon release, as one baseline for both slices.
     # Fail before upload if a shipped executable or link input loses a CPU slice,
     # or if a distributable executable raises that baseline.
     - name: Verify macOS Universal2 and deployment targets
       if: matrix.os == 'macos-latest'
       run: |
-        chmod 755 tools/patcher tools/dumper gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
+        chmod 755 tools/patcher tools/dumper
 
         verify_universal() {
           local file="$1"
@@ -134,13 +102,8 @@ jobs:
         verify_universal mbedtls-2.16.12/build/library/libmbedcrypto.a
         verify_universal tools/patcher
         verify_universal tools/dumper
-        verify_universal gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
-        verify_universal gui/build/libapollo_engine.a
-        verify_universal gui/build/libimgui.a
-        verify_universal gui/build/_deps/glfw-build/src/libglfw3.a
         assert_minos_11 tools/patcher
         assert_minos_11 tools/dumper
-        assert_minos_11 gui/dist/apollo_patcher_gui.app/Contents/MacOS/apollo_patcher_gui
 
     - name: Get short SHA
       run: echo "sha_name=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
@@ -151,10 +114,4 @@ jobs:
         path: |
           tools/patcher
           tools/dumper
-        if-no-files-found: error
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: apollo-gui-${{ env.sha_name }}-${{matrix.os}}
-        path: gui/dist
         if-no-files-found: error

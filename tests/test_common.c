@@ -83,7 +83,7 @@ int check_mem(const char* file, int line, const char* desc,
 
     g_checks_failed++;
     g_cur_test_failed++;
-    fprintf(stderr, "  [FAIL] %s (%s:%d) [%s]\n", desc, file, line, APOLLO_TEST_ENDIAN_NAME);
+    fprintf(stderr, "  [FAIL] %s (%s:%d) [%s]\n", desc, file, line, apollo_test_endian_name());
     hexdump("expected", exp, len);
     hexdump("got     ", got, len);
     return 0;
@@ -99,7 +99,7 @@ int check_u64(const char* file, int line, const char* desc,
     g_checks_failed++;
     g_cur_test_failed++;
     fprintf(stderr, "  [FAIL] %s (%s:%d) [%s] expected=0x%llX got=0x%llX\n",
-            desc, file, line, APOLLO_TEST_ENDIAN_NAME,
+            desc, file, line, apollo_test_endian_name(),
             (unsigned long long)exp, (unsigned long long)got);
     return 0;
 }
@@ -113,7 +113,7 @@ int check_str(const char* file, int line, const char* desc,
 
     g_checks_failed++;
     g_cur_test_failed++;
-    fprintf(stderr, "  [FAIL] %s (%s:%d) [%s]\n", desc, file, line, APOLLO_TEST_ENDIAN_NAME);
+    fprintf(stderr, "  [FAIL] %s (%s:%d) [%s]\n", desc, file, line, apollo_test_endian_name());
     fprintf(stderr, "      expected: \"%s\"\n", exp ? exp : "(null)");
     fprintf(stderr, "      got     : \"%s\"\n", got ? got : "(null)");
     return 0;
@@ -123,14 +123,22 @@ int check_str(const char* file, int line, const char* desc,
 /* Code builders                                                      */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Endian mode (see test_common.h)                                    */
+/* ------------------------------------------------------------------ */
+static int g_endian_be = 0;
+
+int         apollo_test_be(void)          { return g_endian_be; }
+const char *apollo_test_endian_name(void) { return g_endian_be ? "BE" : "LE"; }
+void        apollo_test_set_endian(int be){ g_endian_be = be ? 1 : 0; }
+
 code_entry_t make_sw_code(const char* codes)
 {
     code_entry_t c;
     memset(&c, 0, sizeof(c));
     c.type  = APOLLO_CODE_SAVEWIZARD;
-#if APOLLO_TEST_ENDIAN_BE
-    c.flags = APOLLO_CODE_FLAG_ORDER_BE;
-#endif
+    if (apollo_test_be())
+        c.flags = APOLLO_CODE_FLAG_ORDER_BE;
     c.name  = (char*)"vector";
     c.file  = (char*)"vector";
     c.codes = (char*)codes;   /* apollo_apply_sw_code strdup()s this */
@@ -139,11 +147,9 @@ code_entry_t make_sw_code(const char* codes)
 
 code_entry_t make_bsd_code(const char* codes)
 {
+    /* make_sw_code() already stamped the mode flag. */
     code_entry_t c = make_sw_code(codes);
     c.type = APOLLO_CODE_BSD;
-#if APOLLO_TEST_ENDIAN_BE
-    c.flags = APOLLO_CODE_FLAG_ORDER_BE;
-#endif
     return c;
 }
 
@@ -194,8 +200,13 @@ int run_registered_tests(void)
 {
     int failed_tests = 0;
 
+    /* Counters are per-pass, so each mode reports its own totals — the same
+     * numbers the two separate binaries used to print. */
+    g_checks_run = 0;
+    g_checks_failed = 0;
+
     printf("=== apollo unit vectors [%s build] : %d tests ===\n",
-           APOLLO_TEST_ENDIAN_NAME, g_test_count);
+           apollo_test_endian_name(), g_test_count);
 
     for (int i = 0; i < g_test_count; i++) {
         g_cur_test_failed = 0;
@@ -209,7 +220,7 @@ int run_registered_tests(void)
     }
 
     printf("--- [%s] %d checks, %d failed, %d/%d tests passed ---\n",
-           APOLLO_TEST_ENDIAN_NAME, g_checks_run, g_checks_failed,
+           apollo_test_endian_name(), g_checks_run, g_checks_failed,
            g_test_count - failed_tests, g_test_count);
 
     return failed_tests ? 1 : 0;
