@@ -376,7 +376,7 @@ TEST(bsd_read_int64)
  *
  *  - crc32big  -> CRC-32/BZIP2, independently known check value 0xFC891918
  *  - sha1      -> independently known SHA-1("123456789") digest (20 bytes)
- *  - apollo_hash_jhash     -> Jenkins hash; value characterised from the library (regression)
+ *  - jhash     -> Jenkins hash; value characterised from the library (regression)
  */
 static uint8_t* hash_buf(void)
 {
