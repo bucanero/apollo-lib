@@ -1,0 +1,97 @@
+# libapollo for WebAssembly (Emscripten).
+#
+# Produces a wasm32 static archive that a browser/Node front-end links against,
+# plus a test target that runs the tests/ suite under Node.
+#
+# Requires the Emscripten SDK on PATH (emcc, emar, emcmake). Check with
+# `emcc --version`; install via https://emscripten.org/docs/getting_started or
+# `brew install emscripten`.
+#
+#   make -f Makefile.wasm mbedtls   build the wasm libmbedcrypto (do this first)
+#   make -f Makefile.wasm           build build-wasm/libapollo.a
+#   make -f Makefile.wasm test      build + run the tests/ suite under Node
+#   make -f Makefile.wasm clean
+#
+# NOTE: the archive is built WITHOUT -DAPOLLO_CLI, so the engine emits progress
+# through dbglogger_log() and MicroPython print() through dbglogger_printf().
+# The embedder must define both (see gui/src/apollo_ctrl.c, which routes them
+# to a log sink) — this is what a UI front-end wants, and it keeps stdout out
+# of the picture entirely.
+#
+# LINK FLAGS THE EMBEDDER NEEDS (they belong to the final module, not the .a):
+#
+#   --use-port=zlib             the engine calls into zlib (offzip/packzip)
+#   -sSTACK_SIZE=4MB            Emscripten's 64KB default is BELOW MicroPython's
+#                               own 40KB stack limit (see micropy_create()) and
+#                               leaves nothing for parser recursion
+#   -sALLOW_MEMORY_GROWTH=1     apollo_apply_py_code() allocates a 64MB heap
+#   --embed-file tools/python@/python
+#                               Python patches import from sys.path; with no
+#                               host callback the engine looks in "python"
+#                               relative to the FS root
+#
+# Optional belt-and-braces: -sBINARYEN_EXTRA_PASSES=--spill-pointers keeps
+# pointer locals in scannable linear memory. MicroPython's GC scans the C stack
+# conservatively, and wasm locals are not addressable memory. Not needed in
+# practice (the suite and real Python patches pass without it), but it is the
+# documented fix if a GC bug ever shows up only under wasm.
+
+TARGET    = build-wasm/libapollo.a
+OBJS      = $(addprefix build-wasm/,crc_util.o decrypt.o list.o loader.o offzip.o packzip.o \
+			patches.o wildcard.o upy.o)
+
+MBEDTLS   = mbedtls-2.16.12
+MBED_WASM = $(MBEDTLS)/build-wasm/library
+
+CC       = emcc
+AR       = emar
+# -Itools: types.h includes <dbglogger.h>; on consoles that comes from the
+# toolchain (bucanero/dbglogger), on PC/wasm tools/dbglogger.h is the prototype
+# stand-in. Same thing gui/CMakeLists.txt does.
+CFLAGS   = -O2 -Wall -D_GNU_SOURCE -D_USE_MBEDTLS -Iinclude -I$(MBEDTLS)/include -Itools \
+			--use-port=zlib
+
+.PHONY: all mbedtls test clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(AR) rcs $@ $^
+	@echo "$@ built"
+
+build-wasm/%.o: source/%.c | build-wasm
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build-wasm:
+	@mkdir -p $@
+
+# wasm libmbedcrypto, built out-of-tree so it cannot collide with the native
+# build in $(MBEDTLS)/build/library that tools/ and gui/ link against.
+# CMAKE_POLICY_VERSION_MINIMUM: mbedtls 2.16's CMake predates CMake 4.
+mbedtls:
+	emcmake cmake -S $(MBEDTLS) -B $(MBEDTLS)/build-wasm \
+		-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release \
+		-DENABLE_TESTING=Off -DENABLE_PROGRAMS=Off -DUSE_STATIC_MBEDTLS_LIBRARY=On
+	cmake --build $(MBEDTLS)/build-wasm --target mbedcrypto -j
+	@echo "$(MBED_WASM)/libmbedcrypto.a built"
+
+# Runs the same suite the native build runs, cross-compiled and executed by
+# Node. NODERAWFS gives the tests the real filesystem (they read fixtures/ and
+# write temp targets); a browser front-end uses MEMFS instead.
+test:
+	@[ -f $(MBED_WASM)/libmbedcrypto.a ] || { \
+		echo "missing $(MBED_WASM)/libmbedcrypto.a — run: make -f Makefile.wasm mbedtls"; exit 2; }
+	$(MAKE) -C tests check \
+		CC=emcc \
+		MBED=../$(MBED_WASM) \
+		BUILD=build-wasm \
+		EXE=.js \
+		RUN=node \
+		LIBZ= \
+		EXTRA_CFLAGS="--use-port=zlib" \
+		EXTRA_LDFLAGS="-sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=4MB -sEXIT_RUNTIME=1"
+
+clean:
+	@rm -rf build-wasm $(MBEDTLS)/build-wasm
+	@$(MAKE) -C tests clean EXE=.js BUILD=build-wasm
+	@echo "Cleaned up!"

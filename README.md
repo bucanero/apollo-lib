@@ -125,6 +125,25 @@ USAGE: ./dumper filename.ext
 
 Users that prefer a graphical interface can use [Apollo Patcher GUI](gui/README.md). The GUI uses the [Apollo Core library](https://bucanero.github.io/apollo-lib/) to provide a user-friendly interface to apply save patches and scripts.
 
+## WebAssembly build
+
+The library also cross-compiles to WebAssembly, so the same engine that runs on
+the consoles can run in a browser or under Node. This requires the
+[Emscripten SDK](https://emscripten.org/docs/getting_started/) on `PATH`.
+
+```bash
+make -f Makefile.wasm mbedtls    # wasm libmbedcrypto (out-of-tree, once)
+make -f Makefile.wasm            # build-wasm/libapollo.a
+make -f Makefile.wasm test       # run the tests/ suite under Node
+```
+
+The archive is built without `-DAPOLLO_CLI`, so the embedder supplies
+`dbglogger_log()` and `dbglogger_printf()` and receives engine progress and
+MicroPython `print()` output through them (see `gui/src/apollo_ctrl.c`).
+`Makefile.wasm` documents the link flags a front-end module needs — most
+importantly `-sSTACK_SIZE`, which must be raised well above Emscripten's
+default because it is smaller than MicroPython's own stack limit.
+
 ## Credits
 
 * [Bucanero](http://www.bucanero.com.ar/): [Project developer](https://github.com/bucanero)

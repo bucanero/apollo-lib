@@ -1,0 +1,42 @@
+name: Build WebAssembly
+
+on:
+  push:
+  pull_request:
+  repository_dispatch:
+    types: [run_build]
+
+jobs:
+  wasm:
+    runs-on: ubuntu-latest
+    name: wasm32 (emscripten)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache-folder: emsdk-cache
+
+      - name: Fetch mbedTLS sources
+        run: |
+          curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xz -C ./
+
+      - name: Build mbedcrypto (wasm)
+        run: make -f Makefile.wasm mbedtls
+
+      - name: Build libapollo.a (wasm)
+        run: make -f Makefile.wasm
+
+      # Cross-compiles the same suite the native gate runs and executes it under
+      # Node. The `--corpus` targets stay native-only: test_corpus.c isolates
+      # each code in a fork(), which Emscripten does not implement.
+      - name: Run test suite under Node
+        run: make -f Makefile.wasm test
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libapollo-wasm
+          path: build-wasm/libapollo.a
