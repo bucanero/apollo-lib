@@ -1,4 +1,3 @@
 build/
-test_apollo_le
-test_apollo_be
+test_apollo
 *.o

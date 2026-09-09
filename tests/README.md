@@ -1,16 +1,23 @@
 # Apollo test suite
 
-Characterization tests that **freeze the current behavior of the patch engine**
-so the upcoming *"remove the compile-time big-endian flag"* refactor can be
-proven byte-for-byte behavior-preserving.
+Characterization tests that **freeze the behavior of the patch engine**, so a
+change to it has to be a deliberate one rather than a surprise.
 
-Today endianness is a **compile-time** choice: the `BIGENDIAN` make flag defines
-`__PS3_PC__`, which makes the `MEM*`/`PADDING` macros byte-swap
-(`include/types.h`). This suite builds **twice** from the same sources —
-`test_apollo_le` (default little-endian) and `test_apollo_be`
-(`-D__PS3_PC__`) — exactly as `tools/Makefile` does, and captures both
-behaviors as the reference. After endianness becomes a **runtime** choice, the
-same vectors and golden manifests must still reproduce identically.
+Endianness is a **runtime** choice: `apollo_apply_sw_code()` takes the save-data
+byte order from the code entry's `APOLLO_CODE_FLAG_ORDER_*` flags, falling back
+to `apollo_set_endianness()` (`source/patches.c`). Nothing in the library
+branches on it at compile time.
+
+So there is **one binary**, `test_apollo`, and it runs the whole vector suite
+twice in a single process — a little-endian pass, then a big-endian one —
+printing a header and totals for each. Vectors whose expected bytes depend on
+the mode branch on `apollo_test_be()`; vectors that are mode-invariant write
+their expected bytes once, which asserts that invariance.
+
+> These vectors and the golden manifests were originally captured from the two
+> binaries this suite used to build (`test_apollo_le` and `test_apollo_be`,
+> the latter compiled with `-D__PS3_PC__`) to prove the compile-time-to-runtime
+> refactor byte-for-byte behavior-preserving. They still reproduce identically.
 
 ## Layout
 
@@ -26,17 +33,17 @@ same vectors and golden manifests must still reproduce identically.
 | `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
 | `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
-| `test_common.[ch]` | Tiny assertion framework, deterministic data helpers, host-callback + log stubs, code builders. |
+| `test_common.[ch]` | Tiny assertion framework, deterministic data helpers, host-callback + log stubs, code builders, and the runtime endian mode (`apollo_test_be()`). |
 | `fixtures/` | A curated, vendored set of `.savepatch` files so the committed goldens are reproducible from this repo alone. |
-| `golden/` | Committed reference manifests `corpus_le.txt` / `corpus_be.txt`. |
+| `golden/` | Committed reference manifests `corpus_le.txt` / `corpus_be.txt` (the two corpus modes). |
 
 ## Running
 
 ```bash
 cd tests
-make check           # hand-authored opcode vectors, LE + BE (fast, no external deps)
+make check           # hand-authored opcode vectors, LE + BE passes (fast, no external deps)
 make check-corpus    # re-apply fixtures and diff against committed goldens
-make bsd-invariance  # assert BSD output is identical in the LE and BE builds
+make bsd-invariance  # assert BSD output is identical in the LE and BE passes
 ```
 
 Broader correctness needs real game saves, which are likewise not vendored.
@@ -77,7 +84,8 @@ state):
 
 ```bash
 make check-corpus PATCHES=/path/to/apollo-patches   # diff vs committed goldens (fixtures only)
-./test_apollo_le --corpus /path/to/apollo-patches > /tmp/le.txt   # ad-hoc manifest
+./test_apollo --corpus /path/to/apollo-patches > /tmp/le.txt        # ad-hoc manifest
+./test_apollo --corpus /path/to/apollo-patches --be > /tmp/be.txt   # ...big-endian
 ```
 
 ## Coverage matrix (hand vectors)
@@ -184,18 +192,18 @@ memcpy(var->data, (uint8_t*)&add + PADDING(carry), var->len);   // PADDING: carr
 ```
 
 `PADDING` follows the *target save-data* byte order, but `&add` is a **host**
-integer. On the `__PS3_PC__` build (big-endian save data simulated on a
-little-endian PC) this kept the **high** half of the accumulator instead of the
-low half — e.g. `wadd = 0x000068AC` was written as `00 00` instead of `68 AC`.
-Both a real PS3 (`__PPU__`) and a real PS4/PC write `68 AC`, so `__PS3_PC__` was
-simply wrong.
+integer. With big-endian save data on a little-endian PC (then the
+`-D__PS3_PC__` build, now the BE pass) this kept the **high** half of the
+accumulator instead of the low half — e.g. `wadd = 0x000068AC` was written as
+`00 00` instead of `68 AC`. Both a real PS3 (`__PPU__`) and a real PS4/PC write
+`68 AC`, so that path was simply wrong.
 
 The fix introduces `HOST_LSB()` (in `include/types.h`), which follows the **real
 host** byte order — `carry` only on a genuinely big-endian host (`__PPU__`), `0`
-everywhere else including `__PS3_PC__` — and switches the four BSD host-integer
+everywhere else, whatever the save-data order — and switches the four BSD host-integer
 truncation sites to it. The save-wizard path keeps `PADDING` (it slices a value
 already arranged in target-endian order). Result: BSD output is now identical in
-the LE and BE builds (`make bsd-invariance`), the LE golden manifest is
+the LE and BE passes (`make bsd-invariance`), the LE golden manifest is
 unchanged, and only the one affected BE line moved to match LE.
 
 All four fixed sites have dedicated regression guards (each verified to fail

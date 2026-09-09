@@ -6,26 +6,24 @@
 #include "apollo.h"
 
 /*
- * Endian build mode.
+ * Endian mode.
  *
- * Today the library selects little- vs big-endian save-wizard behavior at
- * COMPILE TIME: the BIGENDIAN make flag defines __PS3_PC__, which makes the
- * MEM* macros byte-swap (see include/types.h). The two binaries produced,
- * test_apollo_le and test_apollo_be, are the reference for the upcoming
- * refactor that turns this into a RUNTIME choice.
+ * The library selects little- vs big-endian save-data behavior at RUNTIME:
+ * apollo_apply_sw_code() takes it from the code entry's
+ * APOLLO_CODE_FLAG_ORDER_* flags, falling back to apollo_set_endianness()
+ * (see source/patches.c). Nothing in the library branches on it at compile
+ * time any more, so ONE binary covers both modes: run_registered_tests()
+ * is called once per mode and the vector builders below stamp the matching
+ * flag. This used to be two binaries built with -D__PS3_PC__.
  *
- * When endianness becomes a runtime parameter, this is the single place that
- * needs to change: replace the compile-time detection below (and the helpers
- * in test_common.c that build code_entry_t) with the new runtime selector.
- * The test vectors and golden files must NOT change.
+ * Vectors whose expected bytes depend on the mode branch on
+ * apollo_test_be(). Opcodes that use BE* (search/bulk, always big-endian) or
+ * that read pointers with an explicit endianness are mode-INVARIANT: their
+ * expected bytes are written once, which asserts that invariance.
  */
-#ifdef __PS3_PC__
-#define APOLLO_TEST_ENDIAN_BE   1
-#define APOLLO_TEST_ENDIAN_NAME "BE"
-#else
-#define APOLLO_TEST_ENDIAN_BE   0
-#define APOLLO_TEST_ENDIAN_NAME "LE"
-#endif
+int         apollo_test_be(void);           /* 1 while the BE pass runs   */
+const char *apollo_test_endian_name(void);  /* "LE" / "BE", for messages  */
+void        apollo_test_set_endian(int be); /* runner + corpus entry point */
 
 /* ---- assertion counters (defined in test_common.c) ---- */
 extern int g_checks_run;

@@ -105,9 +105,8 @@ static void apply_one(const char* rel, int idx, code_entry_t* code,
         return;
     }
 
-#if APOLLO_TEST_ENDIAN_BE
-    code->flags = APOLLO_CODE_FLAG_ORDER_BE;
-#endif
+    if (apollo_test_be())
+        code->flags = APOLLO_CODE_FLAG_ORDER_BE;
     size_t out = apollo_apply_code(g_tmp_path, code, apollo_test_host_cb);
     if (out == 0) {
         printf("%s#%d\t%d\tnoop\t0\t-\n", rel, idx, code->type);
@@ -208,7 +207,7 @@ int corpus_run(const char* root)
 
     size_t rootlen = strlen(root);
     fprintf(stderr, "[corpus %s] %zu files under %s\n",
-            APOLLO_TEST_ENDIAN_NAME, files.count, root);
+            apollo_test_endian_name(), files.count, root);
 
     for (size_t i = 0; i < files.count; i++) {
         const char* path = files.items[i];

@@ -25,10 +25,13 @@
 #                               own 40KB stack limit (see micropy_create()) and
 #                               leaves nothing for parser recursion
 #   -sALLOW_MEMORY_GROWTH=1     apollo_apply_py_code() allocates a 64MB heap
-#   --embed-file tools/python@/python
-#                               Python patches import from sys.path; with no
-#                               host callback the engine looks in "python"
-#                               relative to the FS root
+#   --embed-file <apollo-patches>/python@/python
+#                               Python patches import helper modules from
+#                               sys.path; with no host callback the engine looks
+#                               in "python" relative to the FS root. Those
+#                               modules live in bucanero/apollo-patches, not in
+#                               this repo (tools/python here, if you have it, is
+#                               an untracked local copy for CLI testing)
 #
 # Optional belt-and-braces: -sBINARYEN_EXTRA_PASSES=--spill-pointers keeps
 # pointer locals in scannable linear memory. MicroPython's GC scans the C stack
