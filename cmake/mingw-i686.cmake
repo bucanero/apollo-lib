@@ -1,7 +1,7 @@
 # CMake toolchain: cross-compile for 32-bit Windows (x86) with mingw-w64 on
 # Linux. MSYS2 dropped its 32-bit toolchain, so a genuine i686 Windows build is
 # produced this way instead. Used by the "Windows x86 (Linux cross)" CI job.
-#   cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=.../gui/cmake/mingw-i686.cmake
+#   cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=.../cmake/mingw-i686.cmake
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86)
 

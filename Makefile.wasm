@@ -14,9 +14,9 @@
 #
 # NOTE: the archive is built WITHOUT -DAPOLLO_CLI, so the engine emits progress
 # through dbglogger_log() and MicroPython print() through dbglogger_printf().
-# The embedder must define both (see gui/src/apollo_ctrl.c, which routes them
-# to a log sink) — this is what a UI front-end wants, and it keeps stdout out
-# of the picture entirely.
+# The embedder must define both (see core/apollo_ctrl.c in bucanero/apollo-patcher,
+# which routes them to a log sink) — this is what a UI front-end wants, and it
+# keeps stdout out of the picture entirely.
 #
 # LINK FLAGS THE EMBEDDER NEEDS (they belong to the final module, not the .a):
 #
@@ -47,7 +47,7 @@ CC       = emcc
 AR       = emar
 # -Itools: types.h includes <dbglogger.h>; on consoles that comes from the
 # toolchain (bucanero/dbglogger), on PC/wasm tools/dbglogger.h is the prototype
-# stand-in. Same thing gui/CMakeLists.txt does.
+# stand-in, the same way the front-end builds do.
 CFLAGS   = -O2 -Wall -D_GNU_SOURCE -D_USE_MBEDTLS -Iinclude -I$(MBEDTLS)/include -Itools \
 			--use-port=zlib
 
@@ -66,7 +66,7 @@ build-wasm:
 	@mkdir -p $@
 
 # wasm libmbedcrypto, built out-of-tree so it cannot collide with the native
-# build in $(MBEDTLS)/build/library that tools/ and gui/ link against.
+# build in $(MBEDTLS)/build/library that tools/ and the front-ends link against.
 # CMAKE_POLICY_VERSION_MINIMUM: mbedtls 2.16's CMake predates CMake 4.
 mbedtls:
 	emcmake cmake -S $(MBEDTLS) -B $(MBEDTLS)/build-wasm \
