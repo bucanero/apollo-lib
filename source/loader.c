@@ -207,7 +207,7 @@ static option_entry_t * parseOptionFromLine(char *line, const char *tag)
 	if (!options)
 		return NULL;
 
-	options->id = djb2_hash((uint8_t*)tag, strlen(tag));
+	options->id = apollo_hash_djb2((uint8_t*)tag, strlen(tag));
 	options->line = strdup(tag);
 	options->opts = list_alloc();
 
@@ -319,7 +319,7 @@ static void get_code_options(code_entry_t* entry, list_t* opt_list)
 			break;
 
 		entry->options[i].sel = -1;
-		entry->options[i].id = djb2_hash((uint8_t*) tag, (end - tag) + 1);
+		entry->options[i].id = apollo_hash_djb2((uint8_t*) tag, (end - tag) + 1);
 		tag++;
 
 		// search tag and deep copy the option values
@@ -438,7 +438,7 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 	entry->codes = res;
 }
 
-int load_patch_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
+int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
 {
 	int code_count = 0;
 	code_entry_t * code;

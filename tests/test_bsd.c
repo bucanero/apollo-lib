@@ -21,9 +21,9 @@
 /* returns new size; *buf may be realloc'd by insert/delete */
 static size_t apply_bsd(uint8_t** buf, size_t len, const char* codes)
 {
-    free_patch_var_list();               /* isolate variable state per test */
+    apollo_free_var_list();               /* isolate variable state per test */
     code_entry_t c = make_bsd_code(codes);
-    return apply_bsd_patch_code(buf, len, &c);
+    return apollo_apply_bsd_code(buf, len, &c);
 }
 
 static uint8_t* dup_bytes(const uint8_t* src, size_t len)
@@ -241,6 +241,64 @@ TEST(bsd_update_existing_variable)
     free(buf);
 }
 
+/*
+ * A "[name]" reference must match the whole variable name, not a prefix of it.
+ *
+ * Both lookups resolve the name straight out of the script line, from the span
+ * between the brackets, so the comparison is length-delimited (strncmp) rather
+ * than a strcmp over a NUL-terminated copy. strncmp alone only answers "does
+ * the stored name START with this span", so the lookup also has to check that
+ * the stored name ends there.
+ *
+ * Without that check, declaring [ab] and then [a] does not produce two
+ * variables at all: the declaration of [a] goes through the same lookup, finds
+ * [ab], and overwrites it. So the tell is a later reference to the LONGER name
+ * reading back the shorter one's value. Both vectors below are built that way,
+ * and both cover one of the two call sites: value decoding
+ * (_decode_variable_data) and integer parsing (_parse_int_value).
+ *
+ * The values are 1 and 3 bytes wide on purpose. A 2/4/8-byte variable is
+ * converted to big-endian on its way out, which would fold an endianness
+ * question into a name-resolution test.
+ */
+TEST(bsd_var_name_prefix_not_matched_as_value)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    apply_bsd(&buf, sizeof(init),
+              "set [ab]:AABBCC\nset [a]:112233\nwrite at 0:[a]\nwrite at 8:[ab]");
+
+    uint8_t exp[16] = {0};
+    exp[0]=0x11; exp[1]=0x22; exp[2]=0x33;    /* [a]                          */
+    exp[8]=0xAA; exp[9]=0xBB; exp[10]=0xCC;   /* [ab], not clobbered by [a]   */
+    CHECK_MEM("[a] and [ab] stay distinct variables", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_var_name_prefix_not_matched_as_offset)
+{
+    uint8_t init[16];
+    uint8_t* buf;
+
+    for (int i = 0; i < 16; i++) init[i] = (uint8_t) i;   /* 00..0F */
+    buf = dup_bytes(init, sizeof(init));
+
+    /* read([p],1) reads offset 8 and read([pp],1) offset 4, so the two bytes
+     * written back name which variable each reference resolved to. */
+    apply_bsd(&buf, sizeof(init),
+              "set [pp]:0x00000004\nset [p]:0x00000008\n"
+              "set [v]:read([p],1)\nset [w]:read([pp],1)\n"
+              "write at 0:[v]\nwrite at 1:[w]");
+
+    uint8_t exp[16];
+    memcpy(exp, init, sizeof(exp));
+    exp[0]=0x08;                 /* [p]  -> offset 8 */
+    exp[1]=0x04;                 /* [pp] -> offset 4 */
+    CHECK_MEM("[p] and [pp] resolve to their own offsets", buf, exp, sizeof(exp));
+    free(buf);
+}
+
 /* delete shrinks the buffer, shifting the tail left */
 TEST(bsd_delete)
 {
@@ -348,6 +406,108 @@ TEST(bsd_hash_sha1)
         0x67,0x99,0x65,0xCC,0xC3,0x4C,0xA7,0xAE,0x34,0x41
     };
     CHECK_MEM("sha1(\"123456789\")", buf + 0x20, exp, sizeof(exp));
+    free(buf);
+}
+
+/* ======================================================================== */
+/* Fletcher-16 / Fletcher-32                                                */
+/* ======================================================================== */
+
+/*
+ * Published Fletcher check values.
+ *
+ * Fletcher-32 sums 16-bit LITTLE-endian words by definition, and that is fixed
+ * in the implementation rather than taken from the host, so these vectors hold
+ * in both the LE and the __PS3_PC__ build -- which is the property that lets a
+ * savepatch using it produce the same hash on a PS3 as on a PS4.
+ */
+static const struct {
+    const char* s;
+    uint16_t    f16;
+    uint32_t    f32;
+} fletcher_vectors[] = {
+    { "abcde",    0xC8F0, 0xF04FC729 },
+    { "abcdef",   0x2057, 0x56502D2A },
+    { "abcdefgh", 0x0627, 0xEBE19591 },
+};
+
+TEST(hash_fletcher_known_vectors)
+{
+    for (size_t i = 0; i < sizeof(fletcher_vectors) / sizeof(*fletcher_vectors); i++)
+    {
+        const uint8_t* d = (const uint8_t*) fletcher_vectors[i].s;
+        size_t n = strlen(fletcher_vectors[i].s);
+
+        CHECK_U64("fletcher16 published vector",
+                  apollo_hash_fletcher16(d, n), fletcher_vectors[i].f16);
+        CHECK_U64("fletcher32 published vector",
+                  apollo_hash_fletcher32(d, n), fletcher_vectors[i].f32);
+    }
+}
+
+/*
+ * Both functions defer the modulo to the end of a block, sized so c1 cannot
+ * overflow first (5802 bytes / 360 words). This buffer is 6000 bytes, so it
+ * crosses that boundary in both -- a wrong block size or a dropped reduction
+ * diverges here and nowhere in the short vectors above.
+ *
+ * The expected values were computed with exact arbitrary-precision arithmetic
+ * and a single modulo at the very end, i.e. from Fletcher's definition rather
+ * than from a second copy of the blocked algorithm.
+ */
+TEST(hash_fletcher_block_boundary)
+{
+    uint8_t* buf = malloc(6000);
+    size_t i;
+
+    for (i = 0; i < 6000; i++)
+        buf[i] = (uint8_t)(i * 7 + 3);
+
+    CHECK_U64("fletcher16 across the 5802-byte block boundary",
+              apollo_hash_fletcher16(buf, 6000), 0x777F);
+    CHECK_U64("fletcher32 across the 360-word block boundary",
+              apollo_hash_fletcher32(buf, 6000), 0x7921C9B5);
+    free(buf);
+}
+
+/*
+ * An odd length contributes its last byte as the low half of a zero-padded
+ * word. The textbook version rounds the length up and then reads that byte from
+ * the buffer, one past the end of a caller-sized range; ASan catches that here.
+ */
+TEST(hash_fletcher32_odd_length_zero_padded)
+{
+    uint8_t three[3] = { 0x11, 0x22, 0x33 };
+
+    /* words 2211, 0033 */
+    CHECK_U64("fletcher32 odd length", apollo_hash_fletcher32(three, 3), 0x44552244);
+}
+
+/* An empty range must be well-defined, not a wrapped block length. */
+TEST(hash_fletcher_empty_range)
+{
+    CHECK_U64("fletcher16 of nothing", apollo_hash_fletcher16((const uint8_t*)"", 0), 0);
+    CHECK_U64("fletcher32 of nothing", apollo_hash_fletcher32((const uint8_t*)"", 0), 0);
+}
+
+/* The BSD commands, over "12345678" (8 bytes, so no padding is involved). */
+TEST(bsd_hash_fletcher16)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x7\nset [h]:fletcher16\nwrite at 0x10:[h]");
+
+    uint8_t exp[2] = { 0x3F, 0xA5 };
+    CHECK_MEM("fletcher16(\"12345678\") = 0x3FA5", buf + 0x10, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(bsd_hash_fletcher32)
+{
+    uint8_t* buf = hash_buf();
+    apply_bsd(&buf, 64, "set range:0x0,0x7\nset [h]:fletcher32\nwrite at 0x10:[h]");
+
+    uint8_t exp[4] = { 0x0A, 0x00, 0xD4, 0xD0 };
+    CHECK_MEM("fletcher32(\"12345678\") = 0x0A00D4D0", buf + 0x10, exp, sizeof(exp));
     free(buf);
 }
 

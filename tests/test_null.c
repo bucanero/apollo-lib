@@ -14,14 +14,14 @@
 static size_t apply_sw(uint8_t* buf, size_t len, const char* codes)
 {
     code_entry_t c = make_sw_code(codes);
-    return apply_sw_patch_code(buf, len, &c);
+    return apollo_apply_sw_code(buf, len, &c);
 }
 
 static size_t apply_bsd(uint8_t** buf, size_t len, const char* codes)
 {
-    free_patch_var_list();
+    apollo_free_var_list();
     code_entry_t c = make_bsd_code(codes);
-    return apply_bsd_patch_code(buf, len, &c);
+    return apollo_apply_bsd_code(buf, len, &c);
 }
 
 /* ---- Save Wizard: truncated multi-line codes ---- */
@@ -223,6 +223,6 @@ TEST(null_bsd_var_overwrite_after_use)
                          "set [v]:AABBCCDD\nset range:0,3\nset [v]:crc32\nwrite at 0:[v]");
 
     CHECK_U64("code applied", n, sizeof(init));
-    free_patch_var_list();   /* must not free a stack pointer */
+    apollo_free_var_list();   /* must not free a stack pointer */
     free(buf);
 }

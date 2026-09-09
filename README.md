@@ -45,7 +45,7 @@ The library is cross-platform and is required to build:
 ### Bruteforce Save Data (BSD)
 
 - Commands: `set`, `write`, `search`, `insert`, `delete`, `copy`, `decrypt`, `encrypt`, `endian_swap`, `compress`, `decompress`
-- Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md5`, `md5_xor`, `sha1`, `sha224`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`, `force_crc32`, `murmur3_32`, `jhash`, `jenkins_oaat`, `lookup3_little2`, `djb2`
+- Hashes: `crc16`, `crc32`, `crc32big`, `crc64_iso`, `crc64_ecma`, `md5`, `md5_xor`, `sha1`, `sha224`, `sha256`, `sha384`, `sha512`, `hmac_sha1`, `sha1_xor64`, `adler16`, `adler32`, `fletcher16`, `fletcher32`, `checksum32`, `sdbm`, `fnv1`, `add`, `wadd`, `dwadd`, `qwadd`, `wadd_le`, `dwadd_le`, `wsub`, `force_crc32`, `murmur3_32`, `jhash`, `jenkins_oaat`, `lookup3_little2`, `djb2`
 - Custom hashes: `eachecksum`, `ffx_checksum`, `ff13_checksum`, `deadrising_checksum`, `kh25_checksum`, `khcom_checksum`, `mgs2_checksum`, `sw4_checksum`, `toz_checksum`, `tiara2_checksum`, `castlevania_checksum`, `rockstar_checksum`, `dbzxv2_checksum`
 - Encryption: `aes_ecb`, `aes_cbc`, `aes_ctr`, `des3_ecb`, `des3_cbc`, `blowfish_ecb`, `blowfish_cbc`, `camellia_ecb`
 - Custom encryption: `diablo3`, `dw8xl`, `silent_hill3`, `nfs_undercover`, `ffxiii`, `borderlands3`, `mgs_pw`, `mgs_base64`, `mgs`, `mgs5_tpp`, `monster_hunter`, `rgg_studio`
@@ -53,6 +53,32 @@ The library is cross-platform and is required to build:
 ## Apollo `savepatch` archive
 
 You can find `.savepatch` files for many PlayStation games in the [apollo-patches](https://github.com/bucanero/apollo-patches/) repository.
+
+## C API
+
+The library's public surface lives in [`include/apollo.h`](include/apollo.h).
+As of **3.0.0** the patch, checksum and crypto functions are namespaced:
+
+| Group | Convention | Example |
+|-------|------------|---------|
+| Patch engine | `apollo_apply_*` / `apollo_load_*` | `apollo_apply_code()` |
+| Checksums | `apollo_hash_<algorithm>` | `apollo_hash_mgspw()` |
+| Crypto | `apollo_crypt_<cipher>(mode, ...)` | `apollo_crypt_blowfish_cbc(APOLLO_ENCRYPT, ...)` |
+
+Encrypt/decrypt pairs are now a single function taking `APOLLO_ENCRYPT` or
+`APOLLO_DECRYPT` as its first argument, matching the `ucrypto` Python module.
+Functions with no inverse (AES CTR, the DW8XL and RGG Studio XOR streams, and
+MGS5 TPP) take no mode.
+
+This is a breaking change for 2.x callers.
+
+The BSD script commands are backward-compatible. The only addition is a save
+type on `mgs_pw`, for the PSP releases: `mgs_pw(1)` for PSP US/EU, `mgs_pw(2)`
+for the PSP JP digital build, and `mgs_pw(0)` for selecting PS3 saves.
+
+One Python API changed with it: `ucrypto.mgs_pw()` takes that save type as a
+required third argument, `ucrypto.mgs_pw(DECRYPT, data, 0)`. The rest of the
+module is **unchanged**.
 
 ## CLI Tools
 
@@ -66,7 +92,7 @@ You can find `.savepatch` files for many PlayStation games in the [apollo-patche
 The `patcher` command-line tool reads a `.savepatch` file and a comma-separated list of patches, and apply the selected cheat codes to the target file. It defaults to little-endian data mode and also supports `-b/--big-endian` and `-l/--little-endian` to select the mode at run-time.
 
 ```
-Apollo Cheat Patcher v2.1.0 - (c) 2022-2026 by Bucanero
+Apollo Cheat Patcher v3.0.0 - (c) 2022-2026 by Bucanero
 
 Patching:
  USAGE: ./patcher [-b|--big-endian] [-l|--little-endian] file.savepatch 1,2,7-10,18 [data-file.bin]

@@ -133,7 +133,7 @@ code_entry_t make_sw_code(const char* codes)
 #endif
     c.name  = (char*)"vector";
     c.file  = (char*)"vector";
-    c.codes = (char*)codes;   /* apply_sw_patch_code strdup()s this */
+    c.codes = (char*)codes;   /* apollo_apply_sw_code strdup()s this */
     return c;
 }
 

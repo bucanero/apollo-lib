@@ -1,8 +1,8 @@
 /*
  * Bounds-safety vectors.
  *
- * These guard the offset/length validation added to apply_sw_patch_code and
- * apply_bsd_patch_code: an out-of-range access driven by a .savepatch must be
+ * These guard the offset/length validation added to apollo_apply_sw_code and
+ * apollo_apply_bsd_code: an out-of-range access driven by a .savepatch must be
  * SKIPPED (buffer left untouched, no crash), while an in-bounds access — right
  * up to the exact end of the buffer — must still be performed. Before the
  * bounds checks these OOB cases corrupted the heap or crashed.
@@ -14,14 +14,14 @@
 static void apply_sw(uint8_t* buf, size_t len, const char* codes)
 {
     code_entry_t c = make_sw_code(codes);
-    apply_sw_patch_code(buf, len, &c);
+    apollo_apply_sw_code(buf, len, &c);
 }
 
 static size_t apply_bsd(uint8_t** buf, size_t len, const char* codes)
 {
-    free_patch_var_list();
+    apollo_free_var_list();
     code_entry_t c = make_bsd_code(codes);
-    return apply_bsd_patch_code(buf, len, &c);
+    return apollo_apply_bsd_code(buf, len, &c);
 }
 
 /* SW 32-bit write far past the end -> skipped, buffer untouched */
@@ -251,7 +251,7 @@ TEST(clamp_bsd_rockstar_chks_valid_record)
     /* replicate the engine: zero 8 bytes at +8, then hash [0x80, 0x80+len) */
     uint8_t* ref = make_chks_buf(0x100, blk_len);
     memset(ref + 0x88, 0, 8);
-    uint32_t h = jenkins_oaat_hash(ref + 0x80, blk_len, 0x3FAC7125);
+    uint32_t h = apollo_hash_jenkins_oaat(ref + 0x80, blk_len, 0x3FAC7125);
     exp_hash[0] = (uint8_t)(h >> 24); exp_hash[1] = (uint8_t)(h >> 16);
     exp_hash[2] = (uint8_t)(h >> 8);  exp_hash[3] = (uint8_t)h;
 

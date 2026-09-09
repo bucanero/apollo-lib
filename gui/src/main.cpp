@@ -5,7 +5,7 @@
 //   - check the codes to apply
 //   - per-code option dropdowns (replaces the CLI's scanf prompt)
 //   - pick a target data file
-//   - Apply -> runs apply_cheat_patch_code() per selection, log panel shows progress
+//   - Apply -> runs apollo_apply_code() per selection, log panel shows progress
 //
 // Rendering backend: GLFW + fixed-function OpenGL2 (needs only GL 1.1, portable
 // across Win/Mac/Linux and GPU-less hosts).
@@ -49,7 +49,7 @@ static float       g_ui_scale = 1.0f;    // HiDPI content scale (column widths)
 
 // ---- shared UI state -------------------------------------------------------
 struct AppState {
-    apollo_session_t*   session = nullptr;
+    apctl_session_t*   session = nullptr;
     std::string         patch_path;
     std::string         target_path;
     std::string         game_name;
@@ -71,7 +71,7 @@ struct AppState {
         scroll_log = true;
     }
     void close() {
-        if (session) { apollo_close(session); session = nullptr; }
+        if (session) { apctl_close(session); session = nullptr; }
         selected.clear();
         viewer_open.clear();
         game_name.clear();
@@ -104,18 +104,18 @@ static ImVec4 type_color(int t) {
 
 // Returns true if every option group of a code has a selection (sel >= 0).
 // The engine initialises sel to -1, so an untouched required option blocks apply.
-static bool code_options_ready(apollo_code_t* c) {
-    for (int g = 0; g < apollo_opt_group_count(c); ++g)
-        if (apollo_opt_get_selected(c, g) < 0) return false;
+static bool code_options_ready(apctl_code_t* c) {
+    for (int g = 0; g < apctl_opt_group_count(c); ++g)
+        if (apctl_opt_get_selected(c, g) < 0) return false;
     return true;
 }
 
 // True if any checked code still has an unfilled option group.
 static bool has_unfilled_selection() {
     if (!g_app.session) return false;
-    for (int i = 0; i < apollo_code_count(g_app.session); ++i) {
+    for (int i = 0; i < apctl_code_count(g_app.session); ++i) {
         if (!g_app.selected[i]) continue;
-        if (!code_options_ready(apollo_code_at(g_app.session, i))) return true;
+        if (!code_options_ready(apctl_code_at(g_app.session, i))) return true;
     }
     return false;
 }
@@ -133,18 +133,18 @@ static void select_all(bool on) {
 // A group parent's children are the consecutive is_child codes following it.
 // Fills [begin,end) with that range (empty if the code has no children).
 static void group_children(int parent, int& begin, int& end) {
-    int count = apollo_code_count(g_app.session);
+    int count = apctl_code_count(g_app.session);
     begin = parent + 1;
     end = begin;
-    while (end < count && apollo_code_at(g_app.session, end)->is_child) ++end;
+    while (end < count && apctl_code_at(g_app.session, end)->is_child) ++end;
 }
 
 // Checking any code auto-checks every [R] required code in the patch. By design
 // these are prerequisite steps (e.g. decrypt/re-encrypt) that must always run.
 static void auto_enable_required() {
     if (!g_app.session) return;
-    for (int i = 0; i < apollo_code_count(g_app.session); ++i)
-        if (apollo_code_at(g_app.session, i)->flags & APOLLO_CODE_FLAG_REQUIRED)
+    for (int i = 0; i < apctl_code_count(g_app.session); ++i)
+        if (apctl_code_at(g_app.session, i)->flags & APOLLO_CODE_FLAG_REQUIRED)
             g_app.selected[i] = 1;
 }
 
@@ -159,17 +159,17 @@ static bool backup_file(const std::string& src) {
 
 static void load_patch(const std::string& path) {
     g_app.close();
-    g_app.session = apollo_open_file(path.c_str());
+    g_app.session = apctl_open_file(path.c_str());
     if (!g_app.session) { g_app.append_log("[!] Could not open patch file"); return; }
     g_app.patch_path = path;
-    g_app.game_name = apollo_game_name(g_app.session);
-    g_app.selected.assign(apollo_code_count(g_app.session), 0);
-    g_app.viewer_open.assign(apollo_code_count(g_app.session), 0);
-    for (int i = 0; i < apollo_code_count(g_app.session); ++i)  // pre-check [DEFAULT:] codes
-        g_app.selected[i] = apollo_code_at(g_app.session, i)->activated ? 1 : 0;
+    g_app.game_name = apctl_game_name(g_app.session);
+    g_app.selected.assign(apctl_code_count(g_app.session), 0);
+    g_app.viewer_open.assign(apctl_code_count(g_app.session), 0);
+    for (int i = 0; i < apctl_code_count(g_app.session); ++i)  // pre-check [DEFAULT:] codes
+        g_app.selected[i] = apctl_code_at(g_app.session, i)->activated ? 1 : 0;
     char buf[512];
     snprintf(buf, sizeof buf, "Loaded %d codes from %s",
-             apollo_code_count(g_app.session), path.c_str());
+             apctl_code_count(g_app.session), path.c_str());
     g_app.append_log(buf);
 }
 
@@ -192,25 +192,25 @@ static void apply_selected() {
     }
 
     // Byte order for save data — the engine's global setting, re-asserted by
-    // apollo_apply() for every code (free_patch_var_list() clears it).
-    apollo_set_big_endian(g_app.big_endian ? 1 : 0);
+    // apctl_apply() for every code (apollo_free_var_list() clears it).
+    apctl_set_big_endian(g_app.big_endian ? 1 : 0);
     g_app.log.clear();
     g_app.append_log(g_app.big_endian ? "=== Using big-endian data mode"
                                       : "=== Using host (little-endian) data mode");
 
     int applied = 0, errors = 0;
-    for (int i = 0; i < apollo_code_count(g_app.session); ++i) {
+    for (int i = 0; i < apctl_code_count(g_app.session); ++i) {
         if (!g_app.selected[i]) continue;
-        apollo_code_t* c = apollo_code_at(g_app.session, i);
+        apctl_code_t* c = apctl_code_at(g_app.session, i);
         char hdr[256];
         snprintf(hdr, sizeof hdr, "=== Applying code #%d: %s", c->id, c->name);
         g_app.append_log(hdr);
-        bool ok = apollo_apply(g_app.session, c, target);
+        bool ok = apctl_apply(g_app.session, c, target);
         g_app.append_log(ok ? "- OK" : "- ERROR!");
         ++applied;
         if (!ok) ++errors;
     }
-    apollo_reset_vars();
+    apctl_reset_vars();
     char buf[80];
     snprintf(buf, sizeof buf, "Patching completed: %d codes applied, %d error(s)", applied, errors);
     g_app.append_log(buf);
@@ -290,8 +290,8 @@ static void draw_code_list() {
         ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 48 * g_ui_scale);
         ImGui::TableHeadersRow();
 
-        for (int i = 0; i < apollo_code_count(g_app.session); ++i) {
-            apollo_code_t* c = apollo_code_at(g_app.session, i);
+        for (int i = 0; i < apctl_code_count(g_app.session); ++i) {
+            apctl_code_t* c = apctl_code_at(g_app.session, i);
             // Scope each row by the code POINTER, not the row index. ImGui's
             // TableHeadersRow() wraps every header in PushID(column_index), so a
             // header shares an ID scope with a same-index row: the "View" column
@@ -337,7 +337,7 @@ static void draw_code_list() {
 
             // --- col 1: View button opens a raw-code window ---
             ImGui::TableSetColumnIndex(1);
-            const char* body = apollo_code_text(c);
+            const char* body = apctl_code_text(c);
             if (body && body[0]) {
                 if (ImGui::SmallButton("View")) g_app.viewer_open[i] = 1;
             }
@@ -347,21 +347,21 @@ static void draw_code_list() {
             ImGui::TextColored(type_color(c->type), "%s", type_tag(c->type));
 
             // --- option dropdown rows (under the Code column) ---
-            for (int g = 0; g < apollo_opt_group_count(c); ++g) {
+            for (int g = 0; g < apctl_opt_group_count(c); ++g) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::Indent(indent + 18.0f);
-                bool unfilled = apollo_opt_get_selected(c, g) < 0;
+                bool unfilled = apctl_opt_get_selected(c, g) < 0;
                 const char* cur = unfilled ? "<choose a value>"
-                    : apollo_opt_value_name(c, g, apollo_opt_get_selected(c, g));
+                    : apctl_opt_value_name(c, g, apctl_opt_get_selected(c, g));
                 bool warn = unfilled && chk;
                 if (warn) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.5f, 0.4f, 1.0f));
                 ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16.0f);
-                if (ImGui::BeginCombo(apollo_opt_tag(c, g), cur)) {
-                    for (int v = 0; v < apollo_opt_value_count(c, g); ++v) {
-                        bool sel = (apollo_opt_get_selected(c, g) == v);
-                        if (ImGui::Selectable(apollo_opt_value_name(c, g, v), sel))
-                            apollo_opt_set_selected(c, g, v);
+                if (ImGui::BeginCombo(apctl_opt_tag(c, g), cur)) {
+                    for (int v = 0; v < apctl_opt_value_count(c, g); ++v) {
+                        bool sel = (apctl_opt_get_selected(c, g) == v);
+                        if (ImGui::Selectable(apctl_opt_value_name(c, g, v), sel))
+                            apctl_opt_set_selected(c, g, v);
                     }
                     ImGui::EndCombo();
                 }
@@ -382,9 +382,9 @@ static void draw_code_list() {
 // Modeless raw-code windows (one per code whose View button was clicked).
 static void draw_code_viewers() {
     if (!g_app.session) return;
-    for (int i = 0; i < apollo_code_count(g_app.session); ++i) {
+    for (int i = 0; i < apctl_code_count(g_app.session); ++i) {
         if (!g_app.viewer_open[i]) continue;
-        apollo_code_t* c = apollo_code_at(g_app.session, i);
+        apctl_code_t* c = apctl_code_at(g_app.session, i);
         char title[160];
         snprintf(title, sizeof title, "Code: %s##viewer%d",
                  (c->name && c->name[0]) ? c->name : "(unnamed)", i);
@@ -394,7 +394,7 @@ static void draw_code_viewers() {
             ImGui::Text("Target file: %s", (c->file && c->file[0]) ? c->file : "(none)");
             ImGui::Separator();
             ImGui::BeginChild("body", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-            ImGui::TextUnformatted(apollo_code_text(c));
+            ImGui::TextUnformatted(apctl_code_text(c));
             ImGui::EndChild();
         }
         ImGui::End();
@@ -444,7 +444,7 @@ static void draw_main_window(bool* want_quit) {
     // Data byte order — equivalent of the CLI's -b/--big-endian flag. Applied
     // to the engine right before patching (see apply_selected).
     if (ImGui::Checkbox("Big-endian mode", &g_app.big_endian))
-        apollo_set_big_endian(g_app.big_endian ? 1 : 0);
+        apctl_set_big_endian(g_app.big_endian ? 1 : 0);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Read/write save data as big-endian (PS3, Xbox 360, Wii, ...).\n"
                           "Leave off for little-endian saves (PS4, PS Vita, PC).\n"
@@ -548,7 +548,7 @@ static void fatal(const std::string& msg) {
 }
 
 int main(int, char**) {
-    apollo_set_log_sink(log_sink, &g_app);
+    apctl_set_log_sink(log_sink, &g_app);
 
 #ifdef _WIN32
     // The app ships a Mesa software opengl32.dll in a "softgl" subfolder. If the

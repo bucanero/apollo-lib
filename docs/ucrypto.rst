@@ -80,12 +80,17 @@ These functions implement custom encryption schemes used by various video games.
    :return: The data parameter
    :rtype: bytearray
 
-.. py:function:: mgs_pw(enc_mode, data)
+.. py:function:: mgs_pw(enc_mode, data, type)
 
    Encrypts or decrypts data using Metal Gear Solid: Peace Walker's encryption algorithm.
 
+   The save type is declared, not detected: a PS3 save carries a second encrypted
+   block a PSP save does not, and the PSP JP digital build shifts every offset
+   down by ``0x10``.
+
    :param int enc_mode: Operation mode (``ENCRYPT`` or ``DECRYPT``)
    :param bytearray data: Data buffer to process (modified in-place)
+   :param int type: Save type -- ``0`` PS3 HD Edition, ``1`` PSP US/EU (ULUS10509, ULES01372), ``2`` PSP JP digital (NPJH50045)
    :return: The data parameter
    :rtype: bytearray
 
@@ -254,4 +259,4 @@ Example
    
    # Example using game-specific encryption
    save_data = bytearray(...)  # Game save data
-   ucrypto.mgs_pw(DECRYPT, save_data)
+   ucrypto.mgs_pw(DECRYPT, save_data, 0)

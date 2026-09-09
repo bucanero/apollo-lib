@@ -18,9 +18,13 @@ same vectors and golden manifests must still reproduce identically.
 |------|---------|
 | `test_savewizard.c` | Hand-authored Save Wizard opcode vectors, expected bytes computed by hand from `docs/savewizard.rst`, with per-endian expectations where the `MEM*` flag matters. |
 | `test_sw_endian_gaps.c` | The endian-critical Save Wizard opcodes: type 3 (8-byte `MEM64` add + pointer-relative form), type 4 (32-bit `MEM32` multi-write), type 6 (pointer "mega code" — `MEM16` read and `MEM32` write), type 7 (conditional no-less/no-more-than, `MEM16`/`MEM32`), type 9 (pointer add/sub, end-pointer set), and type D's explicit 16-bit BE vs LE reads. |
-| `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). |
+| `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). Fletcher-16/32 get full known-answer coverage: the published check values, the deferred-modulo block boundary (against exact arbitrary-precision reference values, not a second copy of the blocked algorithm), odd-length zero padding, an empty range, and both BSD commands. Fletcher-32's little-endian word order is fixed in the algorithm rather than taken from the host, so every one of those vectors holds identically in the LE and BE builds. |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
-| `test_parse.c` | Savepatch parsing (`load_patch_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
+| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo: Diablo 3, Monster Hunter PSP (ver 2 and 3), MGS Peace Walker (PS3 HD Edition, PSP US/EU and PSP JP digital), NFS Undercover, DW8XL, Borderlands 3 and Silent Hill 3. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges. Run with `make check-samples SAMPLES=...`. |
+| `test_mgspw.c` | MGS Peace Walker bounds vectors using synthetic buffers: undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused, and the PSP size guard held independent of the (larger) PS3 one — a shared guard rejects every real PSP save. Plus an **opt-in** correctness round-trip against a real PS3 save via `make check-mgspw MGSPW_SAVE=...`. |
+| `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
+| `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
 | `test_common.[ch]` | Tiny assertion framework, deterministic data helpers, host-callback + log stubs, code builders. |
 | `fixtures/` | A curated, vendored set of `.savepatch` files so the committed goldens are reproducible from this repo alone. |
@@ -34,6 +38,35 @@ make check           # hand-authored opcode vectors, LE + BE (fast, no external 
 make check-corpus    # re-apply fixtures and diff against committed goldens
 make bsd-invariance  # assert BSD output is identical in the LE and BE builds
 ```
+
+Broader correctness needs real game saves, which are likewise not vendored.
+Point the check at a clone of
+[save-decrypters](https://github.com/bucanero/save-decrypters):
+
+```bash
+make check-samples SAMPLES=/path/to/save-decrypters
+```
+
+A round-trip only proves a cipher is reversible; these prove libapollo speaks
+the real format. The NFS Undercover off-by-one fixed in `63f334a` round-tripped
+perfectly and still produced the wrong bytes.
+
+Correctness for MGS Peace Walker needs a real save, which is deliberately not
+vendored (~300 KB of binary, and it is somebody's game data). Point the opt-in
+check at an encrypted save with its decrypted twin alongside as `<file>.dec`:
+
+```bash
+make check-mgspw MGSPW_SAVE=/path/to/00000000.000
+```
+
+`check-samples` covers all three MGS PW save types from the `save-decrypters`
+samples. Note libapollo leaves the decrypted header byte-swapped for PSP saves
+too, where the reference tool swaps the first 17 words back — one convention for
+both platforms, so a savepatch reads the header fields the same way on PS3 and
+PSP, and PS3 output stays identical to previous releases. The PSP vectors
+therefore compare the payload past `0x44` against the reference, assert the
+header is exactly the word-swapped reference header, and prove the round-trip by
+re-encrypting libapollo's *own* plaintext back to the original file.
 
 `make golden` regenerates the committed manifests — only run it deliberately
 (pre-refactor, or when fixtures change), then commit the result.
@@ -123,7 +156,7 @@ Robustness notes:
   wild pointer on synthetic data yields one stable `CRASH(sig=N)` line instead
   of derailing the run. Crashes are deterministic and comparable across the
   refactor.
-- Codes run through the public `apply_cheat_patch_code()` entry point via a temp
+- Codes run through the public `apollo_apply_code()` entry point via a temp
   file, exercising the real host callback and file path.
 - Python codes and offzip-extracted targets are skipped (interpreter / external
   state, out of scope for endian testing).

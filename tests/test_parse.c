@@ -1,5 +1,5 @@
 /*
- * Savepatch parsing vectors (load_patch_code_list / get_patch_code).
+ * Savepatch parsing vectors (apollo_load_code_list / get_patch_code).
  *
  * Parsing is endian-agnostic, so these are single-expectation tests that run
  * identically in the LE and BE builds. Input is assumed well-formed (per the
@@ -32,7 +32,7 @@ static list_t* parse(const char* text)
     header->file = strdup("header");
     list_append(list, header);
 
-    load_patch_code_list(buf, list, NULL, NULL);
+    apollo_load_code_list(buf, list, NULL, NULL);
     free(buf);   /* names/codes are strdup'd inside the parser */
     return list;
 }
@@ -103,7 +103,7 @@ TEST(parse_type_savewizard_vs_bsd)
 /*
  * The Save Wizard type is only assigned when EVERY body line is exactly
  * "XXXXXXXX YYYYYYYY" (17 chars) — the mask in loader.c has no trailing '*', so
- * wildcard_match requires a whole-string match. apply_sw_patch_code relies on
+ * wildcard_match requires a whole-string match. apollo_apply_sw_code relies on
  * this: it indexes each line at fixed offsets up to line[16].
  */
 TEST(parse_sw_type_requires_exact_line_width)

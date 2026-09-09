@@ -10,10 +10,10 @@
  * libapollo calls dbglogger_log() for progress (see source/loader.c: #define
  * LOG dbglogger_log). The CLI defined it to printf; we route it to a sink.
  * ------------------------------------------------------------------------- */
-static apollo_log_fn g_log_fn = NULL;
+static apctl_log_fn g_log_fn = NULL;
 static void         *g_log_ud = NULL;
 
-void apollo_set_log_sink(apollo_log_fn fn, void *ud)
+void apctl_set_log_sink(apctl_log_fn fn, void *ud)
 {
     g_log_fn = fn;
     g_log_ud = ud;
@@ -54,21 +54,21 @@ void dbglogger_printf(const char *fmt, ...)
 /* ---------------------------------------------------------------------------
  * Session
  * ------------------------------------------------------------------------- */
-struct apollo_session {
+struct apctl_session {
     list_t         *codes;      /* head node is the synthetic header entry */
     char           *game_name;
     code_entry_t   *header;
-    apollo_code_t  *rows;       /* flattened view, count == n_rows          */
+    apctl_code_t  *rows;       /* flattened view, count == n_rows          */
     int             n_rows;
 };
 
 /* Build the synthetic header entry + flattened rows, mirroring patcher.c. */
-static apollo_session_t *build_session(char *data, size_t len, const char *name)
+static apctl_session_t *build_session(char *data, size_t len, const char *name)
 {
-    apollo_session_t *s = calloc(1, sizeof(*s));
+    apctl_session_t *s = calloc(1, sizeof(*s));
     if (!s) return NULL;
 
-    /* NUL-terminate the working buffer (load_patch_code_list mutates it). */
+    /* NUL-terminate the working buffer (apollo_load_code_list mutates it). */
     data = realloc(data, len + 1);
     data[len] = 0;
 
@@ -92,19 +92,19 @@ static apollo_session_t *build_session(char *data, size_t len, const char *name)
     s->header = header;
     s->codes  = list_alloc();
     list_append(s->codes, header);
-    load_patch_code_list(data, s->codes, NULL, NULL);
+    apollo_load_code_list(data, s->codes, NULL, NULL);
     free(data);
 
     /* Flatten: skip the header node, number from 1 (CLI-compatible). */
     int total = (int)list_count(s->codes) - 1;
     if (total < 0) total = 0;
-    s->rows   = calloc(total ? total : 1, sizeof(apollo_code_t));
+    s->rows   = calloc(total ? total : 1, sizeof(apctl_code_t));
     s->n_rows = 0;
 
     int pos = 1;
     for (list_node_t *node = list_next(list_head(s->codes)); node; node = list_next(node), pos++) {
         code_entry_t *code = list_get(node);
-        apollo_code_t *r = &s->rows[s->n_rows++];
+        apctl_code_t *r = &s->rows[s->n_rows++];
         r->id            = pos;
         r->type          = code->type;
         r->flags         = code->flags;
@@ -119,7 +119,7 @@ static apollo_session_t *build_session(char *data, size_t len, const char *name)
     return s;
 }
 
-apollo_session_t *apollo_open_buffer(const char *buf, size_t len, const char *name)
+apctl_session_t *apctl_open_buffer(const char *buf, size_t len, const char *name)
 {
     if (!buf || !len) return NULL;
     char *data = malloc(len);
@@ -128,7 +128,7 @@ apollo_session_t *apollo_open_buffer(const char *buf, size_t len, const char *na
     return build_session(data, len, name ? name : "buffer");
 }
 
-apollo_session_t *apollo_open_file(const char *path)
+apctl_session_t *apctl_open_file(const char *path)
 {
     uint8_t *data = NULL;
     size_t   len  = 0;
@@ -137,58 +137,58 @@ apollo_session_t *apollo_open_file(const char *path)
     return build_session((char *)data, len, path);
 }
 
-const char *apollo_game_name(apollo_session_t *s)
+const char *apctl_game_name(apctl_session_t *s)
 {
     return s ? (s->game_name ? s->game_name : s->header->name) : "";
 }
 
-int apollo_code_count(apollo_session_t *s) { return s ? s->n_rows : 0; }
+int apctl_code_count(apctl_session_t *s) { return s ? s->n_rows : 0; }
 
-apollo_code_t *apollo_code_at(apollo_session_t *s, int index)
+apctl_code_t *apctl_code_at(apctl_session_t *s, int index)
 {
     if (!s || index < 0 || index >= s->n_rows) return NULL;
     return &s->rows[index];
 }
 
-const char *apollo_code_text(const apollo_code_t *c)
+const char *apctl_code_text(const apctl_code_t *c)
 {
     if (!c || !c->raw || !c->raw->codes) return "";
     return c->raw->codes;
 }
 
 /* ---- options ---- */
-int apollo_opt_group_count(const apollo_code_t *c)
+int apctl_opt_group_count(const apctl_code_t *c)
 {
     return c ? c->raw->options_count : 0;
 }
 
-const char *apollo_opt_tag(const apollo_code_t *c, int group)
+const char *apctl_opt_tag(const apctl_code_t *c, int group)
 {
     if (!c || group < 0 || group >= c->raw->options_count) return "";
     const char *line = c->raw->options[group].line;
     return line ? line : "";
 }
 
-int apollo_opt_value_count(const apollo_code_t *c, int group)
+int apctl_opt_value_count(const apctl_code_t *c, int group)
 {
     if (!c || group < 0 || group >= c->raw->options_count) return 0;
     return (int)list_count(c->raw->options[group].opts);
 }
 
-const char *apollo_opt_value_name(const apollo_code_t *c, int group, int idx)
+const char *apctl_opt_value_name(const apctl_code_t *c, int group, int idx)
 {
     if (!c || group < 0 || group >= c->raw->options_count) return "";
     option_value_t *v = list_get_item(c->raw->options[group].opts, idx);
     return (v && v->name) ? v->name : "";
 }
 
-int apollo_opt_get_selected(const apollo_code_t *c, int group)
+int apctl_opt_get_selected(const apctl_code_t *c, int group)
 {
     if (!c || group < 0 || group >= c->raw->options_count) return -1;
     return c->raw->options[group].sel;
 }
 
-void apollo_opt_set_selected(apollo_code_t *c, int group, int idx)
+void apctl_opt_set_selected(apctl_code_t *c, int group, int idx)
 {
     if (!c || group < 0 || group >= c->raw->options_count) return;
     c->raw->options[group].sel = idx;
@@ -197,29 +197,29 @@ void apollo_opt_set_selected(apollo_code_t *c, int group, int idx)
 /* ---- data endianness ---- */
 static int g_big_endian = 0;
 
-void apollo_set_big_endian(int enabled)
+void apctl_set_big_endian(int enabled)
 {
     g_big_endian = enabled ? 1 : 0;
     apollo_set_endianness(g_big_endian ? APOLLO_DATA_MODE_BIG : APOLLO_DATA_MODE_DEFAULT);
 }
 
-int apollo_get_big_endian(void) { return g_big_endian; }
+int apctl_get_big_endian(void) { return g_big_endian; }
 
 /* ---- apply ---- */
-int apollo_apply(apollo_session_t *s, apollo_code_t *c, const char *target_file)
+int apctl_apply(apctl_session_t *s, apctl_code_t *c, const char *target_file)
 {
     (void)s;
     if (!c) return 0;
     const char *target = target_file ? target_file : c->raw->file;
-    /* free_patch_var_list() resets the engine to the host's byte order, and it
+    /* apollo_free_var_list() resets the engine to the host's byte order, and it
      * can run between codes, so re-assert the mode on every apply. */
     apollo_set_endianness(g_big_endian ? APOLLO_DATA_MODE_BIG : APOLLO_DATA_MODE_DEFAULT);
-    return apply_cheat_patch_code(target, c->raw, NULL) ? 1 : 0;
+    return apollo_apply_code(target, c->raw, NULL) ? 1 : 0;
 }
 
-void apollo_reset_vars(void) { free_patch_var_list(); }
+void apctl_reset_vars(void) { apollo_free_var_list(); }
 
-void apollo_close(apollo_session_t *s)
+void apctl_close(apctl_session_t *s)
 {
     if (!s) return;
     /* list_free walks the engine's code_entry_t entries; the header is ours. */
