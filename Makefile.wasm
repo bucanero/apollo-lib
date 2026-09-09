@@ -45,6 +45,29 @@ MBED_WASM = $(MBEDTLS)/build-wasm/library
 
 CC       = emcc
 AR       = emar
+
+# Resolve tools to a real executable instead of letting a recipe do a bare PATH
+# lookup, because two of the directories emsdk adds to PATH contain
+# SUBDIRECTORIES whose names collide with tools we run:
+#
+#   <emsdk>/upstream/emscripten/cmake   holds Emscripten.cmake
+#   <emsdk>/node                        holds the bundled Node install
+#
+# GNU make execs a simple recipe line itself rather than through a shell, and on
+# Linux its PATH search stops at that directory and fails with
+# "cmake: Permission denied" (make then reports Error 127). Shells are not
+# affected — they skip directories — which is why `emcmake cmake ...` succeeds
+# on the line above and the plain `cmake` on the next line does not, and why
+# this never reproduces on macOS.
+#
+# $(wildcard $(d)/$(1)/.) is non-empty only when $(d)/$(1) is a directory, so
+# this takes the first PATH entry holding a $(1) that is NOT one. Falls back to
+# the bare name so an genuinely missing tool still reports itself normally.
+find_exe = $(firstword $(foreach d,$(subst :, ,$(PATH)), \
+			  $(if $(wildcard $(d)/$(1)/.),,$(wildcard $(d)/$(1)))) $(1))
+
+CMAKE   ?= $(call find_exe,cmake)
+NODE    ?= $(call find_exe,node)
 # -Itools: types.h includes <dbglogger.h>; on consoles that comes from the
 # toolchain (bucanero/dbglogger), on PC/wasm tools/dbglogger.h is the prototype
 # stand-in, the same way the front-end builds do.
@@ -69,10 +92,10 @@ build-wasm:
 # build in $(MBEDTLS)/build/library that tools/ and the front-ends link against.
 # CMAKE_POLICY_VERSION_MINIMUM: mbedtls 2.16's CMake predates CMake 4.
 mbedtls:
-	emcmake cmake -S $(MBEDTLS) -B $(MBEDTLS)/build-wasm \
+	emcmake $(CMAKE) -S $(MBEDTLS) -B $(MBEDTLS)/build-wasm \
 		-DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release \
 		-DENABLE_TESTING=Off -DENABLE_PROGRAMS=Off -DUSE_STATIC_MBEDTLS_LIBRARY=On
-	cmake --build $(MBEDTLS)/build-wasm --target mbedcrypto -j
+	$(CMAKE) --build $(MBEDTLS)/build-wasm --target mbedcrypto -j
 	@echo "$(MBED_WASM)/libmbedcrypto.a built"
 
 # Runs the same suite the native build runs, cross-compiled and executed by
@@ -86,7 +109,7 @@ test:
 		MBED=../$(MBED_WASM) \
 		BUILD=build-wasm \
 		EXE=.js \
-		RUN=node \
+		RUN=$(NODE) \
 		LIBZ= \
 		EXTRA_CFLAGS="--use-port=zlib" \
 		EXTRA_LDFLAGS="-sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=4MB -sEXIT_RUNTIME=1"
