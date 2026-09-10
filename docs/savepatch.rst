@@ -145,7 +145,12 @@ Each cheat code or patch is defined in its own section with a title and code lin
 - ``[DEFAULT:...]`` - Code is activated by default
 - ``[INFO:...]`` - Informational/alert message
 - ``[PYTHON:...]`` - Python script code
+- ``[SW:...]`` - Save Wizard / Game Genie code (force type and skip auto-detection)
+- ``[BSD:...]`` - BSD script code (force type and skip auto-detection)
 - ``[GROUP:...]`` - Group header for organizing codes
+
+Only ONE prefix is read per title, so they cannot be combined:
+A title like ``[DEFAULT:PYTHON:Name]`` is not currently supported.
 
 **Code Lines**
 
@@ -159,9 +164,19 @@ Code lines follow the title and contain the actual patch data::
 
 The parser detects code types automatically:
 
-- `Game Genie / Save Wizard <#game-genie-save-wizard-codes>`__
-- `BSD Script <#bsd-script-codes>`__
+- `Game Genie / Save Wizard <#game-genie-save-wizard-codes>`__ - every code line
+  is exactly ``XXXXXXXX YYYYYYYY``
+- `BSD Script <#bsd-script-codes>`__ - anything else
 - `Python Script <#python-script-codes>`__  (when ``[PYTHON:...]`` prefix is used)
+
+Detection reads the body, so a Save Wizard code with one mistyped line is taken
+for a BSD script and fails to run, and a BSD script whose every line happens to
+have that shape is taken for Save Wizard. ``[SW:...]`` and ``[BSD:...]`` state
+the type instead, and a stated type is never overridden by the body::
+
+   [SW:Max Money]
+   80010004 12345678
+   28000004 0098967F
 
 Game Genie / Save Wizard Codes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
