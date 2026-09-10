@@ -164,15 +164,29 @@ static char* str_ends_with(const char * a, const char * b)
  * Function:		str_rtrim()
  * File:			saves.c
  * Project:			Apollo PS3
- * Description:		Trims ending white spaces (' ') from a string
+ * Description:		Trims trailing blanks (' ' and '\t') from a string
  * Arguments:
  *	buffer:			String
  * Return:			Amount of characters removed
  */
+/*
+ * Tabs count as blanks here, and that reaches further than this line.
+ *
+ * Every line goes through this before the loader matches it, and the NULs it
+ * leaves behind are turned back into newlines (remove_char) before the code
+ * bodies are read -- so whatever this trims is trimmed for BOTH passes. While
+ * it only knew about spaces, a hand-written patch with a tab after a title
+ * ("[Name]\t") had no code at all: the title matched no pattern, so the line
+ * fell into the previous code's body. A tab after a code line was as bad in a
+ * quieter way -- "XXXXXXXX YYYYYYYY\t" is 18 characters, so the code stopped
+ * looking like Save Wizard and was read as a BSD script instead.
+ */
 static int str_rtrim(char * buffer)
 {
 	int i, max = strlen(buffer) - 1;
-	for (i = max; (buffer[i] == ' ') && (i >= 0); i--)
+	/* i >= 0 first: a line of nothing but blanks used to walk off the front
+	   and read buffer[-1] before the bound was tested. */
+	for (i = max; (i >= 0) && (buffer[i] == ' ' || buffer[i] == '\t'); i--)
 		buffer[i] = 0;
 
 	return (max - i);
@@ -373,6 +387,12 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 	char *tmp = NULL;
 	char *res = calloc(1, 1);
 	char *line = strtok(buffer, "\n");
+	/* Type inferred from the body's shape, kept apart from entry->type so that
+	   a type the patch DECLARED ([SW:...], [BSD:...], [PYTHON:...]) is never
+	   overwritten by it. Zero until a code line is seen; once BSD it stays
+	   BSD, since one line the Save Wizard format cannot express rules the
+	   whole code out. */
+	uint8_t inferred = 0;
 
 	if (!res)
 	{
@@ -414,8 +434,9 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 					res = tmp;
 
 //			    	LOG("%s", line);
-					if (entry->type == APOLLO_CODE_GAMEGENIE && (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")))
-						entry->type = APOLLO_CODE_BSD;
+					if (!entry->type && inferred != APOLLO_CODE_BSD)
+						inferred = wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")
+						         ? APOLLO_CODE_SAVEWIZARD : APOLLO_CODE_BSD;
 
 					if (wildcard_match(line, "*{*}*"))
 					{
@@ -436,6 +457,10 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 
 //	LOG("Result (%s)", res);
 	entry->codes = res;
+
+	/* Declared wins; otherwise take what the body looked like. */
+	if (!entry->type)
+		entry->type = inferred;
 }
 
 int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
@@ -519,7 +544,8 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 				continue;
 			}
 
-			code->type = APOLLO_CODE_GAMEGENIE;
+			/* type stays 0 = "not decided": get_patch_code() works it out
+			   from the body unless one of the headers below states it. */
 
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
 			{
@@ -535,6 +561,21 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 			{
 				line += 7;
 				code->type = APOLLO_CODE_PYTHON;
+			}
+			/* Save Wizard and BSD are otherwise told apart by the shape of
+			   the body -- Save Wizard only when EVERY line is exactly
+			   "XXXXXXXX YYYYYYYY" -- so a code with one line the format
+			   cannot express becomes BSD and stops working, with no way for
+			   the author to say otherwise. These two headers are that way. */
+			else if (wildcard_match_icase(line, "[SW:*"))
+			{
+				line += 3;
+				code->type = APOLLO_CODE_SAVEWIZARD;
+			}
+			else if (wildcard_match_icase(line, "[BSD:*"))
+			{
+				line += 4;
+				code->type = APOLLO_CODE_BSD;
 			}
 			else if (wildcard_match_icase(line, "[LE:*"))
 			{
@@ -603,12 +644,25 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 		}
 	}
 
-	while ((node = list_next(node)) != NULL)
+	/* Second pass: fill in the bodies of what this call appended. That is
+	   everything after the mark taken on entry -- or the whole list, when the
+	   caller handed us an empty one and there was no tail to mark. Callers
+	   normally seed a header node of their own (the game name row), which is
+	   why the mark exists at all. */
+	node = node ? list_next(node) : list_head(list_codes);
+
+	for (; node != NULL; node = list_next(node))
 	{
 		code = list_get(node);
 		// remove 0x00 from previous strtok(...)
 		remove_char(buffer, bufferLen, '\0');
 		get_patch_code(buffer, code_count++, code, opt_list);
+
+		/* Nothing declared and nothing to infer from (an empty body, or the
+		   parse ran out of memory): keep the historical default rather than
+		   hand a caller a code whose type is 0. */
+		if (!code->type)
+			code->type = APOLLO_CODE_SAVEWIZARD;
 
 		if(!code->codes || !code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
@@ -637,4 +691,41 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 	list_free(opt_list);
 
 	return code_count;
+}
+
+void apollo_free_code_entry(code_entry_t* code)
+{
+	if (!code)
+		return;
+
+	for (int i = 0; code->options && i < code->options_count; i++)
+	{
+		option_value_t* val;
+		list_node_t* node;
+
+		for (node = list_head(code->options[i].opts); (val = list_get(node)); node = list_next(node))
+		{
+			free(val->name);
+			free(val->value);
+			free(val);
+		}
+		// a {tag} with no matching option block leaves the slot zeroed, and
+		// both of these take NULL
+		list_free(code->options[i].opts);
+		free(code->options[i].line);
+	}
+
+	free(code->options);
+	free(code->codes);
+	free(code->name);
+	free(code->file);
+	free(code);
+}
+
+void apollo_free_code_list(list_t* list_codes, list_node_t* first)
+{
+	for (list_node_t* node = first; node != NULL; node = list_next(node))
+		apollo_free_code_entry(list_get(node));
+
+	list_free(list_codes);
 }

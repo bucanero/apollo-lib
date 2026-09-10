@@ -4282,7 +4282,7 @@ int apollo_apply_code(const char* fpath, const code_entry_t* code, apollo_host_c
 
 	switch (code->type)
 	{
-	case APOLLO_CODE_GAMEGENIE:
+	case APOLLO_CODE_SAVEWIZARD:
 		LOG("Save Wizard Code");
 		dsize = apollo_apply_sw_code(data, dsize, code);
 		break;

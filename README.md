@@ -23,6 +23,9 @@ The library is cross-platform and is required to build:
 
 ### Save Wizard / Game Genie
 
+Recognised by the shape of the code body, or stated with a `[SW:...]` title
+prefix (`[BSD:...]` and `[PYTHON:...]` do the same for the other two kinds).
+
 - Code Type 0: Standard 1 Byte Write
 - Code Type 1: Standard 2 Byte Write
 - Code Type 2: Standard 4 Byte Write

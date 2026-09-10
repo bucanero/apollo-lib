@@ -8,9 +8,11 @@
  *
  *   - `:file` headers set the target file for following codes
  *   - `[Name]` starts a code; the trailing `]` and ` ---` are stripped
- *   - code TYPE defaults to Save Wizard and flips to BSD as soon as any
- *     non-comment body line is not `XXXXXXXX YYYYYYYY`
- *   - `[DEFAULT:*]` -> activated, `[INFO:*]` -> ALERT, `[PYTHON:*]` -> Python
+ *   - code TYPE is inferred from the body -- Save Wizard only while every
+ *     non-comment line is `XXXXXXXX YYYYYYYY`, BSD from the first that is not
+ *     -- unless a header states it, and then the header wins
+ *   - `[DEFAULT:*]` -> activated, `[INFO:*]` -> ALERT, `[PYTHON:*]` -> Python,
+ *     `[SW:*]` -> Save Wizard, `[BSD:*]` -> BSD
  *   - `[GROUP:*]` -> PARENT, following codes -> CHILD
  *   - a name containing `(REQUIRED)` -> REQUIRED
  *   - a body with no code lines (comments only / empty) -> EMPTY
@@ -35,6 +37,18 @@ static list_t* parse(const char* text)
     apollo_load_code_list(buf, list, NULL, NULL);
     free(buf);   /* names/codes are strdup'd inside the parser */
     return list;
+}
+
+/* Teardown, the split apollo_free_code_list() documents: the loader's entries
+ * go back through the library, the caller-owned header by hand. */
+static void free_parsed(list_t* list)
+{
+    code_entry_t* header = list_get(list_head(list));
+
+    apollo_free_code_list(list, list_next(list_head(list)));
+    free(header->name);
+    free(header->file);
+    free(header);
 }
 
 static const char* SAMPLE =
@@ -203,4 +217,171 @@ TEST(parse_empty_body_flag)
     code_entry_t* c = list_get_item(l, I_EMPTY);
 
     CHECK_U64("comment-only body -> EMPTY", (c->flags & APOLLO_CODE_FLAG_EMPTY) != 0, 1);
+}
+
+/*
+ * Interactive {TAG} options: the option block declares `value=Display` pairs,
+ * a code body referencing the tag gets a deep copy of them, and the selection
+ * starts at -1 — "not chosen", which is what makes the front-ends block Apply
+ * until the user picks rather than silently taking the first value.
+ *
+ * This is also the one shape that exercises every branch of
+ * apollo_free_code_list() (option array, value list, per-value strings), so
+ * the teardown runs here and an -fsanitize=address build covers it.
+ */
+TEST(parse_option_tag_values)
+{
+    list_t* l = parse(";CUSA00000\n"
+                      ";Option Sample\n"
+                      ":SAVE.DAT\n"
+                      "{Z}001=First;002=Second{/Z}\n"
+                      "[Pick a slot]\n"
+                      "20000004 000000{Z}\n");
+
+    code_entry_t* c = list_get_item(l, 1);
+    CHECK_U64("one {tag} in the body -> one option group", c->options_count, 1);
+    CHECK_STR("group keeps the tag verbatim, braces included", c->options[0].line, "{Z}");
+    CHECK_U64("both values parsed", list_count(c->options[0].opts), 2);
+    CHECK_U64("nothing selected yet", (int64_t)c->options[0].sel, (int64_t)-1);
+
+    option_value_t* first = list_get_item(c->options[0].opts, 0);
+    CHECK_STR("left of '=' is the substituted value", first->value, "001");
+    CHECK_STR("right of '=' is the display name", first->name, "First");
+
+    free_parsed(l);
+}
+
+/*
+ * A declared type beats the body's shape.
+ *
+ * Inference alone cannot be overridden, and it is not always right: a Save
+ * Wizard code with a single mistyped line reads as BSD and then fails, and a
+ * BSD script whose every line happens to be eight hex digits, a space and
+ * eight more reads as Save Wizard. No patch in the database declares a type
+ * yet, so these two cases exist nowhere else to test against.
+ */
+TEST(parse_declared_type_beats_body)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[SW:Mistyped but still Save Wizard]\n"
+                      "20000004 12345678\n"
+                      "20000008 1234567\n"        /* 16 chars: would infer BSD */
+                      "\n"
+                      "[BSD:Hex-shaped but still BSD]\n"
+                      "20000004 12345678\n"       /* would infer Save Wizard   */
+                      "\n"
+                      "[sw:lower case works too]\n"
+                      "set [x]:0\n");
+
+    CHECK_U64("[SW:*] survives a non-conforming line",
+              ((code_entry_t*)list_get_item(l, 1))->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_U64("[BSD:*] survives a conforming body",
+              ((code_entry_t*)list_get_item(l, 2))->type, APOLLO_CODE_BSD);
+    CHECK_U64("the prefix is case-insensitive",
+              ((code_entry_t*)list_get_item(l, 3))->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("[SW:*] is stripped from the name",
+              ((code_entry_t*)list_get_item(l, 1))->name, "Mistyped but still Save Wizard");
+    CHECK_STR("[BSD:*] is stripped from the name",
+              ((code_entry_t*)list_get_item(l, 2))->name, "Hex-shaped but still BSD");
+
+    free_parsed(l);
+}
+
+/* A code the parser can infer nothing from still has to come back with a
+ * usable type: front-ends switch on it, and 0 is not one of the three. */
+TEST(parse_type_never_zero)
+{
+    list_t* l = parse(SAMPLE);
+    int zeros = 0;
+
+    for (size_t i = 1; i < list_count(l); i++)
+        if (((code_entry_t*)list_get_item(l, i))->type == 0) zeros++;
+
+    CHECK_U64("no parsed code has type 0", zeros, 0);
+    CHECK_U64("an empty body still reads as Save Wizard",
+              ((code_entry_t*)list_get_item(l, I_EMPTY))->type, APOLLO_CODE_SAVEWIZARD);
+
+    free_parsed(l);
+}
+
+/*
+ * Trailing blanks are the parser's problem, not the author's.
+ *
+ * Both of the loader's passes see lines that str_rtrim() has trimmed, so a
+ * stray tab used to have two very different consequences: after a title, the
+ * line matched no pattern and its code was never created (the text fell into
+ * the code above); after a code line, the extra character made the body stop
+ * looking like Save Wizard and the whole code was read as a BSD script.
+ * Hand-written patches in the database had both.
+ */
+TEST(parse_trailing_blanks_ignored)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[Tab after the title]\t\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[Tab after a code line]\n"
+                      "20000004 12345678\t\n"
+                      "\n"
+                      "[Spaces after both]   \n"
+                      "20000004 12345678   \n");
+
+    CHECK_U64("a tabbed title still starts a code", list_count(l), 4);
+
+    code_entry_t* tabbed  = list_get_item(l, 1);
+    code_entry_t* tabline = list_get_item(l, 2);
+    code_entry_t* spaced  = list_get_item(l, 3);
+
+    CHECK_STR("the tab is not part of the name", tabbed->name, "Tab after the title");
+    CHECK_STR("nor are trailing spaces", spaced->name, "Spaces after both");
+
+    CHECK_U64("a tab after a code line -> still Save Wizard",
+              tabline->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_U64("spaces after a code line -> still Save Wizard",
+              spaced->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("the body carries no trailing blank", tabline->codes, "20000004 12345678\n");
+
+    free_parsed(l);
+}
+
+/*
+ * Parsing into an EMPTY list.
+ *
+ * Every in-tree caller seeds the list with its own header node first (the game
+ * name row), and the parser leans on that: it marks list_tail() on entry and
+ * fills in what it appended after the mark. An empty list has no tail, so the
+ * mark was NULL and the pass that reads bodies never ran at all -- codes were
+ * appended with their names, and nothing else.
+ */
+TEST(parse_without_header_node)
+{
+    char*   buf = strdup(":F.BIN\n"
+                         "[First]\n"
+                         "20000004 12345678\n"
+                         "\n"
+                         "[Second]\n"
+                         "set [x]:0\n");
+    list_t* l = list_alloc();
+
+    int n = apollo_load_code_list(buf, l, NULL, NULL);
+    free(buf);
+
+    CHECK_U64("both codes parsed", list_count(l), 2);
+    CHECK_U64("the return value counts them", n, 2);
+
+    code_entry_t* first  = list_get_item(l, 0);
+    code_entry_t* second = list_get_item(l, 1);
+
+    CHECK_STR("first name", first->name, "First");
+    CHECK_STR("first body", first->codes, "20000004 12345678\n");
+    CHECK_U64("first type", first->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("second name", second->name, "Second");
+    CHECK_STR("second body", second->codes, "set [x]:0\n");
+    CHECK_U64("second type", second->type, APOLLO_CODE_BSD);
+
+    /* No caller-owned node here, so every entry is the library's. */
+    apollo_free_code_list(l, list_head(l));
 }
