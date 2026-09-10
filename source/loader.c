@@ -373,6 +373,12 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 	char *tmp = NULL;
 	char *res = calloc(1, 1);
 	char *line = strtok(buffer, "\n");
+	/* Type inferred from the body's shape, kept apart from entry->type so that
+	   a type the patch DECLARED ([SW:...], [BSD:...], [PYTHON:...]) is never
+	   overwritten by it. Zero until a code line is seen; once BSD it stays
+	   BSD, since one line the Save Wizard format cannot express rules the
+	   whole code out. */
+	uint8_t inferred = 0;
 
 	if (!res)
 	{
@@ -414,8 +420,9 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 					res = tmp;
 
 //			    	LOG("%s", line);
-					if (entry->type == APOLLO_CODE_GAMEGENIE && (!wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")))
-						entry->type = APOLLO_CODE_BSD;
+					if (!entry->type && inferred != APOLLO_CODE_BSD)
+						inferred = wildcard_match(line, "\?\?\?\?\?\?\?\? \?\?\?\?\?\?\?\?")
+						         ? APOLLO_CODE_SAVEWIZARD : APOLLO_CODE_BSD;
 
 					if (wildcard_match(line, "*{*}*"))
 					{
@@ -436,6 +443,10 @@ static void get_patch_code(char* buffer, int code_id, code_entry_t* entry, list_
 
 //	LOG("Result (%s)", res);
 	entry->codes = res;
+
+	/* Declared wins; otherwise take what the body looked like. */
+	if (!entry->type)
+		entry->type = inferred;
 }
 
 int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_opt, const char* save_path)
@@ -519,7 +530,8 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 				continue;
 			}
 
-			code->type = APOLLO_CODE_GAMEGENIE;
+			/* type stays 0 = "not decided": get_patch_code() works it out
+			   from the body unless one of the headers below states it. */
 
 			if (wildcard_match_icase(line, "[DEFAULT:*"))
 			{
@@ -535,6 +547,21 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 			{
 				line += 7;
 				code->type = APOLLO_CODE_PYTHON;
+			}
+			/* Save Wizard and BSD are otherwise told apart by the shape of
+			   the body -- Save Wizard only when EVERY line is exactly
+			   "XXXXXXXX YYYYYYYY" -- so a code with one line the format
+			   cannot express becomes BSD and stops working, with no way for
+			   the author to say otherwise. These two headers are that way. */
+			else if (wildcard_match_icase(line, "[SW:*"))
+			{
+				line += 3;
+				code->type = APOLLO_CODE_SAVEWIZARD;
+			}
+			else if (wildcard_match_icase(line, "[BSD:*"))
+			{
+				line += 4;
+				code->type = APOLLO_CODE_BSD;
 			}
 			else if (wildcard_match_icase(line, "[LE:*"))
 			{
@@ -609,6 +636,12 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 		// remove 0x00 from previous strtok(...)
 		remove_char(buffer, bufferLen, '\0');
 		get_patch_code(buffer, code_count++, code, opt_list);
+
+		/* Nothing declared and nothing to infer from (an empty body, or the
+		   parse ran out of memory): keep the historical default rather than
+		   hand a caller a code whose type is 0. */
+		if (!code->type)
+			code->type = APOLLO_CODE_SAVEWIZARD;
 
 		if(!code->codes || !code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;

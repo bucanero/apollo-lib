@@ -8,9 +8,11 @@
  *
  *   - `:file` headers set the target file for following codes
  *   - `[Name]` starts a code; the trailing `]` and ` ---` are stripped
- *   - code TYPE defaults to Save Wizard and flips to BSD as soon as any
- *     non-comment body line is not `XXXXXXXX YYYYYYYY`
- *   - `[DEFAULT:*]` -> activated, `[INFO:*]` -> ALERT, `[PYTHON:*]` -> Python
+ *   - code TYPE is inferred from the body -- Save Wizard only while every
+ *     non-comment line is `XXXXXXXX YYYYYYYY`, BSD from the first that is not
+ *     -- unless a header states it, and then the header wins
+ *   - `[DEFAULT:*]` -> activated, `[INFO:*]` -> ALERT, `[PYTHON:*]` -> Python,
+ *     `[SW:*]` -> Save Wizard, `[BSD:*]` -> BSD
  *   - `[GROUP:*]` -> PARENT, following codes -> CHILD
  *   - a name containing `(REQUIRED)` -> REQUIRED
  *   - a body with no code lines (comments only / empty) -> EMPTY
@@ -245,6 +247,60 @@ TEST(parse_option_tag_values)
     option_value_t* first = list_get_item(c->options[0].opts, 0);
     CHECK_STR("left of '=' is the substituted value", first->value, "001");
     CHECK_STR("right of '=' is the display name", first->name, "First");
+
+    free_parsed(l);
+}
+
+/*
+ * A declared type beats the body's shape.
+ *
+ * Inference alone cannot be overridden, and it is not always right: a Save
+ * Wizard code with a single mistyped line reads as BSD and then fails, and a
+ * BSD script whose every line happens to be eight hex digits, a space and
+ * eight more reads as Save Wizard. No patch in the database declares a type
+ * yet, so these two cases exist nowhere else to test against.
+ */
+TEST(parse_declared_type_beats_body)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[SW:Mistyped but still Save Wizard]\n"
+                      "20000004 12345678\n"
+                      "20000008 1234567\n"        /* 16 chars: would infer BSD */
+                      "\n"
+                      "[BSD:Hex-shaped but still BSD]\n"
+                      "20000004 12345678\n"       /* would infer Save Wizard   */
+                      "\n"
+                      "[sw:lower case works too]\n"
+                      "set [x]:0\n");
+
+    CHECK_U64("[SW:*] survives a non-conforming line",
+              ((code_entry_t*)list_get_item(l, 1))->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_U64("[BSD:*] survives a conforming body",
+              ((code_entry_t*)list_get_item(l, 2))->type, APOLLO_CODE_BSD);
+    CHECK_U64("the prefix is case-insensitive",
+              ((code_entry_t*)list_get_item(l, 3))->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("[SW:*] is stripped from the name",
+              ((code_entry_t*)list_get_item(l, 1))->name, "Mistyped but still Save Wizard");
+    CHECK_STR("[BSD:*] is stripped from the name",
+              ((code_entry_t*)list_get_item(l, 2))->name, "Hex-shaped but still BSD");
+
+    free_parsed(l);
+}
+
+/* A code the parser can infer nothing from still has to come back with a
+ * usable type: front-ends switch on it, and 0 is not one of the three. */
+TEST(parse_type_never_zero)
+{
+    list_t* l = parse(SAMPLE);
+    int zeros = 0;
+
+    for (size_t i = 1; i < list_count(l); i++)
+        if (((code_entry_t*)list_get_item(l, i))->type == 0) zeros++;
+
+    CHECK_U64("no parsed code has type 0", zeros, 0);
+    CHECK_U64("an empty body still reads as Save Wizard",
+              ((code_entry_t*)list_get_item(l, I_EMPTY))->type, APOLLO_CODE_SAVEWIZARD);
 
     free_parsed(l);
 }
