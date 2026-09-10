@@ -139,6 +139,17 @@ size_t apollo_apply_sw_code(uint8_t* data, size_t dsize, const code_entry_t* cod
 size_t apollo_apply_bsd_code(uint8_t** data, size_t dsize, const code_entry_t* code);
 size_t apollo_apply_py_code(uint8_t** src_data, size_t dsize, const code_entry_t* code);
 int apollo_apply_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
+// Parses `buffer` (mutated in place) and appends one code_entry_t per code to
+// `list_codes`, returning how many were added.
+//
+// Entries already in the list are left alone: the parser marks the tail on
+// entry and only fills in what it appends after that, which is what lets a
+// caller seed the list with a header node of its own (the game-name row every
+// front-end shows). Passing an empty list is fine too -- then every entry in
+// it is the parser's.
+//
+// Ownership of the appended entries passes to the caller; release them with
+// apollo_free_code_list() below.
 int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
 // Teardown for what apollo_load_code_list() allocated.

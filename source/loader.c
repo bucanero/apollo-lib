@@ -644,7 +644,14 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 		}
 	}
 
-	while ((node = list_next(node)) != NULL)
+	/* Second pass: fill in the bodies of what this call appended. That is
+	   everything after the mark taken on entry -- or the whole list, when the
+	   caller handed us an empty one and there was no tail to mark. Callers
+	   normally seed a header node of their own (the game name row), which is
+	   why the mark exists at all. */
+	node = node ? list_next(node) : list_head(list_codes);
+
+	for (; node != NULL; node = list_next(node))
 	{
 		code = list_get(node);
 		// remove 0x00 from previous strtok(...)

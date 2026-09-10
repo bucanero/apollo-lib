@@ -345,3 +345,43 @@ TEST(parse_trailing_blanks_ignored)
 
     free_parsed(l);
 }
+
+/*
+ * Parsing into an EMPTY list.
+ *
+ * Every in-tree caller seeds the list with its own header node first (the game
+ * name row), and the parser leans on that: it marks list_tail() on entry and
+ * fills in what it appended after the mark. An empty list has no tail, so the
+ * mark was NULL and the pass that reads bodies never ran at all -- codes were
+ * appended with their names, and nothing else.
+ */
+TEST(parse_without_header_node)
+{
+    char*   buf = strdup(":F.BIN\n"
+                         "[First]\n"
+                         "20000004 12345678\n"
+                         "\n"
+                         "[Second]\n"
+                         "set [x]:0\n");
+    list_t* l = list_alloc();
+
+    int n = apollo_load_code_list(buf, l, NULL, NULL);
+    free(buf);
+
+    CHECK_U64("both codes parsed", list_count(l), 2);
+    CHECK_U64("the return value counts them", n, 2);
+
+    code_entry_t* first  = list_get_item(l, 0);
+    code_entry_t* second = list_get_item(l, 1);
+
+    CHECK_STR("first name", first->name, "First");
+    CHECK_STR("first body", first->codes, "20000004 12345678\n");
+    CHECK_U64("first type", first->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("second name", second->name, "Second");
+    CHECK_STR("second body", second->codes, "set [x]:0\n");
+    CHECK_U64("second type", second->type, APOLLO_CODE_BSD);
+
+    /* No caller-owned node here, so every entry is the library's. */
+    apollo_free_code_list(l, list_head(l));
+}
