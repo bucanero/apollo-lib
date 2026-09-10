@@ -164,15 +164,29 @@ static char* str_ends_with(const char * a, const char * b)
  * Function:		str_rtrim()
  * File:			saves.c
  * Project:			Apollo PS3
- * Description:		Trims ending white spaces (' ') from a string
+ * Description:		Trims trailing blanks (' ' and '\t') from a string
  * Arguments:
  *	buffer:			String
  * Return:			Amount of characters removed
  */
+/*
+ * Tabs count as blanks here, and that reaches further than this line.
+ *
+ * Every line goes through this before the loader matches it, and the NULs it
+ * leaves behind are turned back into newlines (remove_char) before the code
+ * bodies are read -- so whatever this trims is trimmed for BOTH passes. While
+ * it only knew about spaces, a hand-written patch with a tab after a title
+ * ("[Name]\t") had no code at all: the title matched no pattern, so the line
+ * fell into the previous code's body. A tab after a code line was as bad in a
+ * quieter way -- "XXXXXXXX YYYYYYYY\t" is 18 characters, so the code stopped
+ * looking like Save Wizard and was read as a BSD script instead.
+ */
 static int str_rtrim(char * buffer)
 {
 	int i, max = strlen(buffer) - 1;
-	for (i = max; (buffer[i] == ' ') && (i >= 0); i--)
+	/* i >= 0 first: a line of nothing but blanks used to walk off the front
+	   and read buffer[-1] before the bound was tested. */
+	for (i = max; (i >= 0) && (buffer[i] == ' ' || buffer[i] == '\t'); i--)
 		buffer[i] = 0;
 
 	return (max - i);

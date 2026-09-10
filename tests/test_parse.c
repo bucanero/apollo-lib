@@ -304,3 +304,44 @@ TEST(parse_type_never_zero)
 
     free_parsed(l);
 }
+
+/*
+ * Trailing blanks are the parser's problem, not the author's.
+ *
+ * Both of the loader's passes see lines that str_rtrim() has trimmed, so a
+ * stray tab used to have two very different consequences: after a title, the
+ * line matched no pattern and its code was never created (the text fell into
+ * the code above); after a code line, the extra character made the body stop
+ * looking like Save Wizard and the whole code was read as a BSD script.
+ * Hand-written patches in the database had both.
+ */
+TEST(parse_trailing_blanks_ignored)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[Tab after the title]\t\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[Tab after a code line]\n"
+                      "20000004 12345678\t\n"
+                      "\n"
+                      "[Spaces after both]   \n"
+                      "20000004 12345678   \n");
+
+    CHECK_U64("a tabbed title still starts a code", list_count(l), 4);
+
+    code_entry_t* tabbed  = list_get_item(l, 1);
+    code_entry_t* tabline = list_get_item(l, 2);
+    code_entry_t* spaced  = list_get_item(l, 3);
+
+    CHECK_STR("the tab is not part of the name", tabbed->name, "Tab after the title");
+    CHECK_STR("nor are trailing spaces", spaced->name, "Spaces after both");
+
+    CHECK_U64("a tab after a code line -> still Save Wizard",
+              tabline->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_U64("spaces after a code line -> still Save Wizard",
+              spaced->type, APOLLO_CODE_SAVEWIZARD);
+
+    CHECK_STR("the body carries no trailing blank", tabline->codes, "20000004 12345678\n");
+
+    free_parsed(l);
+}
