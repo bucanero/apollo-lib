@@ -37,6 +37,18 @@ static list_t* parse(const char* text)
     return list;
 }
 
+/* Teardown, the split apollo_free_code_list() documents: the loader's entries
+ * go back through the library, the caller-owned header by hand. */
+static void free_parsed(list_t* list)
+{
+    code_entry_t* header = list_get(list_head(list));
+
+    apollo_free_code_list(list, list_next(list_head(list)));
+    free(header->name);
+    free(header->file);
+    free(header);
+}
+
 static const char* SAMPLE =
     ";CUSA00000\n"
     ";Game Title\n"
@@ -203,4 +215,36 @@ TEST(parse_empty_body_flag)
     code_entry_t* c = list_get_item(l, I_EMPTY);
 
     CHECK_U64("comment-only body -> EMPTY", (c->flags & APOLLO_CODE_FLAG_EMPTY) != 0, 1);
+}
+
+/*
+ * Interactive {TAG} options: the option block declares `value=Display` pairs,
+ * a code body referencing the tag gets a deep copy of them, and the selection
+ * starts at -1 — "not chosen", which is what makes the front-ends block Apply
+ * until the user picks rather than silently taking the first value.
+ *
+ * This is also the one shape that exercises every branch of
+ * apollo_free_code_list() (option array, value list, per-value strings), so
+ * the teardown runs here and an -fsanitize=address build covers it.
+ */
+TEST(parse_option_tag_values)
+{
+    list_t* l = parse(";CUSA00000\n"
+                      ";Option Sample\n"
+                      ":SAVE.DAT\n"
+                      "{Z}001=First;002=Second{/Z}\n"
+                      "[Pick a slot]\n"
+                      "20000004 000000{Z}\n");
+
+    code_entry_t* c = list_get_item(l, 1);
+    CHECK_U64("one {tag} in the body -> one option group", c->options_count, 1);
+    CHECK_STR("group keeps the tag verbatim, braces included", c->options[0].line, "{Z}");
+    CHECK_U64("both values parsed", list_count(c->options[0].opts), 2);
+    CHECK_U64("nothing selected yet", (int64_t)c->options[0].sel, (int64_t)-1);
+
+    option_value_t* first = list_get_item(c->options[0].opts, 0);
+    CHECK_STR("left of '=' is the substituted value", first->value, "001");
+    CHECK_STR("right of '=' is the display name", first->name, "First");
+
+    free_parsed(l);
 }

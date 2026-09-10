@@ -638,3 +638,40 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 
 	return code_count;
 }
+
+void apollo_free_code_entry(code_entry_t* code)
+{
+	if (!code)
+		return;
+
+	for (int i = 0; code->options && i < code->options_count; i++)
+	{
+		option_value_t* val;
+		list_node_t* node;
+
+		for (node = list_head(code->options[i].opts); (val = list_get(node)); node = list_next(node))
+		{
+			free(val->name);
+			free(val->value);
+			free(val);
+		}
+		// a {tag} with no matching option block leaves the slot zeroed, and
+		// both of these take NULL
+		list_free(code->options[i].opts);
+		free(code->options[i].line);
+	}
+
+	free(code->options);
+	free(code->codes);
+	free(code->name);
+	free(code->file);
+	free(code);
+}
+
+void apollo_free_code_list(list_t* list_codes, list_node_t* first)
+{
+	for (list_node_t* node = first; node != NULL; node = list_next(node))
+		apollo_free_code_entry(list_get(node));
+
+	list_free(list_codes);
+}

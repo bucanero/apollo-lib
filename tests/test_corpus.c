@@ -153,7 +153,10 @@ static void process_file(const char* path, const char* rel, const uint8_t* basel
         if (!code) break;
         idx++;
 
-        code->file = (char*)g_tmp_path;
+        /* target every code at our temp file, keeping ownership uniform so
+         * apollo_free_code_list() can take the whole list below */
+        free(code->file);
+        code->file = strdup(g_tmp_path);
 
         if (code->type == APOLLO_CODE_PYTHON) {
             printf("%s#%d\t%d\tskip-python\t-\t-\n", rel, idx, code->type);
@@ -183,7 +186,10 @@ static void process_file(const char* path, const char* rel, const uint8_t* basel
         }
     }
 
-    list_free(codes);
+    /* the header is ours (its name/file point at caller storage), the parsed
+     * entries are the loader's */
+    apollo_free_code_list(codes, list_next(list_head(codes)));
+    free(header);
     free(data);
     fflush(stdout);
 }

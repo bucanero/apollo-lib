@@ -141,6 +141,24 @@ size_t apollo_apply_py_code(uint8_t** src_data, size_t dsize, const code_entry_t
 int apollo_apply_code(const char* file_path, const code_entry_t* code, apollo_host_cb_t host_cb);
 int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_t get_files_cb, const char* save_path);
 
+// Teardown for what apollo_load_code_list() allocated.
+//
+// The loader only ever owns what it appended: it marks list_tail() on entry and
+// fills in nodes from there on, leaving entries the caller put in the list
+// beforehand alone. Freeing follows the same rule -- `first` is the first entry
+// to release, i.e. the node right after the caller's own. Pass NULL to free
+// nothing but the list.
+//
+// The nodes and the list_t go too (as list_free() would); entries before
+// `first` are the caller's, and so are their strings.
+void apollo_free_code_list(list_t* list_codes, list_node_t* first);
+
+// One entry, as the loader built it: name, file, codes and the whole options
+// tree. Not for an entry the caller assembled itself unless every one of those
+// came from malloc -- a `file` that points at static storage or at another
+// entry's string is exactly what apollo_free_code_list() skips.
+void apollo_free_code_entry(code_entry_t* code);
+
 
 //---  Apollo crypto functions ---
 //
