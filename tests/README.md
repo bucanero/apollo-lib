@@ -28,7 +28,7 @@ their expected bytes once, which asserts that invariance.
 | `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). Fletcher-16/32 get full known-answer coverage: the published check values, the deferred-modulo block boundary (against exact arbitrary-precision reference values, not a second copy of the blocked algorithm), odd-length zero padding, an empty range, and both BSD commands. Fletcher-32's little-endian word order is fixed in the algorithm rather than taken from the host, so every one of those vectors holds identically in the LE and BE builds. |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
-| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo: Diablo 3, Monster Hunter PSP (ver 2 and 3), MGS Peace Walker (PS3 HD Edition, PSP US/EU and PSP JP digital), NFS Undercover, DW8XL, Borderlands 3 and Silent Hill 3. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges. Run with `make check-samples SAMPLES=...`. |
+| `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo — every tool there that ships an `.enc`/`.dec` pair. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges, `{TAG}` option branches, and the multi-code chains a front-end applies in file order. Covers BSD ciphers, the MGS5 PS3/PS4 key set, and the **Python** patches (the only coverage MicroPython has here — `test_corpus.c` skips every Python code). Run with `make check-samples SAMPLES=... PATCHES=...`. |
 | `test_mgspw.c` | MGS Peace Walker bounds vectors using synthetic buffers: undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused, and the PSP size guard held independent of the (larger) PS3 one — a shared guard rejects every real PSP save. Plus an **opt-in** correctness round-trip against a real PS3 save via `make check-mgspw MGSPW_SAVE=...`. |
 | `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
 | `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
@@ -51,12 +51,82 @@ Point the check at a clone of
 [save-decrypters](https://github.com/bucanero/save-decrypters):
 
 ```bash
-make check-samples SAMPLES=/path/to/save-decrypters
+make check-samples SAMPLES=/path/to/save-decrypters \
+                   PATCHES=/path/to/apollo-patches
 ```
 
 A round-trip only proves a cipher is reversible; these prove libapollo speaks
 the real format. The NFS Undercover off-by-one fixed in `63f334a` round-tripped
 perfectly and still produced the wrong bytes.
+
+`PATCHES` is only needed for the Python vectors, whose patches `import` helper
+modules from `apollo-patches/python`. Left at its `fixtures` default those skip
+with a message and everything else still runs.
+
+Three things these vectors pin down that are easy to get wrong from the outside:
+
+- **Byte order is the host's job on the BSD path.** `apollo_apply_bsd_code()`
+  ignores the per-code `APOLLO_CODE_FLAG_ORDER_*` flags — only
+  `apollo_apply_sw_code()` reads those — and `apollo_apply_code()` does not set
+  it either. It comes from `apollo_set_endianness()` alone, and
+  `apollo_free_var_list()` resets it, so a host has to re-assert it **before
+  every apply** (which is what `apctl_apply()` in `apollo-patcher` does). The
+  MGS5 PS3 vectors fail if either half of that is missing.
+- **Chained Python codes are not the same as concatenated ones.** Each code
+  gets `savedata` as a fresh bytearray built from the file; a code that
+  reassigns it (`savedata = uzlib.compress(...)`) leaves immutable `bytes`
+  behind, which is fine at a code boundary and a `TypeError` mid-body. The FF
+  Pixel Remaster vector applies its four codes separately for that reason.
+- **Compression is not canonical.** Re-compressing Max Payne 3's plaintext
+  yields 17202 bytes where the sample's own compressor produced 18108, and
+  both decompress to the same save — so those vectors assert
+  `decrypt(encrypt(x)) == x` rather than comparing against the stored
+  ciphertext, and skip the header fields computed over the compressed stream.
+
+**The Python vectors are why the wasm build works at all.** They were the first
+thing in this suite to execute MicroPython — `test_corpus.c` skips every Python
+code — and they turned up two real defects:
+
+- **`micropy_mpz_as_bytes()` did not zero-fill.** It emitted one byte per digit
+  the bignum had and returned, so `struct.pack_into('>I', buf, 0, x)` wrote
+  only the low two bytes of a four-byte field when `x` needed fewer, and the
+  high two kept whatever the buffer held. `MP_SMALL_INT` is 31 bits on a 32-bit
+  target and 63 on a 64-bit one, so the values in question are bignums on
+  wasm32, **PS3, PSP and PS Vita** and plain small ints on x86_64 — this was a
+  32-bit bug on every console build, not a wasm one, and the native suite could
+  never have caught it. It corrupted ~80% of a Dead or Alive 5 save.
+  `python_mpz_pack_into_zero_fills` pins it, and needs no fixtures, so it runs
+  in a plain `make check` (where, being 64-bit, it will pass either way — it
+  earns its keep on the wasm and console builds).
+
+- **The conservative GC is blind under wasm.** `micropy_gc_collect()` scans from
+  `&regs` up to `vm.stack_top`, but wasm keeps locals in wasm locals rather
+  than addressable memory: a measured run had **1276 bytes** of shadow stack for
+  the entire live VM call chain. Live objects went unseen, were swept, and the
+  next free of one tripped `assert(!"bad free")` on an `AT_FREE` block. The fix
+  is Binaryen's `--spill-pointers`, which `Makefile.wasm` now applies as a
+  post-link step — see the note at the top of that file for why passing it via
+  `-sBINARYEN_EXTRA_PASSES` silently does nothing.
+
+One vector still fails under wasm: `sample_mhworld`, the 8MB save, raises
+`MemoryError`. Spilling makes the scan retain aggressively, and it exhausts the
+MicroPython heap at `PY_HEAP_SIZE` and at 4x it. It is a clean failure, not
+corruption, and the other fourteen Python vectors pass.
+
+Two known divergences the vectors deliberately do **not** paper over:Two known divergences the vectors deliberately do **not** paper over:
+
+- **Monster Hunter World** — `python/mhworld.py` and
+  `monsterhunter-world-decrypter` disagree about where 3128 bytes sit in the
+  decrypted file (the C tool rotates the `0x600488` window, the patch splices
+  the block out and leaves it in place). Both round-trip, and their ciphertext
+  agrees, but their plaintexts differ by ~2.4KB. The vector asserts the
+  round-trip only; a save editor written against one layout will misread the
+  other, so the two want reconciling upstream.
+- **NFS Rivals** — the shipped `USR-DATA` pair is not self-consistent: it is
+  716800 bytes but only the first 358404 were ever encrypted, so neither the
+  savepatch nor the C tool (which agree with each other) can reproduce the
+  `.enc` from the `.dec`. The vector pins the range the fixture actually
+  covers and still proves the cipher and the custom-CRC parameters.
 
 Correctness for MGS Peace Walker needs a real save, which is deliberately not
 vendored (~300 KB of binary, and it is somebody's game data). Point the opt-in

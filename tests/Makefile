@@ -95,10 +95,22 @@ check-mgspw: all
 	@MGSPW_SAVE="$(MGSPW_SAVE)" $(RUN) ./test_apollo$(EXE) | grep -E "mgspw|checks,"
 
 # Opt-in known-answer checks against real game saves from the save-decrypters
-# repo (not vendored):  make check-samples SAMPLES=/path/to/save-decrypters
+# repo (not vendored):
+#
+#   make check-samples SAMPLES=/path/to/save-decrypters
+#
+# The Python vectors additionally need the helper modules that their patches
+# import, which live in apollo-patches. PATCHES already names that checkout for
+# the corpus targets, so point it there to include them:
+#
+#   make check-samples SAMPLES=/path/to/save-decrypters \
+#                      PATCHES=/path/to/apollo-patches
+#
+# Without it PATCHES stays at its `fixtures` default, which has no python/,
+# and the Python vectors skip while the rest still run.
 check-samples: all
 	@[ -n "$(SAMPLES)" ] || { echo "set SAMPLES=/path/to/save-decrypters"; exit 2; }
-	@SAMPLES="$(SAMPLES)" $(RUN) ./test_apollo$(EXE) | grep -E "sample_|checks,"
+	@SAMPLES="$(SAMPLES)" PATCHES="$(PATCHES)" $(RUN) ./test_apollo$(EXE) | grep -E "sample_|skipped|checks,"
 
 golden: all
 	@mkdir -p golden

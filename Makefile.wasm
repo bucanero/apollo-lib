@@ -33,11 +33,35 @@
 #                               this repo (tools/python here, if you have it, is
 #                               an untracked local copy for CLI testing)
 #
-# Optional belt-and-braces: -sBINARYEN_EXTRA_PASSES=--spill-pointers keeps
-# pointer locals in scannable linear memory. MicroPython's GC scans the C stack
-# conservatively, and wasm locals are not addressable memory. Not needed in
-# practice (the suite and real Python patches pass without it), but it is the
-# documented fix if a GC bug ever shows up only under wasm.
+# The MicroPython path needs --spill-pointers, applied POST-LINK.
+#
+# MicroPython's GC scans the C stack conservatively (micropy_gc_collect() in
+# source/upy.c setjmp()s and walks from &regs up to vm.stack_top). Under wasm
+# that finds almost nothing: locals live in wasm locals, not in addressable
+# memory, so the shadow stack it can actually read held 1276 bytes for the
+# whole live VM call chain in a measured run. Live objects go unseen, get
+# swept, and the next free of one trips `assert(!"bad free")` in
+# micropy_gc_free() on a block already marked AT_FREE.
+#
+# -sBINARYEN_EXTRA_PASSES=--spill-pointers is the documented fix and it does
+# work -- but NOT passed that way, for two reasons that hide each other:
+#
+#   * the pass finds the stack pointer BY NAME, so it needs the names section.
+#     Built without -g the global is emitted as $global$0 and wasm-opt stops
+#     with "Fatal: getStackSpace: failed to find the stack pointer".
+#   * built WITH -g, emcc reports "running limited binaryen optimizations
+#     because DWARF info requested" and silently drops BINARYEN_EXTRA_PASSES,
+#     so the pass never runs and nothing says so.
+#
+# Hence the separate wasm-opt invocation in the `test` target below, against a
+# binary that kept its names. An embedder must do the same to its own module.
+#
+# Known limitation after all that: the conservative scan now sees every stale
+# pointer spilled to the shadow stack, so it retains aggressively. The Monster
+# Hunter World vector (an 8MB save) still exhausts the MicroPython heap and
+# raises MemoryError -- at PY_HEAP_SIZE and at 4x it. Every other Python vector
+# passes. A wasm front-end should expect the largest saves to need more heap
+# than the console builds do, or to fail cleanly rather than silently.
 
 TARGET    = build-wasm/libapollo.a
 OBJS      = $(addprefix build-wasm/,crc_util.o decrypt.o list.o loader.o offzip.o packzip.o \
@@ -104,9 +128,51 @@ mbedtls:
 # Runs the same suite the native build runs, cross-compiled and executed by
 # Node. NODERAWFS gives the tests the real filesystem (they read fixtures/ and
 # write temp targets); a browser front-end uses MEMFS instead.
-test:
+# wasm-opt, for the --spill-pointers step. emsdk puts it on PATH; a Homebrew
+# emscripten keeps it in libexec/binaryen/bin next to emcc. Override WASM_OPT
+# if it lives somewhere else.
+# emsdk puts wasm-opt on PATH; a Homebrew emscripten keeps it in
+# libexec/binaryen/bin, reachable only after resolving the emcc symlink. Both
+# are tried. Override WASM_OPT if it lives anywhere else.
+#
+# Backticks rather than $(...) for the command substitution on purpose: inside
+# $(shell ...) make would read the closing paren as the end of its own call.
+EMCC_REAL := $(shell readlink -f `command -v emcc` 2>/dev/null || command -v emcc 2>/dev/null)
+
+WASM_OPT ?= $(firstword \
+			  $(shell command -v wasm-opt 2>/dev/null) \
+			  $(wildcard $(dir $(EMCC_REAL))../libexec/binaryen/bin/wasm-opt) \
+			  $(wildcard $(dir $(EMCC_REAL))../binaryen/bin/wasm-opt) \
+			  $(wildcard $(dir $(EMCC_REAL))../bin/wasm-opt) \
+			  $(wildcard $(dir $(EMCC_REAL))wasm-opt))
+
+# The features the linker emitted; wasm-opt has to be told the same set or it
+# refuses the module.
+WASM_FEATURES = --enable-bulk-memory --enable-bulk-memory-opt \
+				--enable-call-indirect-overlong --enable-multivalue \
+				--enable-mutable-globals --enable-nontrapping-float-to-int \
+				--enable-reference-types --enable-sign-ext
+
+TESTBIN = tests/test_apollo.js
+
+# Link, then spill. tests/Makefile builds with -g, which is what leaves the
+# names section in place for --spill-pointers to find __stack_pointer.
+$(TESTBIN):
 	@[ -f $(MBED_WASM)/libmbedcrypto.a ] || { \
 		echo "missing $(MBED_WASM)/libmbedcrypto.a — run: make -f Makefile.wasm mbedtls"; exit 2; }
+	$(MAKE) -C tests test_apollo.js \
+		CC=emcc \
+		MBED=../$(MBED_WASM) \
+		BUILD=build-wasm \
+		EXE=.js \
+		LIBZ= \
+		EXTRA_CFLAGS="--use-port=zlib" \
+		EXTRA_LDFLAGS="-sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=4MB -sEXIT_RUNTIME=1"
+	@[ -x "$(WASM_OPT)" ] || { echo "wasm-opt not found; set WASM_OPT=/path/to/wasm-opt"; exit 2; }
+	$(WASM_OPT) --spill-pointers tests/test_apollo.wasm -o tests/test_apollo.wasm $(WASM_FEATURES)
+	@echo "tests/test_apollo.wasm: --spill-pointers applied"
+
+test: $(TESTBIN)
 	$(MAKE) -C tests check \
 		CC=emcc \
 		MBED=../$(MBED_WASM) \
