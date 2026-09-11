@@ -143,6 +143,7 @@ WASM_OPT ?= $(firstword \
 			  $(shell command -v wasm-opt 2>/dev/null) \
 			  $(wildcard $(dir $(EMCC_REAL))../libexec/binaryen/bin/wasm-opt) \
 			  $(wildcard $(dir $(EMCC_REAL))../binaryen/bin/wasm-opt) \
+			  $(wildcard $(dir $(EMCC_REAL))../bin/wasm-opt) \
 			  $(wildcard $(dir $(EMCC_REAL))wasm-opt))
 
 # The features the linker emitted; wasm-opt has to be told the same set or it
