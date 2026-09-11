@@ -637,11 +637,16 @@ TEST(sample_borderlands3_profile)
  * Silent Hill 3 — PS3/BLUS30810. Crypto covers 0x40 onwards, and a separate
  * `dwadd` code maintains a checksum at 0x10.
  *
- * The encrypt direction is compared in full: running the checksum code and
- * then ENCRYPT over SAVEDATA.DAT.dec reproduces the original file exactly,
- * including the 0x10 checksum. The decrypt direction is compared from 0x40,
- * because the reference tool blanks 0x10..0x13 to zero in its output while the
- * engine leaves the field alone — that field is outside the crypto range.
+ * Both directions are compared in full. Running the checksum code and then
+ * ENCRYPT over SAVEDATA.DAT.dec reproduces the original file exactly,
+ * including the 0x10 checksum, and DECRYPT reproduces the plaintext exactly.
+ *
+ * The decrypt half used to skip the first 0x40 bytes: the sample's plaintext
+ * had 0x10..0x13 blanked to zero, because the reference tool cleared the
+ * checksum field on its way out, while the engine leaves it alone — the field
+ * sits OUTSIDE the crypto range, so touching it is the tool's choice and not
+ * the format's. The sample now keeps the field, which is the more faithful
+ * plaintext, so the vector no longer has to look away from it.
  */
 static const char SH3_DEC[] =
     "set pointer:read(0xC, 4)\n"
@@ -662,7 +667,7 @@ TEST(sample_silent_hill3)
     known_answer_script("silent_hill3 SAVEDATA.DAT",
                         "silent-hill3-decrypter/samples/SAVEDATA.DAT.enc",
                         "silent-hill3-decrypter/samples/SAVEDATA.DAT.dec",
-                        SH3_DEC, SH3_ENC, 0x40);
+                        SH3_DEC, SH3_ENC, 0);
 }
 
 /* ------------------------------------------------------------------------ *
