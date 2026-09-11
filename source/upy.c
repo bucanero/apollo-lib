@@ -3718,6 +3718,34 @@ void micropy_mpz_as_bytes(struct _mp_state_ctx_t *mp_state, const mpz_t *z, bool
             }
         }
     }
+
+    /* The digits are exhausted but the destination is not full yet, so the
+     * remaining bytes are the value's leading zeros (or the sign extension of
+     * a negative one, carry included). They have to be WRITTEN: the early
+     * returns above are the only exits taken when the value happens to fill
+     * `len`, and falling out of the loop instead used to leave whatever the
+     * caller's buffer already held.
+     *
+     * Only reachable when the value needs fewer bytes than the field, and only
+     * where it is an mpz at all -- so on a 32-bit target (wasm32, PS3, PSP, PS
+     * Vita), where MP_SMALL_INT is 31 bits and a value like 0xFFFFFFFF ^
+     * 0xFFFFFFFB is a bignum rather than a small int. On a 64-bit build the
+     * same expression stays a small int and never reaches this function, which
+     * is why `struct.pack_into('>I', buf, 0, x)` writing only the low two
+     * bytes of a four-byte field reproduced on wasm and not on x86_64. */
+    while (big_endian ? (b > buf) : (b < buf + len)) {
+        byte val = 0;
+        if (z->neg) {
+            mpz_dbl_dig_t ext = 0xff + carry;
+            carry = ext >> 8;
+            val = (byte) ext;
+        }
+        if (big_endian) {
+            *--b = val;
+        } else {
+            *b++ = val;
+        }
+    }
 }
 
 #if MICROPY_PY_BUILTINS_FLOAT
