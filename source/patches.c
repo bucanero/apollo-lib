@@ -1709,9 +1709,19 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 					apollo_hash_sw4(start, len, hash);
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
-
 					LOG("len %d SW4 HASH = %08X %08X %08X %08X", len, hash[0], hash[1], hash[2], hash[3]);
+
+					/* Stored as a 16-byte blob, which the variable reader passes
+					 * through untouched — only INT16/32/64 lengths get the
+					 * host-to-big-endian conversion. So the words have to be put
+					 * in big-endian order HERE, or a little-endian host hands
+					 * mid() its bytes backwards and the patch writes a reversed
+					 * checksum. No-op on the PS3 itself, which is why this went
+					 * unnoticed. */
+					for (int i = 0; i < 4; i++)
+						BE32(hash[i]);
+
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
 				}
 
 				// set [*]:toz_checksum*
