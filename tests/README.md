@@ -25,7 +25,7 @@ their expected bytes once, which asserts that invariance.
 |------|---------|
 | `test_savewizard.c` | Hand-authored Save Wizard opcode vectors, expected bytes computed by hand from `docs/savewizard.rst`, with per-endian expectations where the `MEM*` flag matters. |
 | `test_sw_endian_gaps.c` | The endian-critical Save Wizard opcodes: type 3 (8-byte `MEM64` add + pointer-relative form), type 4 (32-bit `MEM32` multi-write), type 6 (pointer "mega code" — `MEM16` read and `MEM32` write), type 7 (conditional no-less/no-more-than, `MEM16`/`MEM32`), type 9 (pointer add/sub, end-pointer set), and type D's explicit 16-bit BE vs LE reads. |
-| `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the `HOST_LSB`/`HOST_MSB` fixes), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). Fletcher-16/32 get full known-answer coverage: the published check values, the deferred-modulo block boundary (against exact arbitrary-precision reference values, not a second copy of the blocked algorithm), odd-length zero padding, an empty range, and both BSD commands. Fletcher-32's little-endian word order is fixed in the algorithm rather than taken from the host, so every one of those vectors holds identically in the LE and BE builds. |
+| `test_bsd.c` | BSD script vectors: verbatim write/insert/delete/repeat, `left`/`mid`/`right`, `carry`-based truncation (the host-order fixes, and the big-endian slice fix that superseded them), `read()` at int16/int32/int64 widths, and hash smoke tests (`crc32big`, `sha1` against known vectors; `jhash` characterised). Fletcher-16/32 get full known-answer coverage: the published check values, the deferred-modulo block boundary (against exact arbitrary-precision reference values, not a second copy of the blocked algorithm), odd-length zero padding, an empty range, and both BSD commands. Fletcher-32's little-endian word order is fixed in the algorithm rather than taken from the host, so every one of those vectors holds identically in the LE and BE builds. |
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
 | `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo — every tool there that ships an `.enc`/`.dec` pair. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges, `{TAG}` option branches, and the multi-code chains a front-end applies in file order. Covers BSD ciphers, the MGS5 PS3/PS4 key set, and the **Python** patches (the only coverage MicroPython has here — `test_corpus.c` skips every Python code). Run with `make check-samples SAMPLES=... PATCHES=...`. |
@@ -183,14 +183,14 @@ make check-corpus PATCHES=/path/to/apollo-patches   # diff vs committed goldens 
 
 | Command / function | Coverage | Tests |
 |--------------------|----------|-------|
-| `carry(n)` | drives wadd/add truncation | `bsd_carry_padding_truncation`, `bsd_add_carry_truncation` |
+| `carry(n)` | drives wadd/add truncation, every width | `bsd_carry_padding_truncation`, `bsd_add_carry_truncation`, `bsd_carry_truncation_is_big_endian` |
 | `set pointer:` | absolute address | `bsd_write_next_pointer` |
 | `set range:` | range for hashes | `bsd_hash_*` |
 | `set [v]:read(o,n)` | int16 / int32 / int64 widths | `bsd_read_int16`, `bsd_read_int32`, `bsd_read_int64` |
-| `set [v]:wadd` | carry truncation (HOST_LSB) | `bsd_carry_padding_truncation` |
-| `set [v]:add` | carry truncation (HOST_LSB) | `bsd_add_carry_truncation` |
-| `set [v]:right` | rightmost bytes (HOST_LSB) | `bsd_right_truncation` |
-| `set [v]:left` | leftmost bytes (HOST_MSB) | `bsd_left` |
+| `set [v]:wadd` | carry truncation | `bsd_carry_padding_truncation` |
+| `set [v]:add` | carry truncation | `bsd_add_carry_truncation` |
+| `set [v]:right` | rightmost bytes, widths 1-4 | `bsd_right_truncation`, `bsd_left_right_slices_are_big_endian` |
+| `set [v]:left` | leftmost bytes, widths 1-3 | `bsd_left`, `bsd_left_right_slices_are_big_endian` |
 | `set [v]:mid` | byte substring | `bsd_mid`, `bsd_mid_offset` |
 | `set [v]:endian_swap` | byte reversal (existing var) | `bsd_update_existing_variable` |
 | `set [v]:crc32big` | CRC-32/BZIP2 (known vector) | `bsd_hash_crc32big` |
@@ -198,7 +198,7 @@ make check-corpus PATCHES=/path/to/apollo-patches   # diff vs committed goldens 
 | `set [v]:jhash` | Jenkins hash (characterised) | `bsd_hash_jhash` |
 | `set [v]:md5_xor` | folded MD5 (characterised) | `bsd_hash_md5_xor` |
 | `set [v]:sha1_xor64` | folded SHA-1 (characterised) | `bsd_hash_sha1_xor64` |
-| existing-variable update | re-fetch value (HOST_LSB @796) | `bsd_update_existing_variable` |
+| existing-variable update | re-fetch value | `bsd_update_existing_variable` |
 | `write at` | verbatim hex | `bsd_write_hex` |
 | `write next` | pointer-relative | `bsd_write_next_pointer` |
 | `write …:repeat(c,v)` | repeated value | `bsd_write_repeat` |
@@ -268,10 +268,10 @@ accumulator instead of the low half — e.g. `wadd = 0x000068AC` was written as
 `00 00` instead of `68 AC`. Both a real PS3 (`__PPU__`) and a real PS4/PC write
 `68 AC`, so that path was simply wrong.
 
-The fix introduces `HOST_LSB()` (in `include/types.h`), which follows the **real
-host** byte order — `carry` only on a genuinely big-endian host (`__PPU__`), `0`
-everywhere else, whatever the save-data order — and switches the four BSD host-integer
-truncation sites to it. The save-wizard path keeps `PADDING` (it slices a value
+The fix introduced `HOST_LSB()` (then in `include/types.h`), which follows the
+**real host** byte order — `carry` only on a genuinely big-endian host
+(`__PPU__`), `0` everywhere else, whatever the save-data order — and switched
+the four BSD host-integer truncation sites to it. The save-wizard path keeps `PADDING` (it slices a value
 already arranged in target-endian order). Result: BSD output is now identical in
 the LE and BE passes (`make bsd-invariance`), the LE golden manifest is
 unchanged, and only the one affected BE line moved to match LE.
@@ -287,9 +287,9 @@ The same class of bug affected the two other byte-extraction helpers:
 
 - `left(value,len)` copied from offset 0 with no host adjustment, so on a
   little-endian host it returned the *low* bytes (identical to `right`) instead
-  of the leftmost/most-significant bytes. It now uses a new `HOST_MSB()` macro
-  (the complement of `HOST_LSB`), so `left(0x00012345,2)` yields `00 01` on every
-  build.
+  of the leftmost/most-significant bytes. It was given a `HOST_MSB()` macro (the
+  complement of `HOST_LSB`) so that `left(0x00012345,2)` yields `00 01` on every
+  build — see the superseding fix below, which took over both macros' job.
 - `mid(value,start,len)` extracts a slice of the value's big-endian byte view,
   but for 2/4/8-byte slices the write path byte-swapped it on little-endian
   builds. It now normalises the slice to host order (like `read()`), so the
@@ -303,6 +303,37 @@ Guards: `bsd_left`, `bsd_mid`, `bsd_mid_offset`.
 
 **Refactor implication:** BSD and Save Wizard answer to *different* notions of
 endianness — Save Wizard `MEM*`/`PADDING` follow the target save-data order,
-while BSD arithmetic truncation follows the host order via `HOST_LSB`. When
-endianness becomes a runtime choice, keep these two concerns distinct; only the
-save-data-order one should move under the runtime switch.
+while BSD arithmetic truncation follows the host order. When endianness becomes
+a runtime choice, keep these two concerns distinct; only the save-data-order one
+should move under the runtime switch.
+
+### Superseded: `_set_var_slice()` replaces `HOST_LSB` / `HOST_MSB`
+
+Keying the slice on the host was necessary but not sufficient, and the two
+macros are gone — `include/types.h` no longer defines them.
+
+They pick the correct **bytes** on either host but leave them in host **order**.
+That is only recoverable at the widths `_decode_variable_data()` converts: it
+works by LENGTH, so 2, 4 and 8 bytes are taken for a host-native integer and
+re-emitted big-endian, while every other length is copied through as a raw byte
+string. A 3-byte slice therefore reached the file as `22 33 44` on a
+little-endian build and `44 33 22` on a PS3 — unreachable from `carry(1)`,
+`right(v,3)` and `left(v,3)` alike, and invisible to a suite that only ever ran
+on one host.
+
+`_set_var_slice()` lays the value out big-endian first — the order the bytes
+must reach the file in — and then calls `_swap_var_endianness()`, which is a
+no-op for exactly the widths needing no conversion. One call covers both cases
+without a branch, and `msb` is all that separates `left()` from `right()`. All
+four truncation sites now go through it.
+
+Its inverse, `_get_var_value()`, had to learn the same two cases: the
+existing-variable re-fetch seeds `add()`/`wadd()`'s accumulator, and reading a
+3-byte variable back as zero would have silently dropped everything counted so
+far.
+
+Guards, each verified to fail with the fix backed out:
+`bsd_carry_truncation_is_big_endian` (widths 0-3 plus a two-step accumulate)
+and `bsd_left_right_slices_are_big_endian` (`right` 1-4, `left` 1-3). Neither
+branches on `apollo_test_be()` — one expected answer per width is the claim
+that the host no longer enters into it.

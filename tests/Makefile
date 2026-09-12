@@ -126,8 +126,8 @@ check-corpus: all
 	@diff -u golden/corpus_be.txt $(BUILD)/corpus_be.now && echo "BE corpus: OK"
 
 # BSD codes (type 2) are fully build-flag-invariant: BE* is unconditional and
-# host-integer truncation uses HOST_LSB (host byte order, identical in both
-# LE and BE modes). Their manifest lines must match between the two passes —
+# integer truncation goes through _set_var_slice(), which is keyed on the host
+# rather than on the save-data mode (identical in both LE and BE modes). Their manifest lines must match between the two passes —
 # this is a hard pass/fail gate. Self-contained: compares fresh LE vs BE output
 # on this machine, so it is portable across CI runners.
 bsd-invariance: all

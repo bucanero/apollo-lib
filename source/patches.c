@@ -201,6 +201,117 @@ static int _set_var_data(bsd_variable_t* var, const void* src, uint32_t len)
 	return 1;
 }
 
+/*
+ * Swap a variable's bytes between HOST order and big-endian, in place.
+ *
+ * _decode_variable_data converts on the way OUT, and it converts by LENGTH: a
+ * 2-, 4- or 8-byte variable is taken for a host-native integer and re-emitted
+ * big-endian, while every other length is passed through as a raw byte string.
+ * So anything that arrives ALREADY big-endian has to be swapped into host
+ * order here, or a little-endian build writes it back to front. Self-inverse,
+ * which is why one call serves both directions, and a no-op on a big-endian
+ * host, where the two orders are the same.
+ *
+ * Lengths with no case are left alone deliberately, to mirror the reader
+ * exactly: a 16-byte MD5 or a 6-byte MAC is a byte string in both directions
+ * and swapping it would be the bug, not the fix.
+ */
+static void _swap_var_endianness(bsd_variable_t* var)
+{
+	if (!var->data)
+		return;
+
+	switch (var->len)
+	{
+	case BSD_VAR_INT16:
+		BE16(*((uint16_t*) var->data));
+		break;
+	case BSD_VAR_INT32:
+		BE32(*((uint32_t*) var->data));
+		break;
+	case BSD_VAR_INT64:
+		BE64(*((uint64_t*) var->data));
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ * Store an n-byte slice of a 32-bit value, so the write path emits it
+ * big-endian at EVERY width and on every host.
+ *
+ * `msb` picks which end the slice is taken from: left() keeps the leftmost
+ * (most-significant) bytes, right() and the carry() truncation the rightmost.
+ *
+ * Laying the value out big-endian first is the whole trick. That is the order
+ * the bytes have to reach the file in, and from there one call to
+ * _swap_var_endianness() finishes the job for both kinds of width: at 2, 4 and
+ * 8 the reader takes the variable for a host-native integer and converts it on
+ * the way out, so it has to go in host-native; at every other width the reader
+ * copies it through untouched and big-endian is already what we want. The
+ * helper is a no-op for exactly the widths that need no conversion, so it
+ * splits the two cases without a branch here.
+ *
+ * This is what makes the odd widths work rather than merely be refused. It
+ * replaces pointer arithmetic into the host integer itself (the HOST_LSB /
+ * HOST_MSB macros, since deleted from include/types.h), which picked the right
+ * BYTES on either host but left them in host order -- something only widths 1,
+ * 2 and 4 ever recovered from, so a 3-byte slice came out 22 33 44 on a
+ * little-endian build and 44 33 22 on a PS3.
+ */
+static int _set_var_slice(bsd_variable_t* var, uint32_t value, uint32_t len, int msb)
+{
+	uint8_t be[BSD_VAR_INT32];
+
+	if (len > sizeof(be))
+		return 0;
+
+	for (uint32_t i = 0; i < sizeof(be); i++)
+		be[i] = (uint8_t) (value >> (8 * (sizeof(be) - 1 - i)));
+
+	if (!_set_var_data(var, be + (msb ? 0 : sizeof(be) - len), len))
+		return 0;
+
+	_swap_var_endianness(var);
+	return 1;
+}
+
+/*
+ * Read a variable of up to 4 bytes back as a number -- the inverse of
+ * _set_var_slice(), and it has to know the same two cases.
+ *
+ * At 2 and 4 bytes the variable holds a host-native integer, so a plain
+ * dereference is the value. At 1 and 3 it holds big-endian bytes, which have
+ * to be assembled. Getting 3 wrong is not academic: it is what add()/wadd()
+ * seed their accumulator from, so a carry(1) chain that read it as zero would
+ * silently drop everything counted so far.
+ */
+static uint32_t _get_var_value(const bsd_variable_t* var)
+{
+	if (!var->data)
+		return 0;
+
+	switch (var->len)
+	{
+	case BSD_VAR_INT16:
+		return *((uint16_t*) var->data);
+	case BSD_VAR_INT32:
+		return *((uint32_t*) var->data);
+	default:
+		break;
+	}
+
+	if (var->len > BSD_VAR_INT32)
+		return 0;
+
+	uint32_t value = 0;
+	for (uint32_t i = 0; i < var->len; i++)
+		value = (value << 8) | ((const uint8_t*) var->data)[i];
+
+	return value;
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
@@ -765,6 +876,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			 * anything outside 0..4 underflows var->len into a huge malloc */
 			if (tmpi < 0) tmpi = 0;
 			if (tmpi > BSD_VAR_INT32) tmpi = BSD_VAR_INT32;
+
 			carry = tmpi;
 
 			LOG("Set carry bytes = %d", carry);
@@ -982,33 +1094,26 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				else
 				{
 					// for now we don't update variable values, we only overwrite
-					switch (var->data ? var->len : BSD_VAR_NULL)
-					{
-						case BSD_VAR_INT8:
-							old_val = *((uint8_t*)var->data);
-							break;
-						case BSD_VAR_INT16:
-							old_val = *((uint16_t*)var->data);
-							break;
-						case BSD_VAR_INT32:
-							old_val = *((uint32_t*)var->data);
-							break;
-						default:
-							old_val = 0;
-							break;
-					}
+					old_val = _get_var_value(var);
 
 					if (var->data)
 					{
 						/* Keep the previous value reachable for the bitwise /
 						 * endian_swap ops below, but as a heap copy: every
 						 * branch (and apollo_free_var_list) owns var->data, so
-						 * it must never point at this function's stack. */
+						 * it must never point at this function's stack.
+						 *
+						 * Round-tripped through _set_var_slice() rather than
+						 * copied back, so the bytes land under the same rule
+						 * that produced them and a 3-byte variable survives
+						 * being re-set. */
+						uint32_t width = var->len;
+
 						free(var->data);
 						var->data = NULL;
 
-						if (var->len && var->len <= BSD_VAR_INT32)
-							BSD_REQUIRE(_set_var_data(var, (uint8_t*) &old_val + HOST_LSB(BSD_VAR_INT32 - var->len), var->len), "out of memory");
+						if (width && width <= BSD_VAR_INT32)
+							BSD_REQUIRE(_set_var_slice(var, old_val, width, 0), "out of memory");
 					}
 
 					LOG("Old value 0x%X", old_val);
@@ -1709,9 +1814,19 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 					apollo_hash_sw4(start, len, hash);
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
-
 					LOG("len %d SW4 HASH = %08X %08X %08X %08X", len, hash[0], hash[1], hash[2], hash[3]);
+
+					/* Stored as a 16-byte blob, which the variable reader passes
+					 * through untouched — only INT16/32/64 lengths get the
+					 * host-to-big-endian conversion. So the words have to be put
+					 * in big-endian order HERE, or a little-endian host hands
+					 * mid() its bytes backwards and the patch writes a reversed
+					 * checksum. No-op on the PS3 itself, which is why this went
+					 * unnoticed. */
+					for (int i = 0; i < 4; i++)
+						BE32(hash[i]);
+
+					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &hash, BSD_VAR_MD5), "out of memory");
 				}
 
 				// set [*]:toz_checksum*
@@ -1907,7 +2022,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, add, BSD_VAR_INT32 - carry, 0), "out of memory");
 
 					LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1933,7 +2048,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, add, BSD_VAR_INT32 - carry, 0), "out of memory");
 
 					LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -2048,20 +2163,9 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) read, var->len), "out of memory");
 
-					switch (var->len)
-					{
-					case BSD_VAR_INT16:
-						BE16(*((uint16_t*) var->data));
-						break;
-					case BSD_VAR_INT32:
-						BE32(*((uint32_t*) var->data));
-						break;
-					case BSD_VAR_INT64:
-						BE64(*((uint64_t*) var->data));
-						break;
-					default:
-						break;
-					}
+					/* The file's bytes are big-endian; normalise to host order
+					 * so the write path re-emits them unchanged everywhere. */
+					_swap_var_endianness(var);
 
 					LOG("[%s]:read(0x%X , 0x%X)", var->name, read_s, read_l);
 					_log_dump("read()", (uint8_t*) read, var->len);
@@ -2076,9 +2180,10 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("right(");
 					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
-					/* the slice is taken out of a 32-bit value */
+					/* the slice is taken out of a 32-bit value, and comes out
+					 * big-endian at every width -- see _set_var_slice() */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "right() length out of range");
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &rvalue + HOST_LSB(BSD_VAR_INT32 - rlen), rlen), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, (uint32_t) rvalue, (uint32_t) rlen, 0), "out of memory");
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 				}
@@ -2092,13 +2197,11 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("left(");
 					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
-					/* the slice is taken out of a 32-bit value */
+					/* the slice is taken out of a 32-bit value; `msb` is what
+					 * makes this left() rather than right() -- keep the
+					 * leftmost (most-significant) bytes */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "left() length out of range");
-					BSD_REQUIRE(_alloc_var_data(var, rlen), "out of memory");
-					/* keep the most-significant (leftmost) bytes of the value,
-					 * as a host-native integer; the write path emits it big-
-					 * endian. HOST_MSB makes this host-consistent. */
-					memcpy(var->data, (uint8_t*) &rvalue + HOST_MSB(BSD_VAR_INT32 - rlen), var->len);
+					BSD_REQUIRE(_set_var_slice(var, (uint32_t) rvalue, (uint32_t) rlen, 1), "out of memory");
 
 					LOG("[%s]:left(0x%X , %d)", var->name, rvalue, rlen);
 				}
@@ -2138,20 +2241,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					 * host order (like read()) so the write path re-emits the
 					 * exact substring big-endian on every host, instead of byte-
 					 * swapping 2/4/8-byte results on little-endian builds. */
-					switch (var->len)
-					{
-					case BSD_VAR_INT16:
-						BE16(*((uint16_t*) var->data));
-						break;
-					case BSD_VAR_INT32:
-						BE32(*((uint32_t*) var->data));
-						break;
-					case BSD_VAR_INT64:
-						BE64(*((uint64_t*) var->data));
-						break;
-					default:
-						break;
-					}
+					_swap_var_endianness(var);
 
 					LOG("[%s]:mid(..%d.., %X, %d)", var->name, mlen, mid_s, mid_c);
 				}
@@ -2197,6 +2287,25 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					}
 
 					BSD_REQUIRE(_set_var_data(var, rval, var->len), "out of memory");
+
+					/* The account id is a byte string, delivered the same way
+					 * as the PSID and the MAC addresses beside it, and the host
+					 * hands it over in the order a save stores it: big-endian.
+					 *
+					 * Unlike those two it is EIGHT bytes, and eight is a length
+					 * the variable reader converts -- it takes the value for a
+					 * host-native integer and re-emits it big-endian. On a
+					 * little-endian build that reversed an id that was already
+					 * the right way round, so the patch wrote EFCDAB8967452301
+					 * where the save holds 0123456789ABCDEF. Swapping into host
+					 * order here cancels that conversion exactly, leaving the
+					 * id big-endian in the file on every host; on a PS3 both
+					 * swaps are no-ops and nothing changes.
+					 *
+					 * Done through the shared helper rather than a bare BE64 so
+					 * it stays right if a host ever reports a 2- or 4-byte id:
+					 * those lengths are converted too. */
+					_swap_var_endianness(var);
 
 					_log_dump("host_account_id", var->data, var->len);
 				}
