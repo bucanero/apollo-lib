@@ -671,12 +671,34 @@ int apollo_hash_castlevania(const uint8_t* Bytes, uint32_t length)
     return (num + num2);
 }
 
+/*
+ * out[] holds the eight one-byte checksums in the REVERSE of the order the
+ * save stores them: out[7] is the byte at file offset 0x34, out[0] the one at
+ * 0x3B. The patch writes this value with `write at 0x0034:[checkdbz]`, and the
+ * write path emits a 64-bit variable big-endian, so out[7] has to land in the
+ * most significant byte.
+ *
+ * The old `memcpy(&ret, out, 8)` got there only by accident on a little-endian
+ * host, where the BE64 conversion on the way out reversed the bytes back. On a
+ * big-endian one that conversion is a no-op and the eight checksums went into
+ * the save backwards. Packing with shifts is byte-identical to the memcpy on
+ * little-endian and correct everywhere else.
+ */
+static uint64_t _dbzxv2_pack(const uint8_t out[8])
+{
+    uint64_t ret = 0;
+
+    for (int i = 7; i >= 0; i--)
+        ret = (ret << 8) | out[i];
+
+    return ret;
+}
+
 uint64_t apollo_hash_dbzxv2(const uint8_t* data, uint32_t size)
 {
     int i;
     const uint8_t* header = data + 0x20;
     uint8_t out[8] = {0};
-    uint64_t ret;
 
     // Checksum 8 calculated over decrypted data
     if (memcmp(&header[0x14], out, sizeof(out)) == 0)
@@ -686,8 +708,7 @@ uint64_t apollo_hash_dbzxv2(const uint8_t* data, uint32_t size)
         for (int i = 5; i < (int)(size / 0x20); i++)
             out[1] += data[i * 0x20];
 
-        memcpy(&ret, out, sizeof(ret));
-        return ret;
+        return _dbzxv2_pack(out);
     }
 
     // reload checksum 8
@@ -723,8 +744,7 @@ uint64_t apollo_hash_dbzxv2(const uint8_t* data, uint32_t size)
     for (i = 0; i < 7; i++)
         out[7] += out[i];
 
-    memcpy(&ret, out, sizeof(ret));
-    return ret;
+    return _dbzxv2_pack(out);
 }
 
 // https://www.burtleburtle.net/bob/hash/doobs.html
