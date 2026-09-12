@@ -782,3 +782,58 @@ TEST(bsd_carry_fold_over_long_buffer)
     carry_fold_case(0x2000,  0x1C, 0x1A, "ULUS10579 shape, 8KB: wadd carry(2), fold runs once");
     carry_fold_case(0x20000, 0x93, 0xA2, "ULUS10579 shape, 128KB: wadd carry(2), fold runs twice");
 }
+
+/*
+ * Seed-then-accumulate, the other real shape: PS3/BLUS30863 (Champion Jockey)
+ * primes the variable with a constant and then adds a range into it.
+ *
+ *   set [csum]:0x190518
+ *   set [csum]:add(0x000010,0x190527)
+ *   write at 0xC:[csum]
+ *
+ * The second `set` overwrites a variable that already exists, which is the
+ * path _get_var_value() reads and _set_var_slice() writes back -- the one
+ * place the slice rewrite could have dropped a value silently rather than
+ * reversing it. add() seeds its accumulator from what comes out, so a
+ * mis-read seed is invisible except as a wrong checksum.
+ *
+ * Both of the patch's branches, with its own constants: the 42KB SYSTEM range
+ * and the 1.6MB STORY one. No carry() here, so the variable stays four bytes
+ * wide and the write emits it big-endian. Expected values computed from the
+ * algorithm; neither sum wraps the uint32_t accumulator.
+ */
+static void seed_then_add_case(uint32_t seed, uint32_t start, uint32_t end,
+                               const uint8_t exp[4], const char* label)
+{
+    size_t n = (size_t) end + 1;
+    uint8_t* init = malloc(n);
+    uint8_t* buf;
+    char script[160];
+
+    for (size_t i = 0; i < n; i++)
+        init[i] = (uint8_t) (i * 7 + 3);
+
+    buf = dup_bytes(init, n);
+    snprintf(script, sizeof(script),
+             "set [csum]:0x%06X\nset [csum]:add(0x%06X,0x%06X)\nwrite at 0xC:[csum]",
+             seed, start, end);
+
+    check_u64(__FILE__, __LINE__, label, apply_bsd(&buf, n, script), n);
+    check_mem(__FILE__, __LINE__, label, buf + 0xC, exp, 4);
+    /* the write lands before the summed range, so the input is untouched */
+    check_mem(__FILE__, __LINE__, label, buf + 0x10, init + 0x10, n - 0x10);
+
+    free(buf);
+    free(init);
+}
+
+TEST(bsd_seed_then_add_existing_variable)
+{
+    static const uint8_t sys_exp[4]   = { 0x00, 0x53, 0x67, 0x74 };
+    static const uint8_t story_exp[4] = { 0x0C, 0x8F, 0x11, 0xEC };
+
+    seed_then_add_case(0xA628, 0x10, 0xA637, sys_exp,
+                       "BLUS30863 SYSTEM: seed 0xA628 + add(0x10,0xA637)");
+    seed_then_add_case(0x190518, 0x10, 0x190527, story_exp,
+                       "BLUS30863 STORY: seed 0x190518 + add(0x10,0x190527)");
+}
