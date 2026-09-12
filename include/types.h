@@ -12,25 +12,6 @@
 #include <dbglogger.h>
 #define LOG dbglogger_log
 
-/*
- * HOST_LSB
- * Offset to the least-significant bytes of a HOST-native integer when
- * truncating it to fewer bytes (e.g. keeping the low 2 bytes of a uint32_t).
- *
- * HOST_MSB
- * Offset to the MOST-significant bytes of a host-native integer — the
- * complement of HOST_LSB(). On a big-endian host they sit at the front
- * (offset 0); on a little-endian host at the back. Used by left(), which keeps
- * the leftmost / most-significant bytes of a value regardless of host.
- */
-#ifdef __PPU__
-#define HOST_LSB(X)		(X)
-#define HOST_MSB(X)		0
-#else
-#define HOST_LSB(X)		0
-#define HOST_MSB(X)		(X)
-#endif
-
 #if !defined(MAX_PATH)
 #	define MAX_PATH 260
 #endif

@@ -237,6 +237,81 @@ static void _swap_var_endianness(bsd_variable_t* var)
 	}
 }
 
+/*
+ * Store an n-byte slice of a 32-bit value, so the write path emits it
+ * big-endian at EVERY width and on every host.
+ *
+ * `msb` picks which end the slice is taken from: left() keeps the leftmost
+ * (most-significant) bytes, right() and the carry() truncation the rightmost.
+ *
+ * Laying the value out big-endian first is the whole trick. That is the order
+ * the bytes have to reach the file in, and from there one call to
+ * _swap_var_endianness() finishes the job for both kinds of width: at 2, 4 and
+ * 8 the reader takes the variable for a host-native integer and converts it on
+ * the way out, so it has to go in host-native; at every other width the reader
+ * copies it through untouched and big-endian is already what we want. The
+ * helper is a no-op for exactly the widths that need no conversion, so it
+ * splits the two cases without a branch here.
+ *
+ * This is what makes the odd widths work rather than merely be refused. It
+ * replaces pointer arithmetic into the host integer itself (the HOST_LSB /
+ * HOST_MSB macros, since deleted from include/types.h), which picked the right
+ * BYTES on either host but left them in host order -- something only widths 1,
+ * 2 and 4 ever recovered from, so a 3-byte slice came out 22 33 44 on a
+ * little-endian build and 44 33 22 on a PS3.
+ */
+static int _set_var_slice(bsd_variable_t* var, uint32_t value, uint32_t len, int msb)
+{
+	uint8_t be[BSD_VAR_INT32];
+
+	if (len > sizeof(be))
+		return 0;
+
+	for (uint32_t i = 0; i < sizeof(be); i++)
+		be[i] = (uint8_t) (value >> (8 * (sizeof(be) - 1 - i)));
+
+	if (!_set_var_data(var, be + (msb ? 0 : sizeof(be) - len), len))
+		return 0;
+
+	_swap_var_endianness(var);
+	return 1;
+}
+
+/*
+ * Read a variable of up to 4 bytes back as a number -- the inverse of
+ * _set_var_slice(), and it has to know the same two cases.
+ *
+ * At 2 and 4 bytes the variable holds a host-native integer, so a plain
+ * dereference is the value. At 1 and 3 it holds big-endian bytes, which have
+ * to be assembled. Getting 3 wrong is not academic: it is what add()/wadd()
+ * seed their accumulator from, so a carry(1) chain that read it as zero would
+ * silently drop everything counted so far.
+ */
+static uint32_t _get_var_value(const bsd_variable_t* var)
+{
+	if (!var->data)
+		return 0;
+
+	switch (var->len)
+	{
+	case BSD_VAR_INT16:
+		return *((uint16_t*) var->data);
+	case BSD_VAR_INT32:
+		return *((uint32_t*) var->data);
+	default:
+		break;
+	}
+
+	if (var->len > BSD_VAR_INT32)
+		return 0;
+
+	uint32_t value = 0;
+	for (uint32_t i = 0; i < var->len; i++)
+		value = (value << 8) | ((const uint8_t*) var->data)[i];
+
+	return value;
+}
+
 static long search_data(const uint8_t* data, size_t size, int start, const uint8_t* search, int len, int count)
 {
 	int k = 1;
@@ -802,20 +877,6 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			if (tmpi < 0) tmpi = 0;
 			if (tmpi > BSD_VAR_INT32) tmpi = BSD_VAR_INT32;
 
-			/* carry(1) is the one setting that lands on a THREE-byte variable,
-			 * and three is the width the variable reader has no case for: 2, 4
-			 * and 8 get the host-to-big-endian conversion, everything else is
-			 * passed through as a raw byte string. add() and wadd() store the
-			 * truncation host-native, so the same code would write 0A0B0C on a
-			 * PS3 and 0C0B0A on a little-endian build -- the bug sw4_checksum
-			 * had. There is no host-independent answer to pick, so refuse.
-			 *
-			 * The neighbours are fine and stay allowed: carry(2) leaves two
-			 * bytes and carry(3) leaves one, which has no byte order at all.
-			 * Nothing in apollo-patches regresses -- all 203 uses say
-			 * carry(2). */
-			BSD_REQUIRE(tmpi != 1, "carry(1) leaves a 3-byte value, whose byte order is host-dependent");
-
 			carry = tmpi;
 
 			LOG("Set carry bytes = %d", carry);
@@ -1033,33 +1094,26 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				else
 				{
 					// for now we don't update variable values, we only overwrite
-					switch (var->data ? var->len : BSD_VAR_NULL)
-					{
-						case BSD_VAR_INT8:
-							old_val = *((uint8_t*)var->data);
-							break;
-						case BSD_VAR_INT16:
-							old_val = *((uint16_t*)var->data);
-							break;
-						case BSD_VAR_INT32:
-							old_val = *((uint32_t*)var->data);
-							break;
-						default:
-							old_val = 0;
-							break;
-					}
+					old_val = _get_var_value(var);
 
 					if (var->data)
 					{
 						/* Keep the previous value reachable for the bitwise /
 						 * endian_swap ops below, but as a heap copy: every
 						 * branch (and apollo_free_var_list) owns var->data, so
-						 * it must never point at this function's stack. */
+						 * it must never point at this function's stack.
+						 *
+						 * Round-tripped through _set_var_slice() rather than
+						 * copied back, so the bytes land under the same rule
+						 * that produced them and a 3-byte variable survives
+						 * being re-set. */
+						uint32_t width = var->len;
+
 						free(var->data);
 						var->data = NULL;
 
-						if (var->len && var->len <= BSD_VAR_INT32)
-							BSD_REQUIRE(_set_var_data(var, (uint8_t*) &old_val + HOST_LSB(BSD_VAR_INT32 - var->len), var->len), "out of memory");
+						if (width && width <= BSD_VAR_INT32)
+							BSD_REQUIRE(_set_var_slice(var, old_val, width, 0), "out of memory");
 					}
 
 					LOG("Old value 0x%X", old_val);
@@ -1968,7 +2022,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, add, BSD_VAR_INT32 - carry, 0), "out of memory");
 
 					LOG("[%s]:wadd(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -1994,7 +2048,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 						add = (add & 0x0000FFFF) + (uint32_t)(((uint64_t)(add & 0xFFFF0000)) >> 8*carry);
 					}
 
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &add + HOST_LSB(carry), BSD_VAR_INT32 - carry), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, add, BSD_VAR_INT32 - carry, 0), "out of memory");
 
 					LOG("[%s]:add(0x%X , 0x%X) = %X", var->name, add_s, add_e, add);
 				}
@@ -2126,15 +2180,10 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("right(");
 					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
-					/* the slice is taken out of a 32-bit value */
+					/* the slice is taken out of a 32-bit value, and comes out
+					 * big-endian at every width -- see _set_var_slice() */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "right() length out of range");
-					/* THREE bytes is the one width with no case in the
-					 * variable reader's length switch, so the host-native
-					 * slice below would be copied out untouched and a
-					 * big-endian build would write it the other way round.
-					 * Same hazard as carry(1); see _swap_var_endianness(). */
-					BSD_REQUIRE(rlen != 3, "right() of 3 bytes has a host-dependent byte order");
-					BSD_REQUIRE(_set_var_data(var, (uint8_t*) &rvalue + HOST_LSB(BSD_VAR_INT32 - rlen), rlen), "out of memory");
+					BSD_REQUIRE(_set_var_slice(var, (uint32_t) rvalue, (uint32_t) rlen, 0), "out of memory");
 
 					LOG("[%s]:right(0x%X , %d)", var->name, rvalue, rlen);
 				}
@@ -2148,20 +2197,11 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("left(");
 					_parse_start_end(line, pointer, dsize, &rvalue, &rlen);
 
-					/* the slice is taken out of a 32-bit value */
+					/* the slice is taken out of a 32-bit value; `msb` is what
+					 * makes this left() rather than right() -- keep the
+					 * leftmost (most-significant) bytes */
 					BSD_REQUIRE(rlen >= 0 && rlen <= BSD_VAR_INT32, "left() length out of range");
-					/* Three bytes is host-dependent here for the same reason
-					 * it is in right(), and the reason is NOT HOST_MSB: that
-					 * picks the correct BYTES on either host, but leaves them
-					 * in host order, and only widths 1, 2 and 4 get put back
-					 * by the reader. The comment here used to claim HOST_MSB
-					 * made this host-consistent outright; it does not. */
-					BSD_REQUIRE(rlen != 3, "left() of 3 bytes has a host-dependent byte order");
-					BSD_REQUIRE(_alloc_var_data(var, rlen), "out of memory");
-					/* keep the most-significant (leftmost) bytes of the value,
-					 * as a host-native integer; the write path emits it big-
-					 * endian for the widths it converts. */
-					memcpy(var->data, (uint8_t*) &rvalue + HOST_MSB(BSD_VAR_INT32 - rlen), var->len);
+					BSD_REQUIRE(_set_var_slice(var, (uint32_t) rvalue, (uint32_t) rlen, 1), "out of memory");
 
 					LOG("[%s]:left(0x%X , %d)", var->name, rvalue, rlen);
 				}

@@ -1,21 +1,32 @@
 /*
  * BSD script vectors.
  *
- * BSD is fully endian-mode-invariant: reads/writes go through the unconditional
- * BE* macros, and host-native integer truncation goes through HOST_LSB (which
- * depends only on the real host byte order, the same in the LE and BE modes).
- * So every BSD vector uses a single shared expected array, and the two passes
- * must agree.
+ * BSD is fully endian-mode-invariant: reads and writes go through the
+ * unconditional BE* macros, and integer truncation goes through
+ * _set_var_slice(), which lays the value out big-endian and hands it to
+ * _swap_var_endianness(). So every BSD vector uses a single shared expected
+ * array, and the two passes must agree.
  *
- * Note: carry()-based checksum truncation (wadd/dwadd/add/sub) originally used
- * the target-endian PADDING macro and produced WRONG, divergent output for
- * big-endian save data (it sliced the high half of the accumulator on a
- * little-endian host). That was fixed by switching those sites to HOST_LSB;
- * bsd_carry_padding_truncation() below guards the corrected, invariant result.
+ * Two rounds of fixes are guarded here. First, carry()-based truncation
+ * (wadd/dwadd/add/sub) originally used the target-endian PADDING macro and
+ * produced WRONG, divergent output for big-endian save data -- it sliced the
+ * high half of the accumulator on a little-endian host. That was fixed by
+ * keying the slice on the real HOST byte order instead; the vectors below with
+ * hand-computed accumulators guard the corrected result.
+ *
+ * Keying on the host was necessary but not sufficient. It picks the right
+ * BYTES on either host and leaves them in host ORDER, which only the widths
+ * the variable reader converts (2, 4, 8) ever recover from -- so a 3-byte
+ * slice still came out reversed between a PS3 and a wasm build, and was
+ * unreachable to test. _set_var_slice() closed that, and
+ * bsd_carry_truncation_is_big_endian() and
+ * bsd_left_right_slices_are_big_endian() pin every width.
  * See tests/README.md.
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "test_common.h"
 
 /* returns new size; *buf may be realloc'd by insert/delete */
@@ -95,14 +106,12 @@ TEST(bsd_insert)
 
 /*
  * carry()-based checksum truncation must be host-consistent and therefore
- * identical in both builds (regression guard for the PADDING -> HOST_LSB fix).
+ * identical in both builds (regression guard for the PADDING fix).
  *
  * wadd(0x0,0x3) over {12 34 56 78} = be16(0x1234)+be16(0x5678) = 0x000068AC.
- * In little-endian host memory that u32 is [AC 68 00 00]. carry(2) keeps the
- * low 16 bits (HOST_LSB=0 on a little-endian host, in BOTH modes), which the
- * write path then emits big-endian as [68 AC]. This matches what a real PS3
- * (__PPU__) and a real PS4/PC produce; before the fix the __PS3_PC__ build
- * wrongly kept the high half and wrote [00 00].
+ * carry(2) keeps the LOW 16 bits, 0x68AC, which reaches the file big-endian as
+ * [68 AC]. That is what a real PS3 and a real PS4/PC produce; before the fix
+ * the __PS3_PC__ build wrongly kept the high half and wrote [00 00].
  */
 TEST(bsd_carry_padding_truncation)
 {
@@ -115,15 +124,15 @@ TEST(bsd_carry_padding_truncation)
     uint8_t exp[16] = {0};
     memcpy(exp, init, 4);
     exp[8]=0x68; exp[9]=0xAC;   /* low half 0x68AC, emitted big-endian; same in LE and BE */
-    CHECK_MEM("wadd carry(2) truncation (HOST_LSB)", buf, exp, sizeof(exp));
+    CHECK_MEM("wadd carry(2) truncation", buf, exp, sizeof(exp));
     free(buf);
 }
 
 /*
- * add() with carry — the second HOST_LSB site (patches.c add handler).
+ * add() with carry — the second truncation site (patches.c add handler).
  * add(0x0,0x3) = 0xFF+0xFF+0xFF+0x04 = 0x00000301. carry(2) keeps the low 16
- * bits 0x0301 (HOST_LSB=0 on the host), emitted big-endian as [03 01] in both
- * modes. Before the fix the big-endian build kept the high half -> [00 00].
+ * bits 0x0301, emitted big-endian as [03 01] in both modes. Before the fix the
+ * big-endian build kept the high half -> [00 00].
  */
 TEST(bsd_add_carry_truncation)
 {
@@ -136,15 +145,16 @@ TEST(bsd_add_carry_truncation)
     uint8_t exp[16] = {0};
     memcpy(exp, init, 4);
     exp[8]=0x03; exp[9]=0x01;
-    CHECK_MEM("add carry(2) truncation (HOST_LSB)", buf, exp, sizeof(exp));
+    CHECK_MEM("add carry(2) truncation", buf, exp, sizeof(exp));
     free(buf);
 }
 
 /*
- * right(value,len) — the third HOST_LSB site. Keeps the `len` rightmost
+ * right(value,len) — the third truncation site. Keeps the `len` rightmost
  * (least-significant) bytes of the value. right(0x12345678,2) -> 0x5678,
  * emitted big-endian as [56 78] in both modes. Before the fix the big-endian
- * build kept the LEFT bytes -> [12 34].
+ * build kept the LEFT bytes -> [12 34]. Width coverage beyond 2 bytes lives in
+ * bsd_left_right_slices_are_big_endian().
  */
 TEST(bsd_right_truncation)
 {
@@ -155,16 +165,15 @@ TEST(bsd_right_truncation)
 
     uint8_t exp[16] = {0};
     exp[0]=0x56; exp[1]=0x78;
-    CHECK_MEM("right(v,2) keeps low bytes (HOST_LSB)", buf, exp, sizeof(exp));
+    CHECK_MEM("right(v,2) keeps low bytes", buf, exp, sizeof(exp));
     free(buf);
 }
 
 /*
  * left(value,len) — keeps the leftmost / MOST-significant `len` bytes of the
- * value, host-consistently (via HOST_MSB), emitted big-endian by the write
- * path. left(0x00012345,2) -> the top 2 bytes 0x0001 -> [00 01] in every build.
- * Before the HOST_MSB fix the little-endian builds wrongly kept the low bytes
- * (0x2345 -> [23 45], identical to right()).
+ * value, emitted big-endian by the write path. left(0x00012345,2) -> the top 2
+ * bytes 0x0001 -> [00 01] in every build. Before the fix the little-endian
+ * builds wrongly kept the low bytes (0x2345 -> [23 45], identical to right()).
  */
 TEST(bsd_left)
 {
@@ -215,15 +224,17 @@ TEST(bsd_mid_offset)
 }
 
 /*
- * Update of an already-existing variable — the fourth HOST_LSB site
- * (patches.c:796, where an existing var's value is re-fetched into old_val and
- * var->data is re-pointed at its low bytes). The var is created with read()
- * (not a HOST_LSB site) so ONLY line 796 is under test here.
+ * Update of an already-existing variable — the fourth truncation site, where a
+ * var's value is re-fetched into old_val and re-stored. The var is created
+ * with read(), which is not a truncation site, so only the re-fetch is under
+ * test here.
  *
- * read(0,2) of file bytes {AA BB} stores the big-endian value 0xAABB. The
- * second set re-fetches it (line 796 -> low bytes), endian_swap reverses to
- * 0xBBAA, and write emits it big-endian as [BB AA]. Same in both modes; before
- * the fix the big-endian build re-pointed at the high (zero) bytes -> [00 00].
+ * read(0,2) of file bytes {AA BB} stores the value 0xAABB. The second set
+ * re-fetches it (now via _get_var_value(), re-stored via _set_var_slice()),
+ * endian_swap reverses it to 0xBBAA, and write emits it big-endian as [BB AA].
+ * Same in both modes; before the fix the big-endian build re-pointed at the
+ * high (zero) bytes -> [00 00]. The 3-byte width this pair has to survive is
+ * covered by the two-step accumulate in bsd_carry_truncation_is_big_endian().
  */
 TEST(bsd_update_existing_variable)
 {
@@ -237,7 +248,7 @@ TEST(bsd_update_existing_variable)
     uint8_t exp[16] = {0};
     exp[0]=0xAA; exp[1]=0xBB;    /* untouched source */
     exp[4]=0xBB; exp[5]=0xAA;    /* re-fetched, swapped, written big-endian */
-    CHECK_MEM("existing-var re-fetch truncation (HOST_LSB)", buf, exp, sizeof(exp));
+    CHECK_MEM("existing-var re-fetch truncation", buf, exp, sizeof(exp));
     free(buf);
 }
 
@@ -544,4 +555,230 @@ TEST(bsd_hash_sha1_xor64)
     uint8_t exp[8] = { 0x7A, 0xB2, 0xEF, 0xC5, 0xE5, 0x42, 0xC7, 0x3F };
     CHECK_MEM("sha1_xor64(\"123456789\") regression", buf + 0x10, exp, sizeof(exp));
     free(buf);
+}
+
+/*
+ * ---- host byte order must not reach the file ---------------------------
+ *
+ * Two vectors, and what makes them vectors is that neither branches on
+ * apollo_test_be(): the expected bytes below are the answer on a PS3 and on a
+ * wasm build alike. That is the whole claim. Before these fixes each case gave
+ * one answer on a big-endian host and the reverse on a little-endian one, and
+ * nothing in the suite said so.
+ *
+ * The thing that decides it is _decode_variable_data(), which converts a
+ * variable on the way out BY LENGTH: 2, 4 and 8 bytes are treated as a
+ * host-native integer and re-emitted big-endian, every other length is copied
+ * through as a raw byte string. A producer has to know which side of that line
+ * it is on.
+ */
+
+/* carry(1) truncates the accumulator to THREE bytes, the one width with no
+ * case in that switch. _set_var_slice() is what makes it work anyway: the
+ * value is laid out big-endian and then handed to _swap_var_endianness(),
+ * which converts the widths the reader converts and leaves the rest alone. So
+ * every width below has ONE expected answer rather than a host-dependent
+ * pair. 16 bytes of 0xFF sum to 0xFF0. */
+TEST(bsd_carry_truncation_is_big_endian)
+{
+    static const uint8_t init[16] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF
+    };
+    static const uint8_t exp0[4] = { 0x00, 0x00, 0x0F, 0xF0 };
+    static const uint8_t exp1[3] = { 0x00, 0x0F, 0xF0 };
+    static const uint8_t exp2[2] = { 0x0F, 0xF0 };
+    static const uint8_t exp3[1] = { 0xF0 };
+    uint8_t* buf;
+
+    /* A fresh copy before every case: the write lands at offset 0, inside the
+     * range the next sum would cover, so reusing the buffer would silently
+     * change the input rather than the width under test. */
+#define CARRY_CASE(label, script, exp)                                        \
+    do {                                                                      \
+        buf = dup_bytes(init, sizeof(init));                                  \
+        CHECK_U64(label ": applied", apply_bsd(&buf, sizeof(init), script),   \
+                  sizeof(init));                                              \
+        CHECK_MEM(label, buf, exp, sizeof(exp));                              \
+        free(buf);                                                            \
+    } while (0)
+
+    CARRY_CASE("carry(0): four bytes, big-endian",
+               "set [v]:0\nset [v]:add(0x0,0xF)\nwrite at 0:[v]", exp0);
+    CARRY_CASE("carry(1): three bytes, big-endian",
+               "carry(1)\nset [v]:0\nset [v]:add(0x0,0xF)\nwrite at 0:[v]", exp1);
+    CARRY_CASE("carry(2): two bytes, big-endian",
+               "carry(2)\nset [v]:0\nset [v]:add(0x0,0xF)\nwrite at 0:[v]", exp2);
+    CARRY_CASE("carry(3): low byte",
+               "carry(3)\nset [v]:0\nset [v]:add(0x0,0xF)\nwrite at 0:[v]", exp3);
+
+    /* Accumulating in two steps must reach the same place as one. This is the
+     * half that needs _get_var_value(): the second add() seeds itself from the
+     * 3-byte variable the first one left, and reading that back as zero would
+     * silently drop the first 2040. */
+    CARRY_CASE("carry(1): 3-byte accumulator survives being re-set",
+               "carry(1)\nset [v]:0\nset [v]:add(0x0,0x7)\nset [v]:add(0x8,0xF)\nwrite at 0:[v]",
+               exp1);
+#undef CARRY_CASE
+}
+
+/*
+ * host_account_id is a byte string, handed over the same way as the PSID and
+ * the MAC addresses beside it -- but it is EIGHT bytes, which is a length the
+ * reader converts. So an id already in the order the save wants came back
+ * reversed on a little-endian build. apollo_test_host_cb serves
+ * 01 23 45 67 89 AB CD EF and that is what has to land in the file, here and
+ * on a PS3.
+ *
+ * Driven through apollo_apply_code() rather than apollo_apply_bsd_code(),
+ * because the host callback is installed by the former and there is no other
+ * way to reach it.
+ */
+extern void* apollo_test_host_cb(int info, uint32_t* size);
+
+TEST(bsd_host_account_id_is_big_endian)
+{
+    static const uint8_t want[8] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+    static const uint8_t zero[16] = {0};
+    const char* tmpdir = getenv("TMPDIR");
+    char tmp[4096];
+    code_entry_t c;
+    uint8_t* out = NULL;
+    size_t len = 0;
+
+    if (!tmpdir || !*tmpdir) tmpdir = "/tmp";
+    snprintf(tmp, sizeof(tmp), "%s/apollo_acct_%d.bin", tmpdir, (int) getpid());
+    if (write_buffer(tmp, zero, sizeof(zero)) != 0)
+        return;
+
+    memset(&c, 0, sizeof(c));
+    c.type  = APOLLO_CODE_BSD;
+    c.name  = (char*) "vector";
+    c.file  = tmp;
+    c.codes = (char*) "set [id]:host_account_id\nwrite at 0:[id]";
+
+    apollo_free_var_list();
+    CHECK_U64("host_account_id: code applied",
+              apollo_apply_code(tmp, &c, apollo_test_host_cb) != 0, 1);
+
+    if (read_buffer(tmp, &out, &len) == 0)
+    {
+        CHECK_MEM("host_account_id: written big-endian on every host",
+                  out, want, sizeof(want));
+        free(out);
+    }
+    unlink(tmp);
+}
+
+/*
+ * right() and left() reach the same three-byte width from the other side:
+ * there the 3 IS the requested width, not a count of bytes dropped. Every
+ * width is pinned below with no apollo_test_be() branch, which is the claim
+ * that _set_var_slice() removed the host from the answer -- a 3-byte slice
+ * used to come out 22 33 44 on a little-endian build and 44 33 22 on a PS3.
+ */
+TEST(bsd_left_right_slices_are_big_endian)
+{
+    static const uint8_t init[16] = {0};
+    static const uint8_t right1[1] = { 0x44 };
+    static const uint8_t right2[2] = { 0x33, 0x44 };
+    static const uint8_t right3[3] = { 0x22, 0x33, 0x44 };
+    static const uint8_t right4[4] = { 0x11, 0x22, 0x33, 0x44 };
+    static const uint8_t left1[1]  = { 0x11 };
+    static const uint8_t left2[2]  = { 0x11, 0x22 };
+    static const uint8_t left3[3]  = { 0x11, 0x22, 0x33 };
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    CHECK_U64("right(,1) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:right(0x11223344,1)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("right(,1): lowest byte", buf, right1, sizeof(right1));
+
+    CHECK_U64("right(,2) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:right(0x11223344,2)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("right(,2): low half, big-endian", buf, right2, sizeof(right2));
+
+    CHECK_U64("right(,3) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:right(0x11223344,3)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("right(,3): low three bytes, big-endian", buf, right3, sizeof(right3));
+
+    CHECK_U64("right(,4) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:right(0x11223344,4)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("right(,4): whole value, big-endian", buf, right4, sizeof(right4));
+
+    CHECK_U64("left(,1) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:left(0x11223344,1)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("left(,1): highest byte", buf, left1, sizeof(left1));
+
+    CHECK_U64("left(,2) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:left(0x11223344,2)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("left(,2): high half, big-endian", buf, left2, sizeof(left2));
+
+    CHECK_U64("left(,3) applied", apply_bsd(&buf, sizeof(init),
+              "set [v]:left(0x11223344,3)\nwrite at 0:[v]"), sizeof(init));
+    CHECK_MEM("left(,3): high three bytes, big-endian", buf, left3, sizeof(left3));
+    free(buf);
+}
+
+/*
+ * The shape apollo-patches actually ships, and the one every carry vector
+ * above misses: PSP/ULUS10579 (BlazBlue: Continuum Shift II) sums a whole
+ * SYSTEM.DAT with wadd() under carry(2).
+ *
+ *   set [csum]:0
+ *   carry(2)
+ *   set pointer:eof+1
+ *   set [csum]:wadd(0x000004,pointer)
+ *   set [csum]:xor:FFFF
+ *   write at 0x000000:[csum]
+ *
+ * The other vectors sum four or sixteen bytes, so their accumulator never
+ * passes 0xFFFF and the fold loop
+ *
+ *   while (carry > 0 && add > 0xFFFF)
+ *       add = (add & 0xFFFF) + ((add & 0xFFFF0000) >> 8*carry);
+ *
+ * never executes once. A real save runs it, and these two sizes run it once
+ * and twice respectively. They discriminate: skip the fold and 0x2000 would
+ * write the raw low half 0x0BDE ^ FFFF = F421 instead of E3E5 ^ FFFF = 1C1A.
+ *
+ * Expected values computed from the algorithm by hand, not captured from this
+ * engine. Both sums stay under 2^32, so the uint32_t accumulator does not wrap
+ * and the arithmetic is unambiguous.
+ *
+ * xor:FFFF also pins the storage contract from the other side: _bitwise_var_value
+ * refuses a length mismatch, so the variable has to be exactly the two bytes
+ * carry(2) leaves, held host-native the way that helper expects to find it.
+ */
+static void carry_fold_case(size_t n, uint8_t hi, uint8_t lo, const char* label)
+{
+    uint8_t* init = malloc(n);
+    uint8_t* buf;
+    uint8_t exp[2];
+
+    for (size_t i = 0; i < n; i++)
+        init[i] = (uint8_t) (i * 7 + 3);
+
+    buf = dup_bytes(init, n);
+    exp[0] = hi; exp[1] = lo;
+
+    check_u64(__FILE__, __LINE__, label,
+              apply_bsd(&buf, n,
+                        "set [csum]:0\n"
+                        "carry(2)\n"
+                        "set pointer:eof+1\n"
+                        "set [csum]:wadd(0x000004,pointer)\n"
+                        "set [csum]:xor:FFFF\n"
+                        "write at 0x000000:[csum]"), n);
+    check_mem(__FILE__, __LINE__, label, buf, exp, sizeof(exp));
+    /* everything past the checksum is untouched */
+    check_mem(__FILE__, __LINE__, label, buf + 2, init + 2, n - 2);
+
+    free(buf);
+    free(init);
+}
+
+TEST(bsd_carry_fold_over_long_buffer)
+{
+    carry_fold_case(0x2000,  0x1C, 0x1A, "ULUS10579 shape, 8KB: wadd carry(2), fold runs once");
+    carry_fold_case(0x20000, 0x93, 0xA2, "ULUS10579 shape, 128KB: wadd carry(2), fold runs twice");
 }
