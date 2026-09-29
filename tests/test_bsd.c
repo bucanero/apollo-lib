@@ -837,3 +837,68 @@ TEST(bsd_seed_then_add_existing_variable)
     seed_then_add_case(0x190518, 0x10, 0x190527, story_exp,
                        "BLUS30863 STORY: seed 0x190518 + add(0x10,0x190527)");
 }
+
+/*
+ * A pointer argument the parser cannot read is 0, not whatever the stack held.
+ *
+ * sscanf() leaves its target alone when it converts nothing, so reading that
+ * target back unconditionally handed the code an uninitialised value. The live
+ * case was "set pointer:read(0x20)" -- the one-argument spelling of read(),
+ * which matches no branch and falls through to the plain-number one -- and it
+ * made four PS3 patches in the database hash differently from one run to the
+ * next. Sanitisers do not catch it (ASAN does not track uninitialised stack,
+ * and MSan does not build here), so the value is pinned instead.
+ */
+TEST(bsd_unreadable_pointer_arg_is_zero)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    size_t n = apply_bsd(&buf, sizeof(init), "set pointer:read(0x20)\nwrite next 0:EEFF");
+
+    uint8_t exp[16] = {0};
+    exp[0] = 0xEE; exp[1] = 0xFF;
+    CHECK_U64("unreadable pointer: size unchanged", n, sizeof(init));
+    CHECK_MEM("set pointer:read(0x20) -> 0", buf, exp, sizeof(exp));
+
+    /* and the same for an argument that is not a number at all */
+    memset(buf, 0, sizeof(init));
+    apply_bsd(&buf, sizeof(init), "set pointer:nothexatall\nwrite next 0:EEFF");
+    CHECK_MEM("set pointer:nothexatall -> 0", buf, exp, sizeof(exp));
+
+    free(buf);
+}
+
+/* The two-argument spelling still resolves: read() is always 4 bytes, read
+   big-endian, so 00 00 00 0C at offset 8 puts the pointer at 12. */
+TEST(bsd_pointer_read_two_args)
+{
+    uint8_t init[16] = {0};
+    init[11] = 0x0C;
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    size_t n = apply_bsd(&buf, sizeof(init), "set pointer:read(0x8,4)\nwrite next 0:EEFF");
+
+    uint8_t exp[16] = {0};
+    exp[11] = 0x0C;
+    exp[12] = 0xEE; exp[13] = 0xFF;
+    CHECK_U64("read(0x8,4): size unchanged", n, sizeof(init));
+    CHECK_MEM("set pointer:read(0x8,4) -> 12", buf, exp, sizeof(exp));
+    free(buf);
+}
+
+/* An absent offset is a legitimate zero: "set pointer:eof" is the last byte.
+   One patch in the database writes it that way. */
+TEST(bsd_pointer_eof_without_offset)
+{
+    uint8_t init[16] = {0};
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    size_t n = apply_bsd(&buf, sizeof(init), "set pointer:eof\nwrite next 0:EE");
+
+    uint8_t exp[16] = {0};
+    exp[15] = 0xEE;
+    CHECK_U64("eof without offset: size unchanged", n, sizeof(init));
+    CHECK_MEM("set pointer:eof -> last byte", buf, exp, sizeof(exp));
+    free(buf);
+}
