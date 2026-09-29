@@ -547,47 +547,12 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 			/* type stays 0 = "not decided": get_patch_code() works it out
 			   from the body unless one of the headers below states it. */
 
-			if (wildcard_match_icase(line, "[DEFAULT:*"))
-			{
-				line += 8;
-				code->activated = 1;
-			}
-			else if (wildcard_match_icase(line, "[INFO:*"))
-			{
-				line += 5;
-				code->flags |= APOLLO_CODE_FLAG_ALERT;
-			}
-			else if (wildcard_match_icase(line, "[PYTHON:*"))
-			{
-				line += 7;
-				code->type = APOLLO_CODE_PYTHON;
-			}
-			/* Save Wizard and BSD are otherwise told apart by the shape of
-			   the body -- Save Wizard only when EVERY line is exactly
-			   "XXXXXXXX YYYYYYYY" -- so a code with one line the format
-			   cannot express becomes BSD and stops working, with no way for
-			   the author to say otherwise. These two headers are that way. */
-			else if (wildcard_match_icase(line, "[SW:*"))
-			{
-				line += 3;
-				code->type = APOLLO_CODE_SAVEWIZARD;
-			}
-			else if (wildcard_match_icase(line, "[BSD:*"))
-			{
-				line += 4;
-				code->type = APOLLO_CODE_BSD;
-			}
-			else if (wildcard_match_icase(line, "[LE:*"))
-			{
-				line += 3;
-				code->flags |= APOLLO_CODE_FLAG_ORDER_LE;
-			}
-			else if (wildcard_match_icase(line, "[BE:*"))
-			{
-				line += 3;
-				code->flags |= APOLLO_CODE_FLAG_ORDER_BE;
-			}
-			else if (wildcard_match_icase(line, "*GROUP:\\*"))
+			/* Group headers first. They are not prefixes -- they name a
+			   heading rather than a code, they can arrive unbracketed, and the
+			   backslash form rewrites the title in place -- and no title can be
+			   both, since a group's first token is always GROUP (or "; ---").
+			   Testing them here is what keeps the loop below free to compose. */
+			if (wildcard_match_icase(line, "*GROUP:\\*"))
 			{
 				group = 0;
 				line = strrchr(line, '\\');
@@ -604,6 +569,60 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 				line += 5;
 				group = APOLLO_CODE_FLAG_PARENT;
 				LOG("GROUP: %s\n", line+1);
+			}
+			/* Title prefixes. `line` points one character BEFORE the token --
+			   at the '[' to start with, then at the ':' each round leaves behind
+			   -- so the patterns match at line+1, the offsets are the token
+			   lengths, and the single line++ below still lands on the name.
+			   Looping is what lets them compose: "[BE:SW:Name]". */
+			else while (1)
+			{
+				if (wildcard_match_icase(line + 1, "DEFAULT:*"))
+				{
+					line += 8;
+					code->activated = 1;
+				}
+				else if (wildcard_match_icase(line + 1, "INFO:*"))
+				{
+					line += 5;
+					code->flags |= APOLLO_CODE_FLAG_ALERT;
+				}
+				else if (wildcard_match_icase(line + 1, "PYTHON:*"))
+				{
+					line += 7;
+					code->type = APOLLO_CODE_PYTHON;
+				}
+				/* Save Wizard and BSD are otherwise told apart by the shape of
+				   the body -- Save Wizard only when EVERY line is exactly
+				   "XXXXXXXX YYYYYYYY" -- so a code with one line the format
+				   cannot express becomes BSD and stops working, with no way for
+				   the author to say otherwise. These two headers are that way. */
+				else if (wildcard_match_icase(line + 1, "SW:*"))
+				{
+					line += 3;
+					code->type = APOLLO_CODE_SAVEWIZARD;
+				}
+				else if (wildcard_match_icase(line + 1, "BSD:*"))
+				{
+					line += 4;
+					code->type = APOLLO_CODE_BSD;
+				}
+				/* Byte order is one choice, not two bits: the last one written
+				   wins, rather than leaving both set for apollo_apply_sw_code()
+				   to resolve by the order it happens to test them in. */
+				else if (wildcard_match_icase(line + 1, "LE:*"))
+				{
+					line += 3;
+					code->flags &= ~APOLLO_CODE_FLAG_ORDER_BE;
+					code->flags |= APOLLO_CODE_FLAG_ORDER_LE;
+				}
+				else if (wildcard_match_icase(line + 1, "BE:*"))
+				{
+					line += 3;
+					code->flags &= ~APOLLO_CODE_FLAG_ORDER_LE;
+					code->flags |= APOLLO_CODE_FLAG_ORDER_BE;
+				}
+				else break;
 			}
 			line++;
 

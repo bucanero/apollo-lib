@@ -151,8 +151,23 @@ Each cheat code or patch is defined in its own section with a title and code lin
 - ``[BE:...]`` - Read/write this code's data as big-endian
 - ``[GROUP:...]`` - Group header for organizing codes
 
-Only ONE prefix is read per title, so they cannot be combined:
-A title like ``[DEFAULT:PYTHON:Name]`` is not currently supported.
+Prefixes combine, in any order and any number. Each one is read off the front
+of the title and the next is tried against what is left, so
+``[DEFAULT:PYTHON:Name]`` is a Python code, ticked by default, named ``Name``::
+
+   [INFO:PYTHON:Read me first]
+   [BE:SW:Max Money (PS3)]
+
+Where two of them say the same kind of thing, the last one written wins:
+``[SW:BSD:Name]`` is a BSD script, and ``[LE:BE:Name]`` is big-endian.
+
+``[GROUP:...]`` is the exception -- it names a heading rather than a code, so
+it is read on its own and does not combine.
+
+The reading stops at the first word that is not a prefix, so a code whose name
+genuinely begins with one of these words followed by a colon would lose it.
+``[INFO:BE: watch the byte order]`` is an alert about byte order to a human,
+but to the parser it is a big-endian code named ``watch the byte order``.
 
 **Code Lines**
 
@@ -203,7 +218,7 @@ Two things to know:
 - Unlike ``[SW:...]`` and ``[BSD:...]``, these do **not** state the code type.
   The body still decides it, so ``[BE:...]`` on a code whose lines are not all
   ``XXXXXXXX YYYYYYYY`` gives a BSD script that happens to carry an ignored
-  flag.
+  flag. Combine the two when you mean both: ``[BE:SW:...]``.
 
 Game Genie / Save Wizard Codes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
