@@ -902,3 +902,45 @@ TEST(bsd_pointer_eof_without_offset)
     CHECK_MEM("set pointer:eof -> last byte", buf, exp, sizeof(exp));
     free(buf);
 }
+
+/*
+ * sw4_checksum's four words reach the save big-endian.
+ *
+ * The hash is stored as a 16-byte blob, and the variable reader converts only
+ * the INT16/32/64 widths -- a blob passes through untouched. So the words are
+ * byte-swapped where they are produced; without that, mid() slices them
+ * backwards on a little-endian host and the patch writes a reversed checksum.
+ * On the PS3 itself the conversion is a no-op, which is why it went unnoticed.
+ *
+ * This pins the byte ORDER, not the algorithm: the expected words come from
+ * apollo_hash_sw4() itself. Until now the only thing guarding it was a corpus
+ * golden that was never regenerated after the fix, so the drift went unseen.
+ */
+TEST(bsd_hash_sw4_words_are_big_endian)
+{
+    /* apollo_hash_sw4() reads fixed offsets up to ~362KB and returns zeros for
+       anything smaller, so this vector cannot be a short one. */
+    enum { N = 384 * 1024 };
+    static uint8_t init[N];
+    for (size_t i = 0; i < N; i++) init[i] = (uint8_t)(i * 11 + 5);
+
+    uint32_t word[4] = {0};
+    apollo_hash_sw4(init, N, word);
+
+    uint8_t* buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set range:0x0,0x5FFFF\n"
+                       "set [h]:sw4_checksum\n"
+                       "set [c1]:mid([h],0x00,4)\n"
+                       "set [c4]:mid([h],0x0C,4)\n"
+                       "write at 0x0:[c1]\n"
+                       "write at 0x4:[c4]\n");
+
+    uint8_t exp[8];
+    for (int i = 0; i < 4; i++) exp[i]     = (uint8_t)(word[0] >> (24 - 8 * i));
+    for (int i = 0; i < 4; i++) exp[4 + i] = (uint8_t)(word[3] >> (24 - 8 * i));
+
+    CHECK_U64("sw4 over this buffer is not all zeros", word[0] != 0, 1);
+    CHECK_MEM("mid([sw4],0,4) and mid([sw4],0xC,4) write words 0 and 3 big-endian",
+              buf, exp, sizeof(exp));
+    free(buf);
+}
