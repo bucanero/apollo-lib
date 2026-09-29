@@ -25,6 +25,8 @@ The library is cross-platform and is required to build:
 
 Recognised by the shape of the code body, or stated with a `[SW:...]` title
 prefix (`[BSD:...]` and `[PYTHON:...]` do the same for the other two kinds).
+A `[LE:...]` or `[BE:...]` prefix pins the byte order of the data a single code
+writes, overriding the mode the host set with `apollo_set_endianness()`.
 
 - Code Type 0: Standard 1 Byte Write
 - Code Type 1: Standard 2 Byte Write

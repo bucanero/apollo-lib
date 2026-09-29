@@ -147,6 +147,8 @@ Each cheat code or patch is defined in its own section with a title and code lin
 - ``[PYTHON:...]`` - Python script code
 - ``[SW:...]`` - Save Wizard / Game Genie code (force type and skip auto-detection)
 - ``[BSD:...]`` - BSD script code (force type and skip auto-detection)
+- ``[LE:...]`` - Read/write this code's data as little-endian
+- ``[BE:...]`` - Read/write this code's data as big-endian
 - ``[GROUP:...]`` - Group header for organizing codes
 
 Only ONE prefix is read per title, so they cannot be combined:
@@ -177,6 +179,31 @@ the type instead, and a stated type is never overridden by the body::
    [SW:Max Money]
    80010004 12345678
    28000004 0098967F
+
+**Byte Order**
+
+``[LE:...]`` and ``[BE:...]`` state the byte order of the save data one code
+writes, overriding for that code alone whatever the host selected with
+``apollo_set_endianness()``::
+
+   [BE:Max Money (PS3)]
+   20000004 0098967F
+
+This is for a patch that mixes byte orders, or one shipped for a big-endian
+platform that should not depend on the front-end guessing right. Most patches
+need neither: the host sets the mode once for the save it is patching.
+
+Two things to know:
+
+- Only `Save Wizard <#game-genie-save-wizard-codes>`__ codes act on it, where
+  it governs every multi-byte read and write the code makes. The prefix is
+  still parsed on a BSD or Python code and shows up in ``flags``, but nothing
+  reads it there -- a BSD script controls byte order itself with
+  ``endian_swap``.
+- Unlike ``[SW:...]`` and ``[BSD:...]``, these do **not** state the code type.
+  The body still decides it, so ``[BE:...]`` on a code whose lines are not all
+  ``XXXXXXXX YYYYYYYY`` gives a BSD script that happens to carry an ignored
+  flag.
 
 Game Genie / Save Wizard Codes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
