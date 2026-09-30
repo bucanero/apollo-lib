@@ -854,7 +854,10 @@ Multi-line Codes
 Endianness
 ----------
 
-- Most operations use little-endian (host byte order)
+- Most operations use the save data's byte order, which the host selects with
+  ``apollo_set_endianness()``; unset, it follows the machine running the library
+- A ``[LE:...]`` or ``[BE:...]`` title prefix overrides that for one code --
+  see :doc:`savepatch`
 - Search operations (8, B) use big-endian for patterns
 - Type 9 supports both endianness modes
 

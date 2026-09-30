@@ -437,6 +437,28 @@ static void* _decode_variable_data(const char* line, uint32_t *data_len)
 	return output;
 }
 
+/*
+ * Read the optional hex offset a "set pointer:*" form carries.
+ *
+ * sscanf() leaves its target untouched when it converts nothing, so reading
+ * that target back unconditionally handed the code whatever the stack held --
+ * and the same patch then produced different output from one run to the next.
+ * The live case was "set pointer:read(0x20)", the one-argument spelling of
+ * read(), which matches no branch and falls through to the plain-number one.
+ *
+ * An absent argument ("set pointer:eof") is a legitimate zero and stays quiet.
+ * An argument that is present and unreadable is zero too, but says so.
+ */
+static int _parse_hex_arg(const char* line)
+{
+	int val = 0;
+
+	if (*line && sscanf(line, "%x", &val) != 1)
+		LOG("Warning: no readable value in '%s', using 0", line);
+
+	return val;
+}
+
 static int _parse_int_value(const char* line, const int ptrval, const int size)
 {
 	int ret = 0, neg = 0;
@@ -916,7 +938,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 			// UNUSED: "set psid:*", "set userid:*", "set titleid:*", "set *account*:*", "set *profile*:*",
 			// UNUSED: crc16, adler16, md4, sha384, sha512,
 
-			int ptr_off, len;
+			int ptr_off = 0, len;
 			char* tmp = NULL;
 
 			line += strlen("set");
@@ -934,7 +956,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					skip_spaces(line);
 
 					eof = 1;
-					sscanf(line, "%x", &ptr_off);
+					ptr_off = _parse_hex_arg(line);
 					pointer = dsize + ptr_off - 1;
 				}
 				// set pointer:lastbyte*
@@ -944,7 +966,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					skip_spaces(line);
 
 					eof = 1;
-					sscanf(line, "%x", &ptr_off);
+					ptr_off = _parse_hex_arg(line);
 					pointer = dsize + ptr_off - 1;
 				}
 				// set pointer:pointer*
@@ -953,7 +975,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("pointer");
 					skip_spaces(line);
 
-					sscanf(line, "%x", &ptr_off);
+					ptr_off = _parse_hex_arg(line);
 					pointer += ptr_off;
 				}
 				// set pointer:read(*,*)*
@@ -961,8 +983,9 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				{
 					line += strlen("read");
         			
-					int raddr, rlen;
-					sscanf(line, "(%x,%x)", &raddr, &rlen);
+					int raddr = 0, rlen = 0;
+					if (sscanf(line, "(%x,%x)", &raddr, &rlen) != 2)
+						LOG("Warning: unreadable read() arguments in '%s'", line);
 
 					uint32_t rval = 0;
 					if (_range_in_bounds(dsize, (long) raddr, 4))
@@ -981,7 +1004,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				// set pointer:* (e.g. 0x00000000)
 				else
 				{
-					sscanf(line, "%x", &ptr_off);
+					ptr_off = _parse_hex_arg(line);
 					pointer = ptr_off;
 				}
 

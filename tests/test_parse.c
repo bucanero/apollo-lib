@@ -13,6 +13,7 @@
  *     -- unless a header states it, and then the header wins
  *   - `[DEFAULT:*]` -> activated, `[INFO:*]` -> ALERT, `[PYTHON:*]` -> Python,
  *     `[SW:*]` -> Save Wizard, `[BSD:*]` -> BSD
+ *   - `[LE:*]` / `[BE:*]` -> ORDER_LE / ORDER_BE, leaving the type alone
  *   - `[GROUP:*]` -> PARENT, following codes -> CHILD
  *   - a name containing `(REQUIRED)` -> REQUIRED
  *   - a body with no code lines (comments only / empty) -> EMPTY
@@ -384,4 +385,156 @@ TEST(parse_without_header_node)
 
     /* No caller-owned node here, so every entry is the library's. */
     apollo_free_code_list(l, list_head(l));
+}
+
+/*
+ * [LE:*] / [BE:*] set the byte-order flag, and only that.
+ *
+ * They read like the type prefixes and sit in the same slot, but they do a
+ * different job: apollo_apply_sw_code() takes APOLLO_CODE_FLAG_ORDER_* as an
+ * override of apollo_set_endianness() for that one code, while the TYPE still
+ * comes from the body. Nothing in the patches database uses them, so this is
+ * the only place the combination is exercised.
+ */
+TEST(parse_order_prefix)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[BE:Big endian]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[LE:Little endian]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[be:lower case works too]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[BE:Script]\n"           /* order prefix, BSD body */
+                      "set [x]:0\n"
+                      "\n"
+                      "[BE:DEFAULT:Only one prefix]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[No prefix]\n"
+                      "20000004 12345678\n");
+
+    code_entry_t* be     = list_get_item(l, 1);
+    code_entry_t* le     = list_get_item(l, 2);
+    code_entry_t* lower  = list_get_item(l, 3);
+    code_entry_t* script = list_get_item(l, 4);
+    code_entry_t* once   = list_get_item(l, 5);
+    code_entry_t* plain  = list_get_item(l, 6);
+
+    CHECK_U64("[BE:*] -> ORDER_BE", (be->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_U64("[BE:*] leaves ORDER_LE clear", (be->flags & APOLLO_CODE_FLAG_ORDER_LE) != 0, 0);
+    CHECK_U64("[LE:*] -> ORDER_LE", (le->flags & APOLLO_CODE_FLAG_ORDER_LE) != 0, 1);
+    CHECK_U64("[LE:*] leaves ORDER_BE clear", (le->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 0);
+    CHECK_U64("the prefix is case-insensitive",
+              (lower->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_U64("no prefix -> neither flag",
+              (plain->flags & (APOLLO_CODE_FLAG_ORDER_LE | APOLLO_CODE_FLAG_ORDER_BE)) != 0, 0);
+
+    CHECK_STR("[BE:*] is stripped from the name", be->name, "Big endian");
+    CHECK_STR("[LE:*] is stripped from the name", le->name, "Little endian");
+
+    /* Unlike [SW:*]/[BSD:*], these state nothing about the type. */
+    CHECK_U64("a hex body under [BE:*] is still inferred Save Wizard",
+              be->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_U64("a script body under [BE:*] is still inferred BSD",
+              script->type, APOLLO_CODE_BSD);
+    CHECK_U64("and keeps the flag the engine ignores there",
+              (script->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+
+    /* Prefixes compose: the order tag does not consume the title's one slot. */
+    CHECK_U64("a second prefix is consumed too", once->activated, 1);
+    CHECK_U64("and the first still applies", (once->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_STR("both are stripped from the name", once->name, "Only one prefix");
+
+    free_parsed(l);
+}
+
+/*
+ * Title prefixes compose, in any order and any number.
+ *
+ * Each one is read off the front of the title and the next is tried against
+ * what is left, so "[BE:SW:Name]" is a big-endian Save Wizard code. Before
+ * this, a title carried exactly one: everything after the first prefix stayed
+ * in the name, and a code that was already [DEFAULT:*] or [INFO:*] had no way
+ * left to state its type -- the case the patch exporter had to report rather
+ * than fix.
+ */
+TEST(parse_prefixes_compose)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[BE:SW:Order and type]\n"
+                      "20000004 1234567\n"          /* 16 chars: would infer BSD */
+                      "\n"
+                      "[DEFAULT:BE:Ticked and big endian]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[INFO:PYTHON:Alert script]\n"
+                      "print('hi')\n"
+                      "\n"
+                      "[SW:BSD:Last type wins]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[LE:BE:Last order wins]\n"
+                      "20000004 12345678\n");
+
+    code_entry_t* both   = list_get_item(l, 1);
+    code_entry_t* deflt  = list_get_item(l, 2);
+    code_entry_t* info   = list_get_item(l, 3);
+    code_entry_t* type2  = list_get_item(l, 4);
+    code_entry_t* order2 = list_get_item(l, 5);
+
+    /* [BE:SW:*] -- the declared type survives a body that infers BSD */
+    CHECK_U64("[BE:SW:*] -> ORDER_BE", (both->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_U64("[BE:SW:*] -> Save Wizard", both->type, APOLLO_CODE_SAVEWIZARD);
+    CHECK_STR("[BE:SW:*] name", both->name, "Order and type");
+
+    CHECK_U64("[DEFAULT:BE:*] activates", deflt->activated, 1);
+    CHECK_U64("[DEFAULT:BE:*] -> ORDER_BE", (deflt->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_STR("[DEFAULT:BE:*] name", deflt->name, "Ticked and big endian");
+
+    /* The case the one-slot rule made unreachable: an alert that is Python. */
+    CHECK_U64("[INFO:PYTHON:*] -> ALERT", (info->flags & APOLLO_CODE_FLAG_ALERT) != 0, 1);
+    CHECK_U64("[INFO:PYTHON:*] -> Python", info->type, APOLLO_CODE_PYTHON);
+    CHECK_STR("[INFO:PYTHON:*] name", info->name, "Alert script");
+
+    /* Conflicts resolve to the last one written, for both kinds. */
+    CHECK_U64("[SW:BSD:*] -> BSD", type2->type, APOLLO_CODE_BSD);
+    CHECK_U64("[LE:BE:*] -> ORDER_BE", (order2->flags & APOLLO_CODE_FLAG_ORDER_BE) != 0, 1);
+    CHECK_U64("[LE:BE:*] leaves ORDER_LE clear",
+              (order2->flags & APOLLO_CODE_FLAG_ORDER_LE) != 0, 0);
+
+    free_parsed(l);
+}
+
+/* A group heading is not a prefix and does not compose: it names a heading
+   rather than a code, and its own forms are order-sensitive between
+   themselves, so it is read before the prefix loop and only once. */
+TEST(parse_group_is_not_a_prefix)
+{
+    list_t* l = parse(":F.BIN\n"
+                      "[GROUP:Plain group]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[GROUP:Parent\\Child]\n"
+                      "20000004 12345678\n"
+                      "\n"
+                      "[Follows the group]\n"
+                      "20000004 12345678\n");
+
+    code_entry_t* grp   = list_get_item(l, 1);
+    code_entry_t* sub   = list_get_item(l, 2);
+    code_entry_t* child = list_get_item(l, 3);
+
+    CHECK_U64("[GROUP:*] -> PARENT", (grp->flags & APOLLO_CODE_FLAG_PARENT) != 0, 1);
+    CHECK_STR("[GROUP:*] name", grp->name, "Plain group");
+    CHECK_U64("a backslash that is not right after GROUP: is just a name",
+              (sub->flags & APOLLO_CODE_FLAG_PARENT) != 0, 1);
+    CHECK_STR("and stays in the name", sub->name, "Parent\\Child");
+    CHECK_U64("the code after a group is a CHILD",
+              (child->flags & APOLLO_CODE_FLAG_CHILD) != 0, 1);
+
+    free_parsed(l);
 }
