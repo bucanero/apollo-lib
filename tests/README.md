@@ -29,7 +29,7 @@ their expected bytes once, which asserts that invariance.
 | `test_search.c` | Search / conditional-skip behavior: Save Wizard types 8 (forward), B (backward), C (address-byte), D (byte-test skip), and the BSD `search` command — each covering found / not-found / occurrence-count paths. |
 | `test_parse.c` | Savepatch parsing (`apollo_load_code_list`): code count, name extraction, Save-Wizard-vs-BSD type detection, file association, `DEFAULT`/`INFO`/`PYTHON`/`GROUP` flags, `(REQUIRED)`, `EMPTY`, and comment stripping. |
 | `test_samples.c` | **Opt-in** known-answer vectors against real game saves from the `save-decrypters` repo — every tool there that ships an `.enc`/`.dec` pair. Algorithms with a non-trivial range are driven by the **actual script from the shipped `.savepatch`**, so engine/patch coupling is covered — including `search`-derived ranges, `{TAG}` option branches, and the multi-code chains a front-end applies in file order. Covers BSD ciphers, the MGS5 PS3/PS4 key set, and the **Python** patches (the only coverage MicroPython has here — `test_corpus.c` skips every Python code). Run with `make check-samples SAMPLES=... PATCHES=...`. |
-| `test_mgspw.c` | MGS Peace Walker bounds vectors using synthetic buffers: undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused, and the PSP size guard held independent of the (larger) PS3 one — a shared guard rejects every real PSP save. Plus an **opt-in** correctness round-trip against a real PS3 save via `make check-mgspw MGSPW_SAVE=...`. |
+| `test_mgspw.c` | MGS Peace Walker bounds vectors using synthetic buffers: undersized buffer refused, minimum size accepted, out-of-range data-derived salt offset refused, and the PSP size guard held independent of the (larger) PS3 one — a shared guard rejects every real PSP save. Correctness against real saves of all three types is in `test_samples.c`. |
 | `test_crypt_bsd.c` | BSD `encrypt`/`decrypt` command vectors: encrypt-then-decrypt round-trips for every cipher with an inverse (AES ECB/CBC, Camellia, 3-DES ECB/CBC, Blowfish ECB/CBC, Diablo 3, Silent Hill 3, NFS Undercover, MGS, FFXIII, Borderlands 3, Monster Hunter), twice-applied checks for the self-inverse streams (AES CTR, RGG Studio, DW8XL, MGS5 TPP), case-insensitive keyword matching, and unknown-algorithm inertness. |
 | `test_offzip.c` | offZip session vectors: planted-stream discovery (offset / zip / unzip lengths), `offzip_util` geometry plus inflated payload, `offzip_free(NULL)` safety, sub-`g_minzip` blocks ignored, and — the point of the handle — two concurrent sessions advancing independently. |
 | `test_corpus.c` | Golden regression: applies every code from a tree of real `.savepatch` files to a fixed synthetic buffer and emits a stable manifest line per code. |
@@ -62,6 +62,20 @@ perfectly and still produced the wrong bytes.
 `PATCHES` is only needed for the Python vectors, whose patches `import` helper
 modules from `apollo-patches/python`. Left at its `fixtures` default those skip
 with a message and everything else still runs.
+
+To run every opt-in vector at once, the way CI does, use `check-full`:
+
+```bash
+make check-full SAMPLES=/path/to/save-decrypters \
+                PATCHES=/path/to/apollo-patches
+```
+
+It is `check-samples` made strict: a vector that skips fails the target, and the full output is kept in
+`build/check-full.log`. The `samples` job in `.github/workflows/tests.yml`
+checks out both repos at their default branch and runs it on every push, so a
+sample renamed or removed upstream shows up as a red job instead of quietly
+lost coverage. Run it against clean clones: a local checkout can pass on files
+that only exist in your working tree.
 
 Three things these vectors pin down that are easy to get wrong from the outside:
 
@@ -127,14 +141,6 @@ Two known divergences the vectors deliberately do **not** paper over:Two known d
   savepatch nor the C tool (which agree with each other) can reproduce the
   `.enc` from the `.dec`. The vector pins the range the fixture actually
   covers and still proves the cipher and the custom-CRC parameters.
-
-Correctness for MGS Peace Walker needs a real save, which is deliberately not
-vendored (~300 KB of binary, and it is somebody's game data). Point the opt-in
-check at an encrypted save with its decrypted twin alongside as `<file>.dec`:
-
-```bash
-make check-mgspw MGSPW_SAVE=/path/to/00000000.000
-```
 
 `check-samples` covers all three MGS PW save types from the `save-decrypters`
 samples. Note libapollo leaves the decrypted header byte-swapped for PSP saves

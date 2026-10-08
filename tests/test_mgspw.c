@@ -13,17 +13,11 @@
  *
  * The vectors below cover both with synthetic buffers, so they run everywhere
  * and need no game data. Correctness — that the output is actually a valid
- * decryption — needs a real save and is opt-in:
- *
- *     make check-mgspw MGSPW_SAVE=/path/to/00000000.000
- *
- * pointing at an encrypted save with its decrypted twin alongside as
- * <file>.dec. Real save data is deliberately not vendored: it is ~300 KB of
- * binary, six times the whole fixtures tree, and it is somebody's game data.
+ * decryption — is checked against real saves of all three types by the
+ * sample_mgs_pw_* vectors in test_samples.c (make check-samples).
  */
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include "test_common.h"
 
 /*
@@ -148,74 +142,4 @@ TEST(mgspw_rejects_out_of_range_salt_offset)
     CHECK_U64("hostile salt offset did not read out of bounds (encrypt)", 1, 1);
 
     free(buf);
-}
-
-/* ---- opt-in: correctness against a real save ---- */
-
-static uint8_t* slurp(const char* path, size_t* len)
-{
-    FILE* f = fopen(path, "rb");
-    uint8_t* b;
-
-    if (!f) return NULL;
-    fseek(f, 0, SEEK_END);
-    *len = (size_t) ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    b = malloc(*len ? *len : 1);
-    if (b && fread(b, 1, *len, f) != *len) { free(b); b = NULL; }
-    fclose(f);
-    return b;
-}
-
-/*
- * Decrypting a real save must reproduce its known-good plaintext byte for
- * byte, and re-encrypting that must reproduce the original file. Self-
- * consistency alone would not catch a wrong-but-reversible transform, which is
- * why the reference .dec is required rather than optional.
- */
-TEST(mgspw_real_save_round_trip)
-{
-    const char* path = getenv("MGSPW_SAVE");
-    char decpath[1024];
-    uint8_t *enc, *dec, *work;
-    size_t nenc = 0, ndec = 0;
-
-    if (!path || !*path)
-    {
-        printf("        (skipped: set MGSPW_SAVE=/path/to/00000000.000)\n");
-        return;
-    }
-
-    enc = slurp(path, &nenc);
-    if (!CHECK_U64("MGSPW_SAVE readable", enc != NULL, 1))
-        return;
-
-    snprintf(decpath, sizeof(decpath), "%s.dec", path);
-    dec = slurp(decpath, &ndec);
-    if (!CHECK_U64("reference <save>.dec readable", dec != NULL, 1))
-    {
-        free(enc);
-        return;
-    }
-
-    CHECK_U64("encrypted and reference are the same length", nenc, ndec);
-    CHECK_U64("real save is at least the minimum size", nenc >= MGSPW_MIN, 1);
-
-    if (nenc == ndec && nenc >= MGSPW_MIN)
-    {
-        work = malloc(nenc);
-        memcpy(work, enc, nenc);
-
-        apollo_crypt_mgs_pw(APOLLO_DECRYPT, work, (uint32_t) nenc, APOLLO_MGSPW_PS3);
-        check_mem(__FILE__, __LINE__, "decrypt(save) == reference .dec", work, dec, nenc);
-
-        apollo_crypt_mgs_pw(APOLLO_ENCRYPT, work, (uint32_t) nenc, APOLLO_MGSPW_PS3);
-        check_mem(__FILE__, __LINE__, "encrypt(decrypt(save)) == original", work, enc, nenc);
-
-        free(work);
-    }
-
-    free(enc);
-    free(dec);
 }

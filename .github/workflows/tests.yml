@@ -37,3 +37,59 @@ jobs:
         run: |
           cd tests
           make ci
+
+  # Known-answer vectors against real game saves. Neither the saves nor the
+  # patches are vendored, so this job checks out both repos and runs every
+  # vector in test_samples.c: the save-decrypters samples, plus the Python
+  # helper modules in apollo-patches.
+  #
+  # `make check-full` is strict: a vector that skips fails the job, because
+  # here a skip means a sample was renamed or removed upstream.
+  #
+  # Both repos are taken at their default branch, so a change there can turn
+  # this job red without a commit here. That is the point -- it is the only
+  # place the two are tested together -- but check the log before blaming
+  # libapollo.
+  samples:
+    runs-on: ubuntu-latest
+    name: samples (save-decrypters)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout save-decrypters
+        uses: actions/checkout@v4
+        with:
+          repository: bucanero/save-decrypters
+          path: save-decrypters
+
+      - name: Checkout apollo-patches
+        uses: actions/checkout@v4
+        with:
+          repository: bucanero/apollo-patches
+          path: apollo-patches
+
+      - name: Install Ubuntu requirements
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install zlib1g-dev
+
+      - name: Install mbedTLS
+        run: |
+          curl -sL https://src.fedoraproject.org/repo/pkgs/mbedtls/mbedtls-2.16.12.tar.gz/sha512/8d96d8cd906cc0999134320e4e1f550631426d166eab5da6e65469ee7286093810fcc6ac4bd5500ee55972d159f8bef7f9e53245f7f0eec72f72c35265b4313b/mbedtls-2.16.12.tar.gz | tar xz -C ./
+          cd mbedtls-2.16.12
+          mkdir build && cd build
+          cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          make mbedcrypto
+
+      - name: Run sample vectors
+        run: |
+          cd tests
+          make check-full SAMPLES=$GITHUB_WORKSPACE/save-decrypters PATCHES=$GITHUB_WORKSPACE/apollo-patches
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-full-log
+          path: tests/build/check-full.log
