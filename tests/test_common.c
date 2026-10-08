@@ -137,8 +137,12 @@ code_entry_t make_sw_code(const char* codes)
     code_entry_t c;
     memset(&c, 0, sizeof(c));
     c.type  = APOLLO_CODE_SAVEWIZARD;
-    if (apollo_test_be())
-        c.flags = APOLLO_CODE_FLAG_ORDER_BE;
+    /* Both passes name their byte order. Leaving the LE pass unflagged would
+       fall back to apollo_get_endianness(), which defaults to the HOST order:
+       little-endian only on a little-endian machine, and a second BE pass on a
+       PS3 or under qemu-ppc64. The default itself is pinned separately, by
+       sw_unflagged_code_follows_host (test_savewizard.c). */
+    c.flags = apollo_test_be() ? APOLLO_CODE_FLAG_ORDER_BE : APOLLO_CODE_FLAG_ORDER_LE;
     c.name  = (char*)"vector";
     c.file  = (char*)"vector";
     c.codes = (char*)codes;   /* apollo_apply_sw_code strdup()s this */

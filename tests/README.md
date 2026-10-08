@@ -77,6 +77,33 @@ sample renamed or removed upstream shows up as a red job instead of quietly
 lost coverage. Run it against clean clones: a local checkout can pass on files
 that only exist in your working tree.
 
+### On a big-endian host
+
+The "BE pass" above only flags the codes big-endian; on an x86 or ARM machine
+the host is still little-endian, so every path that depends on the host's own
+byte order (`BE16`/`BE32`/`BE64`, `_swap_var_endianness()`, how variables are
+stored) does nothing and is never really tested. The `big-endian` job in
+`.github/workflows/tests.yml` runs the suite on a real big-endian host instead:
+cross-built for 64-bit PowerPC, the PS3's CPU family, and run under qemu-user.
+To do the same on Ubuntu, with `gcc-powerpc64-linux-gnu`,
+`libc6-dev-ppc64-cross` and `qemu-user` installed and zlib and mbedTLS
+cross-built (see the job for the exact steps):
+
+```bash
+make ci check-corpus CC=powerpc64-linux-gnu-gcc RUN=qemu-ppc64 \
+     EXTRA_CFLAGS=-I$ZLIB/include LIBZ="-L$ZLIB/lib -lz" EXTRA_LDFLAGS=-static
+```
+
+`check-corpus` belongs here even though it is not part of `ci`: the goldens
+come from a little-endian machine, so matching them byte for byte is the proof
+that the engine's output does not depend on the host.
+
+Both passes name their byte order on every code they build. An unflagged code
+falls back to the host's order (that is what lets it write a PS3 save
+big-endian on a PS3), so leaving the LE pass unflagged turned it into a second
+BE pass on a big-endian host. `sw_unflagged_code_follows_host` pins that
+fallback separately.
+
 Three things these vectors pin down that are easy to get wrong from the outside:
 
 - **Byte order is the host's job on the BSD path.** `apollo_apply_bsd_code()`
