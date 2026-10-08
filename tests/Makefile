@@ -13,6 +13,7 @@
 #   make corpus-determinism  assert the corpus is reproducible run-to-run
 #   make golden           (re)generate golden corpus manifests from $(PATCHES)
 #   make check-corpus     re-run the corpus and diff against committed goldens
+#   make check-full       ci-strength run over the real save samples (see below)
 #   make sweep            convenience: check-corpus over the full patches repo
 #   make clean
 #
@@ -66,7 +67,7 @@ OBJS    := $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(LIB_SRCS) $(TST_SRCS)))
 # Point at the full patches repo for a broad sweep:  make check-corpus PATCHES=/path/to/apollo-patches
 PATCHES ?= fixtures
 
-.PHONY: all ci check check-mgspw check-samples golden check-corpus bsd-invariance corpus-determinism sweep clean
+.PHONY: all ci check check-samples check-full golden check-corpus bsd-invariance corpus-determinism sweep clean
 
 all: test_apollo$(EXE)
 
@@ -87,13 +88,6 @@ test_apollo$(EXE): $(OBJS)
 check: all
 	@$(RUN) ./test_apollo$(EXE)
 
-# Opt-in correctness check against a real MGS Peace Walker save (not vendored).
-# Expects the encrypted save, with its decrypted twin alongside as <file>.dec:
-#   make check-mgspw MGSPW_SAVE=/path/to/00000000.000
-check-mgspw: all
-	@[ -n "$(MGSPW_SAVE)" ] || { echo "set MGSPW_SAVE=/path/to/00000000.000"; exit 2; }
-	@MGSPW_SAVE="$(MGSPW_SAVE)" $(RUN) ./test_apollo$(EXE) | grep -E "mgspw|checks,"
-
 # Opt-in known-answer checks against real game saves from the save-decrypters
 # repo (not vendored):
 #
@@ -110,7 +104,27 @@ check-mgspw: all
 # and the Python vectors skip while the rest still run.
 check-samples: all
 	@[ -n "$(SAMPLES)" ] || { echo "set SAMPLES=/path/to/save-decrypters"; exit 2; }
-	@SAMPLES="$(SAMPLES)" PATCHES="$(PATCHES)" $(RUN) ./test_apollo$(EXE) | grep -E "sample_|skipped|checks,"
+	@set -o pipefail; SAMPLES="$(SAMPLES)" PATCHES="$(PATCHES)" $(RUN) ./test_apollo$(EXE) | grep -E "sample_|skipped|checks,"
+
+# Every opt-in vector at once, and strict about it -- what CI runs with real
+# checkouts of both repos:
+#
+#   make check-full SAMPLES=/path/to/save-decrypters PATCHES=/path/to/apollo-patches
+#
+# Unlike check-samples, a vector that SKIPS fails the target: in CI a skip
+# means a sample was renamed or removed upstream, and the coverage would
+# otherwise disappear with a green tick. The log keeps the full output.
+FULL_LOG = $(BUILD)/check-full.log
+check-full: all
+	@[ -n "$(SAMPLES)" ] || { echo "set SAMPLES=/path/to/save-decrypters"; exit 2; }
+	@[ -d "$(PATCHES)/python" ] || { echo "set PATCHES=/path/to/apollo-patches (needs its python/)"; exit 2; }
+	@mkdir -p $(BUILD)
+	@SAMPLES="$(SAMPLES)" PATCHES="$(PATCHES)" \
+	 $(RUN) ./test_apollo$(EXE) > $(FULL_LOG) 2>&1; rc=$$?; \
+	 grep -E "FAIL|\(skipped|checks," $(FULL_LOG); \
+	 echo "$$(( $$(grep -c '  ok    sample_' $(FULL_LOG)) - $$(grep -c '(skipped' $(FULL_LOG)) )) sample vectors passed (LE + BE)"; \
+	 if grep -q "(skipped" $(FULL_LOG); then echo "check-full: vectors skipped, see $(FULL_LOG)"; exit 1; fi; \
+	 exit $$rc
 
 golden: all
 	@mkdir -p golden
