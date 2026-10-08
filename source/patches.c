@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <limits.h>
+#include <ctype.h>
 #ifdef _USE_MBEDTLS
 #include <mbedtls/md.h>
 #include <mbedtls/md5.h>
@@ -861,9 +862,117 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 	return 1;
 }
 
+/*
+ * The shape of a Save Wizard line, "XXXXXXXX YYYYYYYY", with any characters:
+ * the same test as the loader's "???????? ????????". Leading spaces are not
+ * part of it.
+ */
+static int _is_sw_code_shape(const char* line)
+{
+	skip_spaces(line);
+	return (strlen(line) == SW_CODE_LINE_LEN && line[8] == ' ');
+}
+
+/*
+ * Stricter than the shape: a line that runs has to be real hex, so a
+ * placeholder such as "000000xx" rejects the code instead of being parsed as 0.
+ */
+static int _is_sw_code_line(const char* line)
+{
+	if (!_is_sw_code_shape(line))
+		return 0;
+
+	skip_spaces(line);
+	for (int i = 0; i < SW_CODE_LINE_LEN; i++)
+		if (i != 8 && !isxdigit((unsigned char) line[i]))
+			return 0;
+
+	return 1;
+}
+
+/*
+ * A run of Save Wizard lines inside a BSD script:
+ *
+ *   write at 0x10:00
+ *   20000004 000000AA      <- one Save Wizard code, these two lines
+ *   20000008 000000BB
+ *   set range:0,eof
+ *
+ * There is no keyword: no BSD command has that shape, and the loop only gets
+ * here once every command has failed to match. The run is every consecutive
+ * Save Wizard line from `first`; the line that ends it is handed back through
+ * `next` for the loop to run, or NULL at the end of the script.
+ *
+ * It runs against the script's buffer as it stands at this point (after any
+ * decrypt, insert or delete before it), from its own pointer = 0: it never sees
+ * BSD's pointer, range or variables, and a BSD line between two runs makes them
+ * two separate codes. The byte-order flags of the enclosing code carry over, so
+ * a [BE:...] BSD script runs its Save Wizard lines big-endian.
+ *
+ * A line with the shape but not the hex, inside the run or right after it,
+ * rejects the whole code before the run is applied: silently skipping it would
+ * drop one write out of the middle of a sequence. ';' comment lines inside a
+ * run are skipped.
+ */
+static int _exec_sw_run(uint8_t* data, size_t dsize, const code_entry_t* code, char* first, const char* code_end, char** cursor, char** next)
+{
+	code_entry_t sw_code;
+	size_t sw_len = 0, rlen;
+	int lines = 0;
+	char* line;
+	char* sw_buf;
+
+	/* every run line, plus its '\n', fits in what is left of the script */
+	sw_buf = malloc(code_end - first + 1);
+	if (!sw_buf)
+	{
+		LOG("ERROR: out of memory");
+		return 0;
+	}
+
+	for (line = first; line != NULL; line = strtok_r(NULL, "\n", cursor))
+	{
+		char* text = line;
+		skip_spaces(text);
+
+		if (text[0] == ';')
+			continue;
+
+		if (!_is_sw_code_line(text))
+		{
+			if (!_is_sw_code_shape(text))
+				break;
+
+			LOG("ERROR: not a valid Save Wizard code line (%s)", text);
+			free(sw_buf);
+			return 0;
+		}
+
+		memcpy(sw_buf + sw_len, text, SW_CODE_LINE_LEN);
+		sw_len += SW_CODE_LINE_LEN;
+		sw_buf[sw_len++] = '\n';
+		lines++;
+	}
+	sw_buf[sw_len] = 0;
+	*next = line;
+
+	memset(&sw_code, 0, sizeof(sw_code));
+	sw_code.type = APOLLO_CODE_SAVEWIZARD;
+	sw_code.flags = code->flags & (APOLLO_CODE_FLAG_ORDER_LE | APOLLO_CODE_FLAG_ORDER_BE);
+	sw_code.name = code->name;
+	sw_code.file = code->file;
+	sw_code.codes = sw_buf;
+
+	LOG("Applying Save Wizard code (%d lines)", lines);
+	rlen = apollo_apply_sw_code(data, dsize, &sw_code);
+	free(sw_buf);
+
+	return (rlen != 0);
+}
+
 size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	char *bsd_code;
+	char *bsd_code, *code_end, *cursor = NULL, *pending = NULL;
 	uint8_t *data = *src_data;
 	long pointer = 0;
 	long range_start = 0, range_end = 0;
@@ -884,8 +993,20 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 	}
 
 	apply_tag_opts(bsd_code, code);
-	for (char *line = strtok(bsd_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
+	code_end = bsd_code + strlen(bsd_code);
+
+	/* strtok_r(), not strtok(): a run of Save Wizard lines is handed to
+	   apollo_apply_sw_code(), which walks them with plain strtok() -- one hidden
+	   position for the whole program. With our own cursor that cannot move the
+	   script out from under this loop.
+
+	   `pending` is the line that ended such a run: it has already been read off
+	   the cursor, so the next round takes it instead of reading a new one. */
+	for (char *line = strtok_r(bsd_code, "\n", &cursor); line != NULL;
+		 line = pending ? pending : strtok_r(NULL, "\n", &cursor))
 	{
+		pending = NULL;
+
 		// carry(*)
 		if (wildcard_match_icase(line, "carry(*)"))
 		{
@@ -3161,6 +3282,14 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				BSD_REQUIRE(_exec_encryption_key_iv(CRYPT_BLOWFISH_CBC, cmode, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 
+		}
+
+		// XXXXXXXX YYYYYYYY: a run of Save Wizard lines. Last on purpose -- a
+		// BSD command can have the same shape ("write at 0x100:FF"), so only a
+		// line no command has claimed gets here.
+		else if (_is_sw_code_shape(line))
+		{
+			BSD_REQUIRE(_exec_sw_run(data, dsize, code, line, code_end, &cursor, &pending), "Save Wizard code failed");
 		}
 	}
 

@@ -429,6 +429,52 @@ Sets the carry byte value for add() and wadd() operations.
 
     carry(2)    ; Sets 2 byte carry
 
+Save Wizard lines
+-----------------
+:doc:`Save Wizard codes <savewizard>` can be written straight into a BSD script,
+with no command around them.
+
+**Syntax:**
+
+.. code-block:: text
+
+    XXXXXXXX YYYYYYYY
+    ...
+
+Any line in the Save Wizard shape that is not a BSD command starts a run of Save
+Wizard lines. The run is every consecutive Save Wizard line from there, and it is
+applied as one Save Wizard code, on the save data as the script has left it at
+that point -- after any ``decrypt``, ``insert`` or ``delete`` before it. The
+first line that is not a Save Wizard line ends the run, and the script carries on
+from that line.
+
+- Each run starts with its own Save Wizard pointer at ``0``. It does not see
+  the BSD ``pointer``, ``range`` or variables.
+- A BSD line between Save Wizard lines splits them into two separate runs. A run
+  does not carry anything into the next one, including a pointer set by a search
+  code (type ``8``), so keep codes that depend on each other in the same run.
+- A multi-line Save Wizard code type must be complete within its run. If a BSD
+  line cuts it short, the whole code is rejected.
+- A ``[LE:...]`` or ``[BE:...]`` prefix on the BSD code applies to its Save
+  Wizard lines too.
+- ``{tag}`` options work in Save Wizard lines, as they do in the rest of the
+  script, and they are replaced before the line is read.
+- Leading spaces are allowed, and so are ``;`` comment lines inside a run.
+- A line with the Save Wizard shape that is not valid hex rejects the whole code
+  before the run is applied. This covers an ``XX`` placeholder, for example.
+
+**Example:**
+
+.. code-block:: text
+
+    [Max Money + Fix Checksum]
+    decrypt aes_ecb("0123456789ABCDEF")
+    20000104 0098967F
+    set range:0x10,eof
+    set [csum]:crc32
+    write at 0x0C:[csum]
+    encrypt aes_ecb("0123456789ABCDEF")
+
 Encryption/Decryption Commands
 ==============================
 
