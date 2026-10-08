@@ -161,27 +161,76 @@ TEST(bsd_sw_lines_bsd_command_with_sw_shape)
     free(buf);
 }
 
-/* a line with the SW shape but not the hex rejects the code before the run is
-   applied -- at the start, in the middle, or right after it */
-TEST(bsd_sw_lines_malformed_line)
+/* ... including right after a run, where it is the line that ends it: the run
+   must hand it back rather than judge it by its shape */
+TEST(bsd_sw_lines_sw_shaped_command_ends_run)
 {
-    static const char* scripts[] = {
-        "00000004 000000xx\n00000005 000000AA",
-        "00000004 000000AA\n00000005 000000xx\n00000006 000000BB",
-        "00000004 000000AA\n00000005 000000xx",
-        "00000004 000000AA\n0000000G 00000001\nwrite at 0:01",
-    };
+    uint8_t* buf = zeroed(0x200);
+    size_t n = apply_bsd(&buf, 0x200,
+        "20000104 0098967F\n"
+        "write at 0x100:FF\n"
+        "set range:0x10,0x1FF\n"
+        "set [csum]:crc32\n"
+        "write at 0x0C:[csum]");
 
-    for (size_t i = 0; i < sizeof(scripts) / sizeof(scripts[0]); i++)
-    {
-        uint8_t* buf = zeroed(8);
-        size_t n = apply_bsd(&buf, 8, scripts[i]);
+    /* the SW 32-bit write follows the byte order; BSD writes bytes as given */
+    uint8_t* ref = zeroed(0x200);
+    apply_bsd(&ref, 0x200, apollo_test_be() ?
+        "write at 0x104:0098967F\n"
+        "write at 0x100:FF\n"
+        "set range:0x10,0x1FF\n"
+        "set [csum]:crc32\n"
+        "write at 0x0C:[csum]" :
+        "write at 0x104:7F969800\n"
+        "write at 0x100:FF\n"
+        "set range:0x10,0x1FF\n"
+        "set [csum]:crc32\n"
+        "write at 0x0C:[csum]");
 
-        uint8_t exp[8] = {0};
-        CHECK_U64("malformed sw line: rejected", n, 0);
-        CHECK_MEM("malformed sw line: nothing applied", buf, exp, sizeof(exp));
-        free(buf);
-    }
+    CHECK_U64("run + sw-shaped write: applied", n, 0x200);
+    CHECK_MEM("same as the bsd-only script", buf, ref, 0x200);
+    free(buf);
+    free(ref);
+}
+
+/* a line BSD does not know is skipped, as it always was -- even with the SW
+   shape: here a comment missing its ';' that is exactly 17 characters with a
+   space at 8. Rejecting the shape would break scripts that work today. */
+TEST(bsd_sw_lines_unknown_sw_shaped_line_skipped)
+{
+    uint8_t* buf = zeroed(0x200);
+    size_t n = apply_bsd(&buf, 0x200,
+        "set range:0x10,0x1FF\n"
+        "set [csum]:crc32\n"
+        "write at 0x100:FF\n"
+        "drop the comments");
+
+    uint8_t* ref = zeroed(0x200);
+    apply_bsd(&ref, 0x200,
+        "set range:0x10,0x1FF\n"
+        "set [csum]:crc32\n"
+        "write at 0x100:FF");
+
+    CHECK_U64("stray comment: still applied", n, 0x200);
+    CHECK_MEM("stray comment: ignored", buf, ref, 0x200);
+    free(buf);
+    free(ref);
+}
+
+/* a placeholder line is not hex, so it ends the run and is then skipped like
+   any line BSD does not know: the lines around it still apply, as two runs */
+TEST(bsd_sw_lines_placeholder_skipped)
+{
+    uint8_t* buf = zeroed(8);
+    size_t n = apply_bsd(&buf, 8,
+        "00000004 000000AA\n"
+        "00000005 000000xx\n"
+        "00000006 000000BB");
+
+    uint8_t exp[8] = {0, 0, 0, 0, 0xAA, 0, 0xBB, 0};
+    CHECK_U64("placeholder: applied", n, 8);
+    CHECK_MEM("placeholder line writes nothing", buf, exp, sizeof(exp));
+    free(buf);
 }
 
 /* a multi-line SW type cut short by a BSD line is rejected by the SW engine's

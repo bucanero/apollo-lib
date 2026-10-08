@@ -863,26 +863,16 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 }
 
 /*
- * The shape of a Save Wizard line, "XXXXXXXX YYYYYYYY", with any characters:
- * the same test as the loader's "???????? ????????". Leading spaces are not
- * part of it.
- */
-static int _is_sw_code_shape(const char* line)
-{
-	skip_spaces(line);
-	return (strlen(line) == SW_CODE_LINE_LEN && line[8] == ' ');
-}
-
-/*
- * Stricter than the shape: a line that runs has to be real hex, so a
- * placeholder such as "000000xx" rejects the code instead of being parsed as 0.
+ * A Save Wizard line, "XXXXXXXX YYYYYYYY", in real hex. Stricter than the
+ * loader's own "???????? ????????" shape test, where '?' matches any
+ * character. Leading spaces are not part of it.
  */
 static int _is_sw_code_line(const char* line)
 {
-	if (!_is_sw_code_shape(line))
+	skip_spaces(line);
+	if (strlen(line) != SW_CODE_LINE_LEN || line[8] != ' ')
 		return 0;
 
-	skip_spaces(line);
 	for (int i = 0; i < SW_CODE_LINE_LEN; i++)
 		if (i != 8 && !isxdigit((unsigned char) line[i]))
 			return 0;
@@ -898,8 +888,8 @@ static int _is_sw_code_line(const char* line)
  *   20000008 000000BB
  *   set range:0,eof
  *
- * There is no keyword: no BSD command has that shape, and the loop only gets
- * here once every command has failed to match. The run is every consecutive
+ * There is no keyword: no BSD command is all hex, and the loop only gets here
+ * once every command has failed to match. The run is every consecutive
  * Save Wizard line from `first`; the line that ends it is handed back through
  * `next` for the loop to run, or NULL at the end of the script.
  *
@@ -909,10 +899,11 @@ static int _is_sw_code_line(const char* line)
  * two separate codes. The byte-order flags of the enclosing code carry over, so
  * a [BE:...] BSD script runs its Save Wizard lines big-endian.
  *
- * A line with the shape but not the hex, inside the run or right after it,
- * rejects the whole code before the run is applied: silently skipping it would
- * drop one write out of the middle of a sequence. ';' comment lines inside a
- * run are skipped.
+ * The run ends at the first line that is not valid hex, whatever its shape,
+ * and that line goes back to the loop: it may be a command with the same shape
+ * ("write at 0x100:FF"). If no command claims it, it is skipped like any other
+ * line BSD does not know -- including a placeholder such as "000000xx", which
+ * then splits the run in two. ';' comment lines inside a run are skipped.
  */
 static int _exec_sw_run(uint8_t* data, size_t dsize, const code_entry_t* code, char* first, const char* code_end, char** cursor, char** next)
 {
@@ -939,14 +930,7 @@ static int _exec_sw_run(uint8_t* data, size_t dsize, const code_entry_t* code, c
 			continue;
 
 		if (!_is_sw_code_line(text))
-		{
-			if (!_is_sw_code_shape(text))
-				break;
-
-			LOG("ERROR: not a valid Save Wizard code line (%s)", text);
-			free(sw_buf);
-			return 0;
-		}
+			break;
 
 		memcpy(sw_buf + sw_len, text, SW_CODE_LINE_LEN);
 		sw_len += SW_CODE_LINE_LEN;
@@ -3287,7 +3271,7 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 		// XXXXXXXX YYYYYYYY: a run of Save Wizard lines. Last on purpose -- a
 		// BSD command can have the same shape ("write at 0x100:FF"), so only a
 		// line no command has claimed gets here.
-		else if (_is_sw_code_shape(line))
+		else if (_is_sw_code_line(line))
 		{
 			BSD_REQUIRE(_exec_sw_run(data, dsize, code, line, code_end, &cursor, &pending), "Save Wizard code failed");
 		}

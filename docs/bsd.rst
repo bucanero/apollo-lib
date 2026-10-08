@@ -460,8 +460,11 @@ from that line.
 - ``{tag}`` options work in Save Wizard lines, as they do in the rest of the
   script, and they are replaced before the line is read.
 - Leading spaces are allowed, and so are ``;`` comment lines inside a run.
-- A line with the Save Wizard shape that is not valid hex rejects the whole code
-  before the run is applied. This covers an ``XX`` placeholder, for example.
+- Only lines in valid hex count. A line that isn't, such as one with an ``XX``
+  placeholder, ends the run and is then skipped like any other line BSD does not
+  recognise, so a placeholder in the middle splits a run in two and writes
+  nothing itself. A BSD command that happens to have the same shape, such as
+  ``write at 0x100:FF``, still runs as BSD.
 
 **Example:**
 
