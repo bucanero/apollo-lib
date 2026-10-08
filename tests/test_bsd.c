@@ -74,6 +74,39 @@ TEST(bsd_write_next_pointer)
     free(buf);
 }
 
+/* set pointer:read(addr,len) takes the pointer from the save, big-endian. If
+ * either argument does not parse, nothing is read and the pointer is 0: each
+ * malformed form below used to land somewhere the save chose instead --
+ * read(foo,4) at offset 0's value (0xC), read(4,zz) at offset 4's (0x8). */
+TEST(bsd_set_pointer_read)
+{
+    static const struct { const char* arg; size_t at; } cases[] = {
+        { "read(0,4)",   0xC },
+        { "read(4,4)",   0x8 },
+        { "read(foo,4)", 0x0 },
+        { "read(4,zz)",  0x0 },
+    };
+    uint8_t init[16] = {0};
+    init[3] = 0x0C;
+    init[7] = 0x08;
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        char script[64];
+        snprintf(script, sizeof(script), "set pointer:%s\nwrite next 0:EE", cases[i].arg);
+
+        uint8_t* buf = dup_bytes(init, sizeof(init));
+        size_t n = apply_bsd(&buf, sizeof(init), script);
+
+        uint8_t exp[16];
+        memcpy(exp, init, sizeof(exp));
+        exp[cases[i].at] = 0xEE;
+        CHECK_U64("set pointer:read: size unchanged", n, sizeof(init));
+        CHECK_MEM("set pointer:read: write lands at the read pointer", buf, exp, sizeof(exp));
+        free(buf);
+    }
+}
+
 /* repeat(count,value) */
 TEST(bsd_write_repeat)
 {
@@ -494,6 +527,57 @@ TEST(hash_fletcher32_odd_length_zero_padded)
     CHECK_U64("fletcher32 odd length", apollo_hash_fletcher32(three, 3), 0x44552244);
 }
 
+/*
+ * DBZ Xenoverse 2: known answers for both branches, so the packing of the
+ * eight one-byte checksums is pinned without the external sample saves.
+ * Expected values worked out by hand from the algorithm (and cross-checked
+ * against an independent transcription), not captured from this engine.
+ *
+ * The value is out[7]..out[0], most significant first, and the patch writes it
+ * big-endian at 0x34, so the save gets out[7] at 0x34 and out[0] at 0x3B --
+ * on every host. Both the number and the bytes are checked, with no
+ * apollo_test_be() branch: the old memcpy() packing was only right on a
+ * little-endian host.
+ */
+static void dbzxv2_case(const uint8_t* init, uint64_t want, const char* label)
+{
+    uint8_t* buf = dup_bytes(init, 0x100);
+    uint8_t exp[8];
+
+    for (int i = 0; i < 8; i++)
+        exp[i] = (uint8_t) (want >> (8 * (7 - i)));
+
+    check_u64(__FILE__, __LINE__, label, apollo_hash_dbzxv2(init, 0x100), want);
+    check_u64(__FILE__, __LINE__, label,
+              apply_bsd(&buf, 0x100, "set [checkdbz]:dbzxv2_checksum\nwrite at 0x0034:[checkdbz]"), 0x100);
+    check_mem(__FILE__, __LINE__, label, buf + 0x34, exp, sizeof(exp));
+    free(buf);
+}
+
+TEST(hash_dbzxv2_known_answers)
+{
+    uint8_t a[0x100] = {0};
+    uint8_t b[0x100] = {0};
+
+    /* 0x34..0x3B all zero: checksum 8 only. out[7] = FF, and out[1] is the
+     * sum of the first byte of every 0x20 block from the 6th on. */
+    a[0xA0] = 0x10; a[0xC0] = 0x20; a[0xE0] = 0x30;
+    dbzxv2_case(a, 0xFF00000000006000ULL, "dbzxv2: checksum-8 branch");
+
+    /* Otherwise all eight. One or two bytes per sum, each a different value,
+     * so a checksum in the wrong slot cannot pass. out[0] wraps (0x80 + 0x90),
+     * and so does out[7] (0xF0 plus the other seven). */
+    b[0x3A] = 0x11;                                     /* out[1], reloaded */
+    b[0x26] = 0x01; b[0x33] = 0x02;                     /* out[6] = 03 */
+    b[0x3C] = 0x04; b[0x58] = 0x05;                     /* out[5] = 09 */
+    b[0x6C] = 0x06; b[0x88] = 0x07;                     /* out[4] = 0D */
+    b[0x5C] = 0x08; b[0x68] = 0x09;                     /* out[3] = 11 */
+    b[0x8C] = 0x0A; b[0x98] = 0x0B;                     /* out[2] = 15 */
+    b[0xA0] = 0x80; b[0xE0] = 0x90;                     /* out[0] = 10 */
+    b[0x25] = 0xF0;                                     /* out[7] = 50 */
+    dbzxv2_case(b, 0x5003090D11151110ULL, "dbzxv2: full branch");
+}
+
 /* An empty range must be well-defined, not a wrapped block length. */
 TEST(hash_fletcher_empty_range)
 {
@@ -647,9 +731,15 @@ TEST(bsd_host_account_id_is_big_endian)
     size_t len = 0;
 
     if (!tmpdir || !*tmpdir) tmpdir = "/tmp";
-    snprintf(tmp, sizeof(tmp), "%s/apollo_acct_%d.bin", tmpdir, (int) getpid());
-    if (write_buffer(tmp, zero, sizeof(zero)) != 0)
+
+    /* A setup failure is a FAILED check, not an early return: returning
+       quietly would report this guard as passing while it tested nothing. */
+    int w = snprintf(tmp, sizeof(tmp), "%s/apollo_acct_%d.bin", tmpdir, (int) getpid());
+    if (w < 0 || (size_t) w >= sizeof(tmp) || write_buffer(tmp, zero, sizeof(zero)) != 0)
+    {
+        CHECK_U64("host_account_id: temp file setup", 0, 1);
         return;
+    }
 
     memset(&c, 0, sizeof(c));
     c.type  = APOLLO_CODE_BSD;
@@ -663,10 +753,14 @@ TEST(bsd_host_account_id_is_big_endian)
 
     if (read_buffer(tmp, &out, &len) == 0)
     {
-        CHECK_MEM("host_account_id: written big-endian on every host",
-                  out, want, sizeof(want));
+        CHECK_U64("host_account_id: file size unchanged", len, sizeof(zero));
+        if (len >= sizeof(want))
+            CHECK_MEM("host_account_id: written big-endian on every host",
+                      out, want, sizeof(want));
         free(out);
     }
+    else
+        CHECK_U64("host_account_id: result read back", 0, 1);
     unlink(tmp);
 }
 
@@ -781,6 +875,52 @@ TEST(bsd_carry_fold_over_long_buffer)
 {
     carry_fold_case(0x2000,  0x1C, 0x1A, "ULUS10579 shape, 8KB: wadd carry(2), fold runs once");
     carry_fold_case(0x20000, 0x93, 0xA2, "ULUS10579 shape, 128KB: wadd carry(2), fold runs twice");
+}
+
+/*
+ * xor/and/or with an ASYMMETRIC mask at every kind of width. The mask arrives
+ * in file order and has to be laid out the way the variable is held:
+ * host-native at 2, 4 and 8 bytes, file order at any other width -- here
+ * right() and left() slices and a read() at 1 or 3 bytes. (Wider variables
+ * cannot be masked at all yet: re-setting a variable keeps only a 32-bit
+ * value.) A mask such as
+ * xor:010203 is what tells the two apart; a symmetric one (FFFF) cannot, which
+ * is how a little-endian build came to reverse the mask at EVERY width and
+ * apply it back to front against a 3-byte variable.
+ */
+TEST(bsd_bitwise_mask_byte_order)
+{
+    static const struct {
+        const char* script;
+        uint8_t exp[4];
+        size_t len;
+    } cases[] = {
+        /* integer widths: stored host-native */
+        { "set [v]:read(0,2)\nset [v]:xor:0102\nwrite at 8:[v]",
+          {0xAB, 0xB9}, 2 },
+        { "set [v]:read(0,4)\nset [v]:and:F0F00F0F\nwrite at 8:[v]",
+          {0xA0, 0xB0, 0x0C, 0x0D}, 4 },
+        /* every other width: stored in file order */
+        { "set [v]:read(0,3)\nset [v]:xor:010203\nwrite at 8:[v]",
+          {0xAB, 0xB9, 0xCF}, 3 },
+        { "set [v]:right(0x12345678,3)\nset [v]:xor:010203\nwrite at 8:[v]",
+          {0x35, 0x54, 0x7B}, 3 },
+        { "set [v]:left(0x12345678,3)\nset [v]:and:F00F0F\nwrite at 8:[v]",
+          {0x10, 0x04, 0x06}, 3 },
+        { "set [v]:right(0x12345678,1)\nset [v]:or:01\nwrite at 8:[v]",
+          {0x79}, 1 },
+    };
+    const uint8_t init[16] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        uint8_t* buf = dup_bytes(init, sizeof(init));
+        size_t n = apply_bsd(&buf, sizeof(init), cases[i].script);
+
+        CHECK_U64("bitwise mask: applied", n, sizeof(init));
+        CHECK_MEM("bitwise mask: bytes in file order", buf + 8, cases[i].exp, cases[i].len);
+        free(buf);
+    }
 }
 
 /*

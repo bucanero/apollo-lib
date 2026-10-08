@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <limits.h>
+#include <ctype.h>
 #ifdef _USE_MBEDTLS
 #include <mbedtls/md.h>
 #include <mbedtls/md5.h>
@@ -818,25 +819,15 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 		free(bw_val);
 		return 0;
 	}
-	if (apollo_get_host_endianness() == APOLLO_ENDIAN_LITTLE)
-	{
-		// workaround: _decode_variable_data() returns data as big endian
-		// convert it to the configured data endianness to match the variable
-		char* le_val = malloc(wlen ? wlen : 1);
+	/* _decode_variable_data() hands the mask back big-endian, i.e. in file
+	   order. Put it in the variable's own layout: host-native at 2, 4 and 8
+	   bytes, file order at every other width (a 1- or 3-byte slice).
+	   _swap_var_endianness() is that rule, so the mask goes through it too --
+	   reversing every width instead put an asymmetric mask such as
+	   xor:010203 back to front against a 3-byte variable. */
+	bsd_variable_t mask = { .len = wlen, .data = (uint8_t*) bw_val };
+	_swap_var_endianness(&mask);
 
-		if (!le_val)
-		{
-			LOG("[%s]:Bitwise error! out of memory", var->name);
-			free(bw_val);
-			return 0;
-		}
-
-		for (i=0; i < wlen; i++)
-			le_val[i] = bw_val[wlen - i - 1];
-
-		memcpy(bw_val, le_val, wlen);
-		free(le_val);
-	}
 	for (i=0; i < wlen; i++)
 		switch (type)
 		{
@@ -861,9 +852,103 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 	return 1;
 }
 
+/*
+ * A Save Wizard line, "XXXXXXXX YYYYYYYY", in real hex. Stricter than the
+ * loader's own "???????? ????????" shape test, where '?' matches any
+ * character. Leading spaces are not part of it.
+ */
+static int _is_sw_code_line(const char* line)
+{
+	skip_spaces(line);
+	if (strlen(line) != SW_CODE_LINE_LEN || line[8] != ' ')
+		return 0;
+
+	for (int i = 0; i < SW_CODE_LINE_LEN; i++)
+		if (i != 8 && !isxdigit((unsigned char) line[i]))
+			return 0;
+
+	return 1;
+}
+
+/*
+ * A run of Save Wizard lines inside a BSD script:
+ *
+ *   write at 0x10:00
+ *   20000004 000000AA      <- one Save Wizard code, these two lines
+ *   20000008 000000BB
+ *   set range:0,eof
+ *
+ * There is no keyword: no BSD command is all hex, and the loop only gets here
+ * once every command has failed to match. The run is every consecutive
+ * Save Wizard line from `first`; the line that ends it is handed back through
+ * `next` for the loop to run, or NULL at the end of the script.
+ *
+ * It runs against the script's buffer as it stands at this point (after any
+ * decrypt, insert or delete before it), from its own pointer = 0: it never sees
+ * BSD's pointer, range or variables, and a BSD line between two runs makes them
+ * two separate codes. The byte-order flags of the enclosing code carry over, so
+ * a [BE:...] BSD script runs its Save Wizard lines big-endian.
+ *
+ * The run ends at the first line that is not valid hex, whatever its shape,
+ * and that line goes back to the loop: it may be a command with the same shape
+ * ("write at 0x100:FF"). If no command claims it, it is skipped like any other
+ * line BSD does not know -- including a placeholder such as "000000xx", which
+ * then splits the run in two. ';' comment lines inside a run are skipped.
+ */
+static int _exec_sw_run(uint8_t* data, size_t dsize, const code_entry_t* code, char* first, const char* code_end, char** cursor, char** next)
+{
+	code_entry_t sw_code;
+	size_t sw_len = 0, rlen;
+	int lines = 0;
+	char* line;
+	char* sw_buf;
+
+	/* every run line, plus its '\n', fits in what is left of the script --
+	   except the script's own last line, which has no '\n' to reuse when it
+	   ends the run: hence +2, that '\n' and the NUL */
+	sw_buf = malloc(code_end - first + 2);
+	if (!sw_buf)
+	{
+		LOG("ERROR: out of memory");
+		return 0;
+	}
+
+	for (line = first; line != NULL; line = strtok_r(NULL, "\n", cursor))
+	{
+		char* text = line;
+		skip_spaces(text);
+
+		if (text[0] == ';')
+			continue;
+
+		if (!_is_sw_code_line(text))
+			break;
+
+		memcpy(sw_buf + sw_len, text, SW_CODE_LINE_LEN);
+		sw_len += SW_CODE_LINE_LEN;
+		sw_buf[sw_len++] = '\n';
+		lines++;
+	}
+	sw_buf[sw_len] = 0;
+	*next = line;
+
+	memset(&sw_code, 0, sizeof(sw_code));
+	sw_code.type = APOLLO_CODE_SAVEWIZARD;
+	sw_code.flags = code->flags & (APOLLO_CODE_FLAG_ORDER_LE | APOLLO_CODE_FLAG_ORDER_BE);
+	sw_code.name = code->name;
+	sw_code.file = code->file;
+	sw_code.codes = sw_buf;
+
+	LOG("Applying Save Wizard code (%d lines)", lines);
+	rlen = apollo_apply_sw_code(data, dsize, &sw_code);
+	free(sw_buf);
+
+	return (rlen != 0);
+}
+
 size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
 {
-	char *bsd_code;
+	char *bsd_code, *code_end, *cursor = NULL, *pending = NULL;
 	uint8_t *data = *src_data;
 	long pointer = 0;
 	long range_start = 0, range_end = 0;
@@ -884,8 +969,20 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 	}
 
 	apply_tag_opts(bsd_code, code);
-	for (char *line = strtok(bsd_code, "\n"); line != NULL; line = strtok(NULL, "\n"))
+	code_end = bsd_code + strlen(bsd_code);
+
+	/* strtok_r(), not strtok(): a run of Save Wizard lines is handed to
+	   apollo_apply_sw_code(), which walks them with plain strtok() -- one hidden
+	   position for the whole program. With our own cursor that cannot move the
+	   script out from under this loop.
+
+	   `pending` is the line that ended such a run: it has already been read off
+	   the cursor, so the next round takes it instead of reading a new one. */
+	for (char *line = strtok_r(bsd_code, "\n", &cursor); line != NULL;
+		 line = pending ? pending : strtok_r(NULL, "\n", &cursor))
 	{
+		pending = NULL;
+
 		// carry(*)
 		if (wildcard_match_icase(line, "carry(*)"))
 		{
@@ -984,11 +1081,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("read");
         			
 					int raddr = 0, rlen = 0;
+					uint32_t rval = 0;
+
+					/* Both arguments or nothing: a partial parse would read
+					   from offset 0 (read(foo,4)) or from an address the
+					   author never finished writing (read(10,foo)), and set
+					   the pointer from whatever the save holds there. The
+					   pointer goes to 0 instead, as for an out-of-bounds read. */
 					if (sscanf(line, "(%x,%x)", &raddr, &rlen) != 2)
 						LOG("Warning: unreadable read() arguments in '%s'", line);
-
-					uint32_t rval = 0;
-					if (_range_in_bounds(dsize, (long) raddr, 4))
+					else if (_range_in_bounds(dsize, (long) raddr, 4))
 						memcpy(&rval, &data[raddr], sizeof(rval));
 					BE32(rval);
 					LOG("address = %d len %d ", raddr, rlen);
@@ -3161,6 +3263,14 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 				BSD_REQUIRE(_exec_encryption_key_iv(CRYPT_BLOWFISH_CBC, cmode, line, (uint8_t*)data + range_start, (range_end - range_start)), "encryption command failed");
 			}
 
+		}
+
+		// XXXXXXXX YYYYYYYY: a run of Save Wizard lines. Last on purpose -- a
+		// BSD command can have the same shape ("write at 0x100:FF"), so only a
+		// line no command has claimed gets here.
+		else if (_is_sw_code_line(line))
+		{
+			BSD_REQUIRE(_exec_sw_run(data, dsize, code, line, code_end, &cursor, &pending), "Save Wizard code failed");
 		}
 	}
 
