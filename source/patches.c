@@ -819,25 +819,15 @@ static int _bitwise_var_value(int type, const char* line, bsd_variable_t* var)
 		free(bw_val);
 		return 0;
 	}
-	if (apollo_get_host_endianness() == APOLLO_ENDIAN_LITTLE)
-	{
-		// workaround: _decode_variable_data() returns data as big endian
-		// convert it to the configured data endianness to match the variable
-		char* le_val = malloc(wlen ? wlen : 1);
+	/* _decode_variable_data() hands the mask back big-endian, i.e. in file
+	   order. Put it in the variable's own layout: host-native at 2, 4 and 8
+	   bytes, file order at every other width (a 1- or 3-byte slice).
+	   _swap_var_endianness() is that rule, so the mask goes through it too --
+	   reversing every width instead put an asymmetric mask such as
+	   xor:010203 back to front against a 3-byte variable. */
+	bsd_variable_t mask = { .len = wlen, .data = (uint8_t*) bw_val };
+	_swap_var_endianness(&mask);
 
-		if (!le_val)
-		{
-			LOG("[%s]:Bitwise error! out of memory", var->name);
-			free(bw_val);
-			return 0;
-		}
-
-		for (i=0; i < wlen; i++)
-			le_val[i] = bw_val[wlen - i - 1];
-
-		memcpy(bw_val, le_val, wlen);
-		free(le_val);
-	}
 	for (i=0; i < wlen; i++)
 		switch (type)
 		{
