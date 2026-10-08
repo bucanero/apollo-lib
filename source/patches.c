@@ -1091,11 +1091,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					line += strlen("read");
         			
 					int raddr = 0, rlen = 0;
+					uint32_t rval = 0;
+
+					/* Both arguments or nothing: a partial parse would read
+					   from offset 0 (read(foo,4)) or from an address the
+					   author never finished writing (read(10,foo)), and set
+					   the pointer from whatever the save holds there. The
+					   pointer goes to 0 instead, as for an out-of-bounds read. */
 					if (sscanf(line, "(%x,%x)", &raddr, &rlen) != 2)
 						LOG("Warning: unreadable read() arguments in '%s'", line);
-
-					uint32_t rval = 0;
-					if (_range_in_bounds(dsize, (long) raddr, 4))
+					else if (_range_in_bounds(dsize, (long) raddr, 4))
 						memcpy(&rval, &data[raddr], sizeof(rval));
 					BE32(rval);
 					LOG("address = %d len %d ", raddr, rlen);

@@ -74,6 +74,39 @@ TEST(bsd_write_next_pointer)
     free(buf);
 }
 
+/* set pointer:read(addr,len) takes the pointer from the save, big-endian. If
+ * either argument does not parse, nothing is read and the pointer is 0: each
+ * malformed form below used to land somewhere the save chose instead --
+ * read(foo,4) at offset 0's value (0xC), read(4,zz) at offset 4's (0x8). */
+TEST(bsd_set_pointer_read)
+{
+    static const struct { const char* arg; size_t at; } cases[] = {
+        { "read(0,4)",   0xC },
+        { "read(4,4)",   0x8 },
+        { "read(foo,4)", 0x0 },
+        { "read(4,zz)",  0x0 },
+    };
+    uint8_t init[16] = {0};
+    init[3] = 0x0C;
+    init[7] = 0x08;
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        char script[64];
+        snprintf(script, sizeof(script), "set pointer:%s\nwrite next 0:EE", cases[i].arg);
+
+        uint8_t* buf = dup_bytes(init, sizeof(init));
+        size_t n = apply_bsd(&buf, sizeof(init), script);
+
+        uint8_t exp[16];
+        memcpy(exp, init, sizeof(exp));
+        exp[cases[i].at] = 0xEE;
+        CHECK_U64("set pointer:read: size unchanged", n, sizeof(init));
+        CHECK_MEM("set pointer:read: write lands at the read pointer", buf, exp, sizeof(exp));
+        free(buf);
+    }
+}
+
 /* repeat(count,value) */
 TEST(bsd_write_repeat)
 {
