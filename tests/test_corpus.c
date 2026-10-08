@@ -107,6 +107,10 @@ static void apply_one(const char* rel, int idx, code_entry_t* code,
 
     if (apollo_test_be())
         code->flags = APOLLO_CODE_FLAG_ORDER_BE;
+    else if (!(code->flags & (APOLLO_CODE_FLAG_ORDER_LE | APOLLO_CODE_FLAG_ORDER_BE)))
+        /* an unflagged code would follow the HOST order (see make_sw_code),
+           so the LE manifest would change on a big-endian machine */
+        code->flags |= APOLLO_CODE_FLAG_ORDER_LE;
     size_t out = apollo_apply_code(g_tmp_path, code, apollo_test_host_cb);
     if (out == 0) {
         printf("%s#%d\t%d\tnoop\t0\t-\n", rel, idx, code->type);

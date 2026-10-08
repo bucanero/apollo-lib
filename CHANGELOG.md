@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 — Unreleased
+## 3.0.0 — 2026-10-08
 
 Changes since [v2.1.0](https://github.com/bucanero/apollo-lib/releases/tag/v2.1.0).
 

@@ -16,6 +16,7 @@
  */
 #include <string.h>
 #include "test_common.h"
+#include "types.h"     /* apollo_get_host_endianness, APOLLO_ENDIAN_* */
 
 static void apply_sw(uint8_t* buf, size_t len, const char* codes)
 {
@@ -47,6 +48,42 @@ TEST(sw_write16)
         exp[2] = 0x34; exp[3] = 0x12;
     }
     CHECK_MEM("16-bit write 0x1234 @0x2", buf, exp, sizeof(buf));
+}
+
+/*
+ * A code with NO byte-order flag follows apollo_get_endianness(): the value
+ * set with apollo_set_endianness(), or by default the HOST's own order. That
+ * default is what makes an unflagged code write a PS3 save big-endian on the
+ * PS3 itself. Every other vector names its order (make_sw_code), so this is
+ * the one place the fallback runs -- and the expected bytes come from the
+ * machine, which is the point: on qemu-ppc64 this test expects 12 34.
+ */
+TEST(sw_unflagged_code_follows_host)
+{
+    const int host_be = (apollo_get_host_endianness() == APOLLO_ENDIAN_BIG);
+    const uint8_t host[2] = { host_be ? 0x12 : 0x34, host_be ? 0x34 : 0x12 };
+    const uint8_t le[2] = { 0x34, 0x12 }, be[2] = { 0x12, 0x34 };
+    static const struct { int set; } modes[] = {
+        { APOLLO_ENDIAN_DEFAULT }, { APOLLO_ENDIAN_LITTLE }, { APOLLO_ENDIAN_BIG },
+    };
+
+    for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++)
+    {
+        uint8_t buf[4] = {0};
+        code_entry_t c = make_sw_code("10000000 00001234");
+        c.flags = 0;
+
+        apollo_set_endianness(modes[i].set);
+        apollo_apply_sw_code(buf, sizeof(buf), &c);
+        apollo_set_endianness(APOLLO_ENDIAN_DEFAULT);
+
+        CHECK_MEM(modes[i].set == APOLLO_ENDIAN_DEFAULT ? "unflagged, default: host order" :
+                  modes[i].set == APOLLO_ENDIAN_LITTLE  ? "unflagged, set LE: little-endian" :
+                                                          "unflagged, set BE: big-endian",
+                  buf,
+                  modes[i].set == APOLLO_ENDIAN_DEFAULT ? host :
+                  modes[i].set == APOLLO_ENDIAN_LITTLE  ? le : be, 2);
+    }
 }
 
 /* Type 2 — 32-bit direct write (endian-sensitive). Canonical case. */

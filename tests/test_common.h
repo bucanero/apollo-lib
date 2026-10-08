@@ -11,10 +11,10 @@
  * The library selects little- vs big-endian save-data behavior at RUNTIME:
  * apollo_apply_sw_code() takes it from the code entry's
  * APOLLO_CODE_FLAG_ORDER_* flags, falling back to apollo_set_endianness()
- * (see source/patches.c). Nothing in the library branches on it at compile
- * time any more, so ONE binary covers both modes: run_registered_tests()
- * is called once per mode and the vector builders below stamp the matching
- * flag. This used to be two binaries built with -D__PS3_PC__.
+ * and then to the HOST's own order (see source/patches.c). ONE binary covers both
+ * modes: run_registered_tests() is called once per mode and the vector
+ * builders below stamp the matching flag -- in BOTH passes, so that "LE" means
+ * little-endian on a big-endian host too.
  *
  * Vectors whose expected bytes depend on the mode branch on
  * apollo_test_be(). Opcodes that use BE* (search/bulk, always big-endian) or
