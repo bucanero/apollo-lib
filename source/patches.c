@@ -913,8 +913,10 @@ static int _exec_sw_run(uint8_t* data, size_t dsize, const code_entry_t* code, c
 	char* line;
 	char* sw_buf;
 
-	/* every run line, plus its '\n', fits in what is left of the script */
-	sw_buf = malloc(code_end - first + 1);
+	/* every run line, plus its '\n', fits in what is left of the script --
+	   except the script's own last line, which has no '\n' to reuse when it
+	   ends the run: hence +2, that '\n' and the NUL */
+	sw_buf = malloc(code_end - first + 2);
 	if (!sw_buf)
 	{
 		LOG("ERROR: out of memory");
