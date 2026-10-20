@@ -2247,7 +2247,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) xor, BSD_VAR_INT32), "out of memory");
 
-					LOG("[%s]:XOR(0x%X , 0x%X, %d) = %X", var->name, xor_s, xor_e, xor_i, ((uint32_t*)var->data)[0]);
+					/* xor[] holds the result in file byte order (lane j XORs the
+					 * byte at offset j of every step), like the bytes read()
+					 * copies. Normalise it to host order the same way, so the
+					 * write path re-emits xor[0..3] unchanged and right()/+n see
+					 * the same value on every host. Without this a little-endian
+					 * build wrote the lanes back to front, and any arithmetic
+					 * on the result picked a different byte than the PS3 did. */
+					_swap_var_endianness(var);
+
+					LOG("[%s]:XOR(0x%X , 0x%X, %d) = %X", var->name, xor_s, xor_e, xor_i, _get_var_value(var));
 				}
 
 				// set [*]:read(*,*)*
