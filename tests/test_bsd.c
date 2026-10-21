@@ -1084,3 +1084,195 @@ TEST(bsd_hash_sw4_words_are_big_endian)
               buf, exp, sizeof(exp));
     free(buf);
 }
+
+/*
+ * xor(<start>,<end>,<step>): lane j XORs the byte at offset j of every step,
+ * so the result is up to four lanes in FILE byte order. The variable must hold
+ * them the way read() holds file bytes -- swapped to host order -- so `write`
+ * re-emits xor[0..3] unchanged and arithmetic sees one value on every host.
+ *
+ * It used to store the lanes raw. A little-endian build then wrote a 4-step
+ * XOR back to front (80 5D 39 E3 below), while the PS3 wrote it in order, and
+ * right([x],1) of a 1-step XOR was the XOR byte on one host and 00 on the
+ * other. None of this was covered: no vector, fixture or golden used xor().
+ *
+ * Data, and the hand-computed lanes:
+ *   0x00: 12 34 56 78   0x04: 01 02 04 08   0x08: FF 00 FF 00   0x0C: 0F 0F F0 F0
+ *   step 4 over 0x00..0x0F: E3 39 5D 80
+ *   step 2 over 0x00..0x07: 41 46
+ *   step 1 over 0x00..0x03: 08          step 1 over 0x00..0x02: 70
+ */
+static const uint8_t xor_init[0x20] = {
+    0x12, 0x34, 0x56, 0x78,  0x01, 0x02, 0x04, 0x08,
+    0xFF, 0x00, 0xFF, 0x00,  0x0F, 0x0F, 0xF0, 0xF0,
+};
+
+static void check_xor_write(const char* desc, const char* script, const uint8_t exp4[4])
+{
+    uint8_t* buf = dup_bytes(xor_init, sizeof(xor_init));
+    size_t n = apply_bsd(&buf, sizeof(xor_init), script);
+
+    CHECK_U64(desc, n, sizeof(xor_init));
+    CHECK_MEM(desc, buf + 0x18, exp4, 4);
+    CHECK_MEM("xor: source bytes untouched", buf, xor_init, 0x18);
+    free(buf);
+}
+
+TEST(bsd_xor_lanes_written_in_file_order)
+{
+    static const uint8_t step4[4] = { 0xE3, 0x39, 0x5D, 0x80 };
+    static const uint8_t step2[4] = { 0x41, 0x46, 0x00, 0x00 };
+    static const uint8_t step1[4] = { 0x08, 0x00, 0x00, 0x00 };
+
+    check_xor_write("xor(0,0x10,4): four lanes, in file order",
+                    "set [x]:xor(0x0,0x10,4)\nwrite at 0x18:[x]", step4);
+    check_xor_write("xor(0,8,2): two lanes, then zero lanes",
+                    "set [x]:xor(0x0,0x8,2)\nwrite at 0x18:[x]", step2);
+    check_xor_write("xor(0,4,1): one lane, then zero lanes",
+                    "set [x]:xor(0x0,0x4,1)\nwrite at 0x18:[x]", step1);
+}
+
+/* The end offset is exclusive, and the variable's old value is not an
+ * accumulator: unlike add()/wadd(), xor() always starts from zero. */
+TEST(bsd_xor_end_exclusive_and_not_seeded)
+{
+    static const uint8_t first3[4] = { 0x70, 0x00, 0x00, 0x00 };
+    static const uint8_t step1[4]  = { 0x08, 0x00, 0x00, 0x00 };
+
+    check_xor_write("xor(0,3,1) stops before offset 3",
+                    "set [x]:xor(0x0,0x3,1)\nwrite at 0x18:[x]", first3);
+    check_xor_write("xor() ignores the variable's previous value",
+                    "set [x]:0xFFFFFFFF\nset [x]:xor(0x0,0x4,1)\nwrite at 0x18:[x]", step1);
+}
+
+/* Steps outside 1..4 are clamped (0 would loop forever, >4 overruns the lanes),
+ * and an end past the buffer is clamped to its size. */
+TEST(bsd_xor_step_and_range_clamped)
+{
+    static const uint8_t step4_8[4] = { 0x13, 0x36, 0x52, 0x70 };
+    static const uint8_t step1[4]   = { 0x08, 0x00, 0x00, 0x00 };
+    static const uint8_t tail[4]    = { 0x0F, 0x0F, 0xF0, 0xF0 };
+    uint8_t* buf;
+
+    check_xor_write("xor step 9 is treated as 4",
+                    "set [x]:xor(0x0,0x8,9)\nwrite at 0x18:[x]", step4_8);
+    check_xor_write("xor step 0 is treated as 1",
+                    "set [x]:xor(0x0,0x4,0)\nwrite at 0x18:[x]", step1);
+
+    /* 0x0C..0x1F: one data word, then zeros; the end 0x40 is past the buffer */
+    buf = dup_bytes(xor_init, sizeof(xor_init));
+    CHECK_U64("xor end past the buffer: applied",
+              apply_bsd(&buf, sizeof(xor_init), "set [x]:xor(0xC,0x40,4)\nwrite at 0x0:[x]"),
+              sizeof(xor_init));
+    CHECK_MEM("xor end past the buffer is clamped", buf, tail, sizeof(tail));
+    free(buf);
+}
+
+/* The value arithmetic sees is the lanes read big-endian, the same on every
+ * host: a 1-step XOR is its byte in the TOP lane. So left([x],1) is the XOR
+ * byte, right([x],1) is 00, and (xor + 1) & 0xFF -- a per-frame check byte --
+ * is left([x],1) then +1 then right(,1). These are the bytes a big-endian host
+ * always produced; a little-endian one used to give 08 / 08 / 09 instead. */
+TEST(bsd_xor_value_is_host_independent)
+{
+    static const uint8_t top[1]    = { 0x08 };
+    static const uint8_t bottom[1] = { 0x00 };
+    static const uint8_t plus1[1]  = { 0x09 };
+    uint8_t* buf;
+
+    buf = dup_bytes(xor_init, sizeof(xor_init));
+    apply_bsd(&buf, sizeof(xor_init), "set [x]:xor(0x0,0x4,1)\nset [b]:left([x],1)\nwrite at 0x18:[b]");
+    CHECK_MEM("left(xor,1) is the XOR byte", buf + 0x18, top, 1);
+    free(buf);
+
+    buf = dup_bytes(xor_init, sizeof(xor_init));
+    apply_bsd(&buf, sizeof(xor_init), "set [x]:xor(0x0,0x4,1)\nset [b]:right([x],1)\nwrite at 0x18:[b]");
+    CHECK_MEM("right(xor,1) is the empty bottom lane", buf + 0x18, bottom, 1);
+    free(buf);
+
+    buf = dup_bytes(xor_init, sizeof(xor_init));
+    apply_bsd(&buf, sizeof(xor_init),
+              "set [x]:xor(0x0,0x4,1)\nset [b]:left([x],1)\nset [b]:right([b]+1,1)\nwrite at 0x18:[b]");
+    CHECK_MEM("(xor + 1) & 0xFF", buf + 0x18, plus1, 1);
+    free(buf);
+}
+
+/*
+ * set [v]:<hex literal or "string">: the value is bytes in the order typed,
+ * i.e. file order, exactly like the bytes read() copies -- so it must be held
+ * the same way, swapped to host order at the widths the variable reader takes
+ * for integers (2, 4, 8). Then `write` re-emits it as typed and arithmetic sees
+ * one value on every host.
+ *
+ * It used to be stored raw. A little-endian build then wrote "AABB" as BB AA
+ * and read "0A00" as 0x000A, while the PS3 wrote AA BB and read 0x0A00: a
+ * per-slot base passed through an option tag ("set [start]:{SF}", DMC3's
+ * checksum) checksummed the wrong range and wrote into another slot, and a
+ * 4-byte string ("ABCD") came out DCBA. 1- and
+ * 3-byte literals were already right (the reader assembles them big-endian),
+ * and "0x" literals of up to 8 digits never took this path.
+ */
+static void check_literal_write(const char* desc, const char* lit, const uint8_t* exp, size_t len)
+{
+    uint8_t init[16] = {0};
+    char script[64];
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    snprintf(script, sizeof(script), "set [v]:%s\nwrite at 0x0:[v]", lit);
+    CHECK_U64(desc, apply_bsd(&buf, sizeof(init), script), sizeof(init));
+    CHECK_MEM(desc, buf, exp, len);
+    free(buf);
+}
+
+TEST(bsd_set_literal_written_as_typed)
+{
+    static const uint8_t b1[1] = { 0xAA };
+    static const uint8_t b2[2] = { 0xAA, 0xBB };
+    static const uint8_t b3[3] = { 0xAA, 0xBB, 0xCC };
+    static const uint8_t b4[4] = { 0xAA, 0xBB, 0xCC, 0xDD };
+    static const uint8_t b5[5] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE };
+    static const uint8_t b8[8] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11 };
+    static const uint8_t lx[5] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE };
+    static const uint8_t s4[4] = { 'A', 'B', 'C', 'D' };
+
+    check_literal_write("set AA: 1 byte as typed",       "AA",               b1, sizeof(b1));
+    check_literal_write("set AABB: 2 bytes as typed",    "AABB",             b2, sizeof(b2));
+    check_literal_write("set AABBCC: 3 bytes as typed",  "AABBCC",           b3, sizeof(b3));
+    check_literal_write("set AABBCCDD: 4 bytes as typed","AABBCCDD",         b4, sizeof(b4));
+    check_literal_write("set AABBCCDDEE: 5 bytes as typed","AABBCCDDEE",     b5, sizeof(b5));
+    check_literal_write("set 8-byte literal as typed",   "AABBCCDDEEFF0011", b8, sizeof(b8));
+    check_literal_write("set 0x + 10 digits: raw bytes as typed", "0xAABBCCDDEE", lx, sizeof(lx));
+    check_literal_write("set \"ABCD\": a 4-byte string as typed", "\"ABCD\"", s4, sizeof(s4));
+}
+
+/* As a number the literal reads big-endian, the way it is written. */
+TEST(bsd_set_literal_value_is_host_independent)
+{
+    enum { N = 0xC00 };
+    static uint8_t init[N];
+    static const uint8_t ee[1]   = { 0xEE };
+    static const uint8_t low[1]  = { 0xDD };
+    static const uint8_t high[1] = { 0xAA };
+    uint8_t* buf;
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:0A00\nset pointer:[v]\nwrite next 0:EE");
+    CHECK_MEM("set 0A00 used as a pointer is 0xA00", buf + 0xA00, ee, 1);
+    CHECK_MEM("set 0A00 used as a pointer: nothing at 0xA", buf + 0xA, init, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:00000A00\nset [v]:[v]+0x10\nset pointer:[v]\nwrite next 0:EE");
+    CHECK_MEM("set 00000A00 + 0x10 is 0xA10", buf + 0xA10, ee, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:AABBCCDD\nset [b]:right([v],1)\nwrite at 0x0:[b]");
+    CHECK_MEM("right(AABBCCDD,1) is the last byte typed", buf, low, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:AABBCCDD\nset [b]:left([v],1)\nwrite at 0x0:[b]");
+    CHECK_MEM("left(AABBCCDD,1) is the first byte typed", buf, high, 1);
+    free(buf);
+}

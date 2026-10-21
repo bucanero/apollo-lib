@@ -4,7 +4,7 @@
 [![macOS Linux binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build.yml)
 [![Windows binaries](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml/badge.svg)](https://github.com/bucanero/apollo-lib/actions/workflows/build-win.yml)
 [![Twitter](https://img.shields.io/twitter/follow/dparrino?label=Follow)](https://twitter.com/dparrino)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bucanero/apollo-lib)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue)](https://deepwiki.com/bucanero/apollo-lib)
 
 This library and command-line tools implement a save-data patch engine that supports Save Wizard/Game Genie codes, Python scripts, and Bruteforce Save Data (BSD) scripts.
 
@@ -14,6 +14,7 @@ The library is cross-platform and is required to build:
 - [Apollo Save Tool PS4](https://github.com/bucanero/apollo-ps4)
 - [Apollo Save Tool PSP](https://github.com/bucanero/apollo-psp)
 - [Apollo Save Tool PS Vita](https://github.com/bucanero/apollo-vita)
+- [Apollo Save Patcher](https://github.com/bucanero/apollo-patcher) (Windows/Linux/Mac)
 
 ## Supported Code formats
 

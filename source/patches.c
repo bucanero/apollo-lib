@@ -2247,7 +2247,16 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 
 					BSD_REQUIRE(_set_var_data(var, (uint8_t*) xor, BSD_VAR_INT32), "out of memory");
 
-					LOG("[%s]:XOR(0x%X , 0x%X, %d) = %X", var->name, xor_s, xor_e, xor_i, ((uint32_t*)var->data)[0]);
+					/* xor[] holds the result in file byte order (lane j XORs the
+					 * byte at offset j of every step), like the bytes read()
+					 * copies. Normalise it to host order the same way, so the
+					 * write path re-emits xor[0..3] unchanged and right()/+n see
+					 * the same value on every host. Without this a little-endian
+					 * build wrote the lanes back to front, and any arithmetic
+					 * on the result picked a different byte than the PS3 did. */
+					_swap_var_endianness(var);
+
+					LOG("[%s]:XOR(0x%X , 0x%X, %d) = %X", var->name, xor_s, xor_e, xor_i, _get_var_value(var));
 				}
 
 				// set [*]:read(*,*)*
@@ -2501,9 +2510,24 @@ size_t apollo_apply_bsd_code(uint8_t** src_data, size_t dsize, const code_entry_
 					 * source, so aliasing var->len would clear the length the
 					 * lookup is about to read and yield an empty value. */
 					uint32_t vlen;
+					const char* val = line;
 
 					var->data = _decode_variable_data(line, &vlen);
 					var->len = vlen;
+
+					/* A hex literal or a quoted string decodes to bytes in the
+					 * order they are typed -- file order, like the bytes read()
+					 * copies -- so normalise it to host order the same way: the
+					 * write path converts 2-, 4- and 8-byte variables back.
+					 * Otherwise such a literal ("0A00", "AABBCCDD", "ABCD") was
+					 * written back to front and read as a different number on a
+					 * little-endian build than on the PS3. A [variable] value is
+					 * already in host order (and is normally taken by the
+					 * set [*]:[*] branch above). */
+					skip_spaces(val);
+					if (!wildcard_match(val, "[*]*"))
+						_swap_var_endianness(var);
+
 					LOG("[%s] = %s", var->name, line);
 				}
 			        
