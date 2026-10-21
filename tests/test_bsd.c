@@ -1196,3 +1196,83 @@ TEST(bsd_xor_value_is_host_independent)
     CHECK_MEM("(xor + 1) & 0xFF", buf + 0x18, plus1, 1);
     free(buf);
 }
+
+/*
+ * set [v]:<hex literal or "string">: the value is bytes in the order typed,
+ * i.e. file order, exactly like the bytes read() copies -- so it must be held
+ * the same way, swapped to host order at the widths the variable reader takes
+ * for integers (2, 4, 8). Then `write` re-emits it as typed and arithmetic sees
+ * one value on every host.
+ *
+ * It used to be stored raw. A little-endian build then wrote "AABB" as BB AA
+ * and read "0A00" as 0x000A, while the PS3 wrote AA BB and read 0x0A00: a
+ * per-slot base passed through an option tag ("set [start]:{SF}", DMC3's
+ * checksum) checksummed the wrong range and wrote into another slot, and a
+ * 4-byte string ("ABCD") came out DCBA. 1- and
+ * 3-byte literals were already right (the reader assembles them big-endian),
+ * and "0x" literals of up to 8 digits never took this path.
+ */
+static void check_literal_write(const char* desc, const char* lit, const uint8_t* exp, size_t len)
+{
+    uint8_t init[16] = {0};
+    char script[64];
+    uint8_t* buf = dup_bytes(init, sizeof(init));
+
+    snprintf(script, sizeof(script), "set [v]:%s\nwrite at 0x0:[v]", lit);
+    CHECK_U64(desc, apply_bsd(&buf, sizeof(init), script), sizeof(init));
+    CHECK_MEM(desc, buf, exp, len);
+    free(buf);
+}
+
+TEST(bsd_set_literal_written_as_typed)
+{
+    static const uint8_t b1[1] = { 0xAA };
+    static const uint8_t b2[2] = { 0xAA, 0xBB };
+    static const uint8_t b3[3] = { 0xAA, 0xBB, 0xCC };
+    static const uint8_t b4[4] = { 0xAA, 0xBB, 0xCC, 0xDD };
+    static const uint8_t b5[5] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE };
+    static const uint8_t b8[8] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11 };
+    static const uint8_t lx[5] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE };
+    static const uint8_t s4[4] = { 'A', 'B', 'C', 'D' };
+
+    check_literal_write("set AA: 1 byte as typed",       "AA",               b1, sizeof(b1));
+    check_literal_write("set AABB: 2 bytes as typed",    "AABB",             b2, sizeof(b2));
+    check_literal_write("set AABBCC: 3 bytes as typed",  "AABBCC",           b3, sizeof(b3));
+    check_literal_write("set AABBCCDD: 4 bytes as typed","AABBCCDD",         b4, sizeof(b4));
+    check_literal_write("set AABBCCDDEE: 5 bytes as typed","AABBCCDDEE",     b5, sizeof(b5));
+    check_literal_write("set 8-byte literal as typed",   "AABBCCDDEEFF0011", b8, sizeof(b8));
+    check_literal_write("set 0x + 10 digits: raw bytes as typed", "0xAABBCCDDEE", lx, sizeof(lx));
+    check_literal_write("set \"ABCD\": a 4-byte string as typed", "\"ABCD\"", s4, sizeof(s4));
+}
+
+/* As a number the literal reads big-endian, the way it is written. */
+TEST(bsd_set_literal_value_is_host_independent)
+{
+    enum { N = 0xC00 };
+    static uint8_t init[N];
+    static const uint8_t ee[1]   = { 0xEE };
+    static const uint8_t low[1]  = { 0xDD };
+    static const uint8_t high[1] = { 0xAA };
+    uint8_t* buf;
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:0A00\nset pointer:[v]\nwrite next 0:EE");
+    CHECK_MEM("set 0A00 used as a pointer is 0xA00", buf + 0xA00, ee, 1);
+    CHECK_MEM("set 0A00 used as a pointer: nothing at 0xA", buf + 0xA, init, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:00000A00\nset [v]:[v]+0x10\nset pointer:[v]\nwrite next 0:EE");
+    CHECK_MEM("set 00000A00 + 0x10 is 0xA10", buf + 0xA10, ee, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:AABBCCDD\nset [b]:right([v],1)\nwrite at 0x0:[b]");
+    CHECK_MEM("right(AABBCCDD,1) is the last byte typed", buf, low, 1);
+    free(buf);
+
+    buf = dup_bytes(init, N);
+    apply_bsd(&buf, N, "set [v]:AABBCCDD\nset [b]:left([v],1)\nwrite at 0x0:[b]");
+    CHECK_MEM("left(AABBCCDD,1) is the first byte typed", buf, high, 1);
+    free(buf);
+}
