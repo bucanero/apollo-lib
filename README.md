@@ -14,6 +14,7 @@ The library is cross-platform and is required to build:
 - [Apollo Save Tool PS4](https://github.com/bucanero/apollo-ps4)
 - [Apollo Save Tool PSP](https://github.com/bucanero/apollo-psp)
 - [Apollo Save Tool PS Vita](https://github.com/bucanero/apollo-vita)
+- [Apollo Save Patcher](https://github.com/bucanero/apollo-patcher) (Windows/Linux/Mac)
 
 ## Supported Code formats
 
