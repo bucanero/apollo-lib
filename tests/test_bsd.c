@@ -1276,3 +1276,36 @@ TEST(bsd_set_literal_value_is_host_independent)
     CHECK_MEM("left(AABBCCDD,1) is the first byte typed", buf, high, 1);
     free(buf);
 }
+
+/*
+ * A spaced reference, "set [y]: [x]", is not taken by the set [*]:[*] branch
+ * (the space defeats its match) and goes through the generic one, where
+ * _decode_variable_data() hands the referenced value back in FILE order. It
+ * has to be normalised like a literal; skipping references there wrote a copy
+ * of "AABB" as BB AA on a little-endian build while the original wrote AA BB.
+ */
+TEST(bsd_set_spaced_reference_copies_as_typed)
+{
+    static const struct { const char* setup; const uint8_t exp[8]; size_t len; } cases[] = {
+        { "set [x]:AABB",               { 0xAA, 0xBB }, 2 },
+        { "set [x]:AABBCCDD",           { 0xAA, 0xBB, 0xCC, 0xDD }, 4 },
+        { "set [x]:AABBCCDDEEFF0011",   { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11 }, 8 },
+        { "set [x]:read(0x10,2)",       { 0x12, 0x34 }, 2 },
+        { "set [x]:read(0x10,4)",       { 0x12, 0x34, 0x56, 0x78 }, 4 },
+        { "set [x]:read(0x10,8)",       { 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0 }, 8 },
+    };
+    static const uint8_t data[8] = { 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0 };
+    uint8_t init[0x20] = {0};
+    memcpy(init + 0x10, data, sizeof(data));
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        char script[96];
+        uint8_t* buf = dup_bytes(init, sizeof(init));
+
+        snprintf(script, sizeof(script), "%s\nset [y]: [x]\nwrite at 0x0:[y]", cases[i].setup);
+        CHECK_U64("spaced reference: applied", apply_bsd(&buf, sizeof(init), script), sizeof(init));
+        CHECK_MEM(cases[i].setup, buf, cases[i].exp, cases[i].len);
+        free(buf);
+    }
+}
