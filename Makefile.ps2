@@ -6,7 +6,7 @@ PREFIX   = $(PS2DEV)/ee/bin/mips64r5900el-ps2-elf
 CC       = $(PREFIX)-gcc
 CXX      = $(PREFIX)-g++
 AR       = $(PREFIX)-ar
-CFLAGS   = -Wl,-q -Wall -O2 -D_EE -G0 -D__PS2__ -D_GNU_SOURCE -Iinclude -I$(PS2SDK)/ports/include
+CFLAGS   = -Wl,-q -Wall -O2 -D_EE -G0 -D__PS2__ -D_GNU_SOURCE -DAPOLLO_NO_PYTHON -Iinclude -I$(PS2SDK)/ports/include
 CXXFLAGS = $(CFLAGS) -std=gnu++11
 
 .PHONY: all clean
