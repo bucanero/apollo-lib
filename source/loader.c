@@ -683,6 +683,13 @@ int apollo_load_code_list(char* buffer, list_t* list_codes, apollo_get_files_cb_
 		if (!code->type)
 			code->type = APOLLO_CODE_SAVEWIZARD;
 
+#ifdef APOLLO_NO_PYTHON
+		/* Built without MicroPython: keep Python codes listed, so the user
+		   knows they exist, but disabled, so they can't be applied. */
+		if (code->type == APOLLO_CODE_PYTHON)
+			code->flags |= APOLLO_CODE_FLAG_DISABLED;
+#endif
+
 		if(!code->codes || !code->codes[0])
 			code->flags |= APOLLO_CODE_FLAG_EMPTY;
 		else if (code->options_count)

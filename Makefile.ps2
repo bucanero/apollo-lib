@@ -1,6 +1,6 @@
 TARGET    = ps2-libapollo.a
 OBJS      = source/crc_util.o source/decrypt.o source/list.o source/loader.o source/offzip.o source/packzip.o \
-			source/patches.o source/wildcard.o
+			source/patches.o source/wildcard.o source/upy.o
 
 PREFIX   = $(PS2DEV)/ee/bin/mips64r5900el-ps2-elf
 CC       = $(PREFIX)-gcc

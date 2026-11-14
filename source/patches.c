@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <ctype.h>
 #ifdef _USE_MBEDTLS
@@ -21,7 +22,9 @@
 #include "apollo.h"
 #include "types.h"
 #include "crc_util.h"
+#ifndef APOLLO_NO_PYTHON
 #include "upy.h"
+#endif
 
 #define SUCCESS                 0
 #define skip_spaces(str)        while (*str == ' ') str++;
@@ -42,6 +45,14 @@
 #ifdef __vita__
 // PS Vita
 #define PY_HEAP_SIZE            (16 * 1024 * 1024)
+#elif defined(__PS2__)
+// PlayStation 2 (32 MB RAM): the save's size is added on top; the PS1/PS2
+// scripts use a few tens of KB
+#define PY_HEAP_SIZE            (1 * 1024 * 1024)
+#elif defined(_arch_dreamcast)
+// Dreamcast (16 MB RAM): the save's size is added on top; the largest
+// module in apollo-patches (mhworld.py) needs about 290 KB
+#define PY_HEAP_SIZE            (512 * 1024)
 #elif __PSP__
 // PlayStation Portable
 #define PY_HEAP_SIZE            (2 * 1024 * 1024)
@@ -96,7 +107,9 @@ enum
 
 static const char* save_file = NULL;
 static list_t* var_list = NULL;
+#ifndef APOLLO_NO_PYTHON
 static mp_state_ctx_t* upy = NULL;
+#endif
 static apollo_host_cb_t host_callback = NULL;
 
 static int _default_endianness = APOLLO_ENDIAN_DEFAULT;
@@ -542,12 +555,14 @@ void apollo_free_var_list(void)
 	list_free(var_list);
 	var_list = NULL;
 
+#ifndef APOLLO_NO_PYTHON
 	if (upy)
 	{
 		micropy_destroy(upy);
 		free(upy);
 		upy = NULL;
 	}
+#endif
 
 	_default_endianness = APOLLO_ENDIAN_DEFAULT;
 }
@@ -4367,6 +4382,7 @@ sw_end:
 	return (dsize);
 }
 
+#ifndef APOLLO_NO_PYTHON
 static void add_bsd_vars_python(struct _mp_state_ctx_t *upy_ctx)
 {
 	list_node_t *node;
@@ -4492,6 +4508,18 @@ py_end:
 
 	return (dsize);
 }
+
+#else
+// Built without MicroPython (APOLLO_NO_PYTHON): the loader flags Python codes as disabled, this is a fallback
+size_t apollo_apply_py_code(uint8_t** src_data, size_t dsize, const code_entry_t* code)
+{
+	(void) src_data;
+	(void) dsize;
+	(void) code;
+	LOG("Python codes are not supported in this build");
+	return 0;
+}
+#endif // APOLLO_NO_PYTHON
 
 static void* dummy_host_callback(int id, uint32_t* size)
 {
