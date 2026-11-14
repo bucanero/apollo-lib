@@ -40176,7 +40176,7 @@ const mp_obj_module_t mp_module_utime = {
 
 void micropy_gc_collect(mp_state_ctx_t *mp) {
     micropy_gc_collect_start(mp);
-    jmp_buf regs;
+    jmp_buf regs MP_JMPBUF_ALIGN;
     setjmp(regs);
     // GC stack (and regs because we captured them)
     void **regs_ptr = (void**)(void*)&regs;

@@ -1375,6 +1375,16 @@ int micropy_vprintf(struct _mp_state_ctx_t *mp_state, const mp_print_t *print, c
 
 #include <limits.h>
 #include <setjmp.h>
+
+// The PS2 EE's setjmp/longjmp save registers with 128-bit sq/lq, which ignore
+// the low 4 address bits, but its jmp_buf is only 8-byte aligned. A jmp_buf
+// that isn't 16-byte aligned gets the 8 bytes before it overwritten (for
+// nlr_buf_t that's 'prev', which breaks the exception handler chain).
+#if defined(__PS2__) || defined(_EE)
+#define MP_JMPBUF_ALIGN __attribute__((aligned(16)))
+#else
+#define MP_JMPBUF_ALIGN
+#endif
 #include <assert.h>
 
 //#include "py/mpconfig.h"
@@ -1404,7 +1414,7 @@ struct _nlr_buf_t {
 #endif
 
 #if MICROPY_NLR_SETJMP
-    jmp_buf jmpbuf;
+    jmp_buf jmpbuf MP_JMPBUF_ALIGN;
 #endif
 };
 

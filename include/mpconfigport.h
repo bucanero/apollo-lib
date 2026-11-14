@@ -69,6 +69,9 @@
 #ifdef __vita__
 // PS Vita
 #define MICROPY_PY_SYS_PLATFORM     "apollo-vita"
+#elif defined(__PS2__)
+// PlayStation 2
+#define MICROPY_PY_SYS_PLATFORM     "apollo-ps2"
 #elif __PSP__
 // PlayStation Portable
 #define MICROPY_PY_SYS_PLATFORM     "apollo-psp"

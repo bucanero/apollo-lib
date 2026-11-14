@@ -45,6 +45,10 @@
 #ifdef __vita__
 // PS Vita
 #define PY_HEAP_SIZE            (16 * 1024 * 1024)
+#elif defined(__PS2__)
+// PlayStation 2 (32 MB RAM): the save's size is added on top; the PS1/PS2
+// scripts use a few tens of KB
+#define PY_HEAP_SIZE            (1 * 1024 * 1024)
 #elif __PSP__
 // PlayStation Portable
 #define PY_HEAP_SIZE            (2 * 1024 * 1024)
