@@ -72,6 +72,9 @@
 #elif defined(__PS2__)
 // PlayStation 2
 #define MICROPY_PY_SYS_PLATFORM     "apollo-ps2"
+#elif defined(_arch_dreamcast)
+// Dreamcast
+#define MICROPY_PY_SYS_PLATFORM     "apollo-dc"
 #elif __PSP__
 // PlayStation Portable
 #define MICROPY_PY_SYS_PLATFORM     "apollo-psp"

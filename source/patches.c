@@ -49,6 +49,10 @@
 // PlayStation 2 (32 MB RAM): the save's size is added on top; the PS1/PS2
 // scripts use a few tens of KB
 #define PY_HEAP_SIZE            (1 * 1024 * 1024)
+#elif defined(_arch_dreamcast)
+// Dreamcast (16 MB RAM): the save's size is added on top; the largest
+// module in apollo-patches (mhworld.py) needs about 290 KB
+#define PY_HEAP_SIZE            (512 * 1024)
 #elif __PSP__
 // PlayStation Portable
 #define PY_HEAP_SIZE            (2 * 1024 * 1024)
